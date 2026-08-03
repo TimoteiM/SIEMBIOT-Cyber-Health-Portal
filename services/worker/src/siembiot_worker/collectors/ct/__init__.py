@@ -1,0 +1,1 @@
+"""Certificate Transparency fixture collector."""

@@ -46,6 +46,26 @@ class TLSBroker(Protocol):
     ) -> FixtureBrokerResult: ...
 
 
+class RDAPBroker(Protocol):
+    def query_rdap(
+        self,
+        scenario_id: str,
+        domain: str,
+        *,
+        cancelled: Callable[[], bool] | None = None,
+    ) -> FixtureBrokerResult: ...
+
+
+class CTBroker(Protocol):
+    def query_ct(
+        self,
+        scenario_id: str,
+        domain: str,
+        *,
+        cancelled: Callable[[], bool] | None = None,
+    ) -> FixtureBrokerResult: ...
+
+
 @dataclass(frozen=True)
 class FixtureCollectorContext:
     scope_reference: str

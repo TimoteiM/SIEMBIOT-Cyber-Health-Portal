@@ -1,0 +1,1 @@
+"""RDAP fixture collector."""
