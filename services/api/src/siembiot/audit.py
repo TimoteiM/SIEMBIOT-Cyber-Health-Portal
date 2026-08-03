@@ -20,8 +20,8 @@ def append_audit_event(
     correlation_id: str,
     outcome: str,
     context: dict[str, Any] | None = None,
-) -> None:
-    connection.execute(
+) -> UUID:
+    event_id = connection.execute(
         text(
             """
             INSERT INTO audit_events (
@@ -30,7 +30,7 @@ def append_audit_event(
             ) VALUES (
                 :organization_id, :actor_type, :actor_id, :action, :resource_type, :resource_id,
                 :request_id, :correlation_id, :outcome, CAST(:context AS jsonb)
-            )
+            ) RETURNING id
             """
         ),
         {
@@ -45,4 +45,5 @@ def append_audit_event(
             "outcome": outcome,
             "context": json.dumps(context or {}, separators=(",", ":"), sort_keys=True),
         },
-    )
+    ).scalar_one()
+    return UUID(str(event_id))

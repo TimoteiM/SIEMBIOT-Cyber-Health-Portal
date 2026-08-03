@@ -26,6 +26,8 @@ class Action(StrEnum):
     AUTHORIZATION_MANAGE = "authorization.manage"
     EMERGENCY_CONTROL_READ = "emergency_control.read"
     EMERGENCY_CONTROL_MANAGE = "emergency_control.manage"
+    EVIDENCE_READ = "evidence.read"
+    FINDING_MANAGE = "finding.manage"
 
 
 ROLE_ACTIONS: dict[Role, frozenset[Action]] = {
@@ -46,6 +48,8 @@ ROLE_ACTIONS: dict[Role, frozenset[Action]] = {
             Action.AUTHORIZATION_MANAGE,
             Action.EMERGENCY_CONTROL_READ,
             Action.EMERGENCY_CONTROL_MANAGE,
+            Action.EVIDENCE_READ,
+            Action.FINDING_MANAGE,
         }
     ),
     Role.ANALYST: frozenset(
@@ -55,6 +59,7 @@ ROLE_ACTIONS: dict[Role, frozenset[Action]] = {
             Action.DOMAIN_READ,
             Action.AUTHORIZATION_READ,
             Action.EMERGENCY_CONTROL_READ,
+            Action.EVIDENCE_READ,
         }
     ),
     Role.VIEWER_AUDITOR: frozenset(
@@ -65,6 +70,7 @@ ROLE_ACTIONS: dict[Role, frozenset[Action]] = {
             Action.DOMAIN_READ,
             Action.AUTHORIZATION_READ,
             Action.EMERGENCY_CONTROL_READ,
+            Action.EVIDENCE_READ,
         }
     ),
     Role.MATURITY_CONTRIBUTOR: frozenset({Action.ORGANIZATION_READ}),

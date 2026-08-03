@@ -676,6 +676,190 @@
         "title": "EmergencyControlResponse",
         "type": "object"
       },
+      "FindingEventCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "event_type": {
+            "enum": [
+              "suppressed",
+              "accepted_risk",
+              "reopened",
+              "remediation_verified"
+            ],
+            "title": "Event Type",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 1000,
+            "minLength": 10,
+            "title": "Reason",
+            "type": "string"
+          },
+          "review_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review At"
+          },
+          "scope_reference": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Scope Reference",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_type",
+          "reason",
+          "scope_reference"
+        ],
+        "title": "FindingEventCreate",
+        "type": "object"
+      },
+      "FindingEventResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "actor_id": {
+            "format": "uuid",
+            "title": "Actor Id",
+            "type": "string"
+          },
+          "correlation_id": {
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "event_type": {
+            "title": "Event Type",
+            "type": "string"
+          },
+          "finding_id": {
+            "format": "uuid",
+            "title": "Finding Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "review_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review At"
+          },
+          "scope_reference": {
+            "title": "Scope Reference",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "finding_id",
+          "event_type",
+          "actor_id",
+          "reason",
+          "scope_reference",
+          "occurred_at",
+          "review_at",
+          "request_id",
+          "correlation_id"
+        ],
+        "title": "FindingEventResponse",
+        "type": "object"
+      },
+      "FindingResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_id": {
+            "format": "uuid",
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "check_id": {
+            "title": "Check Id",
+            "type": "string"
+          },
+          "classification": {
+            "enum": [
+              "DEMO/FIXTURE",
+              "PRIVATE"
+            ],
+            "title": "Classification",
+            "type": "string"
+          },
+          "evidence_mode": {
+            "enum": [
+              "fixture",
+              "live"
+            ],
+            "title": "Evidence Mode",
+            "type": "string"
+          },
+          "first_seen_at": {
+            "format": "date-time",
+            "title": "First Seen At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "publishable": {
+            "title": "Publishable",
+            "type": "boolean"
+          },
+          "severity": {
+            "enum": [
+              "info",
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ],
+            "title": "Severity",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "asset_id",
+          "check_id",
+          "evidence_mode",
+          "severity",
+          "first_seen_at",
+          "publishable",
+          "classification"
+        ],
+        "title": "FindingResponse",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1075,6 +1259,88 @@
           "created_at"
         ],
         "title": "ScopeManifestResponse",
+        "type": "object"
+      },
+      "ScoreSnapshotResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_id": {
+            "format": "uuid",
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "attribution_confidence": {
+            "title": "Attribution Confidence",
+            "type": "number"
+          },
+          "classification": {
+            "enum": [
+              "DEMO/FIXTURE",
+              "PRIVATE"
+            ],
+            "title": "Classification",
+            "type": "string"
+          },
+          "coverage": {
+            "title": "Coverage",
+            "type": "number"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "evidence_confidence": {
+            "title": "Evidence Confidence",
+            "type": "number"
+          },
+          "evidence_mode": {
+            "enum": [
+              "fixture",
+              "live"
+            ],
+            "title": "Evidence Mode",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "methodology_version": {
+            "title": "Methodology Version",
+            "type": "string"
+          },
+          "publishable": {
+            "title": "Publishable",
+            "type": "boolean"
+          },
+          "technical_posture": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Technical Posture"
+          }
+        },
+        "required": [
+          "id",
+          "asset_id",
+          "evidence_mode",
+          "methodology_version",
+          "technical_posture",
+          "coverage",
+          "evidence_confidence",
+          "attribution_confidence",
+          "publishable",
+          "classification",
+          "created_at"
+        ],
+        "title": "ScoreSnapshotResponse",
         "type": "object"
       },
       "SessionResponse": {
@@ -2704,6 +2970,284 @@
         "summary": "Deactivate",
         "tags": [
           "emergency-controls"
+        ]
+      }
+    },
+    "/api/v1/organizations/{organization_id}/evidence/findings": {
+      "get": {
+        "operationId": "list_findings_api_v1_organizations__organization_id__evidence_findings_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "__Host-siembiot_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "  Host-Siembiot Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FindingResponse"
+                  },
+                  "title": "Response List Findings Api V1 Organizations  Organization Id  Evidence Findings Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Findings",
+        "tags": [
+          "evidence"
+        ]
+      }
+    },
+    "/api/v1/organizations/{organization_id}/evidence/findings/{finding_id}/events": {
+      "post": {
+        "operationId": "create_finding_event_api_v1_organizations__organization_id__evidence_findings__finding_id__events_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "finding_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Finding Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "__Host-siembiot_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "  Host-Siembiot Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FindingEventCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FindingEventResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Finding Event",
+        "tags": [
+          "evidence"
+        ]
+      }
+    },
+    "/api/v1/organizations/{organization_id}/evidence/findings/{finding_id}/history": {
+      "get": {
+        "operationId": "finding_history_api_v1_organizations__organization_id__evidence_findings__finding_id__history_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "finding_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Finding Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "__Host-siembiot_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "  Host-Siembiot Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FindingEventResponse"
+                  },
+                  "title": "Response Finding History Api V1 Organizations  Organization Id  Evidence Findings  Finding Id  History Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Finding History",
+        "tags": [
+          "evidence"
+        ]
+      }
+    },
+    "/api/v1/organizations/{organization_id}/evidence/snapshots": {
+      "get": {
+        "operationId": "list_snapshots_api_v1_organizations__organization_id__evidence_snapshots_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "__Host-siembiot_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "  Host-Siembiot Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ScoreSnapshotResponse"
+                  },
+                  "title": "Response List Snapshots Api V1 Organizations  Organization Id  Evidence Snapshots Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Snapshots",
+        "tags": [
+          "evidence"
         ]
       }
     },

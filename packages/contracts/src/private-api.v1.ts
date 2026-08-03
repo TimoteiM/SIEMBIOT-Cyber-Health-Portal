@@ -365,6 +365,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/organizations/{organization_id}/evidence/findings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Findings */
+        get: operations["list_findings_api_v1_organizations__organization_id__evidence_findings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/evidence/findings/{finding_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Finding Event */
+        post: operations["create_finding_event_api_v1_organizations__organization_id__evidence_findings__finding_id__events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/evidence/findings/{finding_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Finding History */
+        get: operations["finding_history_api_v1_organizations__organization_id__evidence_findings__finding_id__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/evidence/snapshots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Snapshots */
+        get: operations["list_snapshots_api_v1_organizations__organization_id__evidence_snapshots_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/organizations/{organization_id}/invitations": {
         parameters: {
             query?: never;
@@ -767,6 +835,92 @@ export interface components {
              */
             scope: "global" | "organization" | "domain" | "operation_class";
         };
+        /** FindingEventCreate */
+        FindingEventCreate: {
+            /**
+             * Event Type
+             * @enum {string}
+             */
+            event_type: "suppressed" | "accepted_risk" | "reopened" | "remediation_verified";
+            /** Reason */
+            reason: string;
+            /** Review At */
+            review_at?: string | null;
+            /** Scope Reference */
+            scope_reference: string;
+        };
+        /** FindingEventResponse */
+        FindingEventResponse: {
+            /**
+             * Actor Id
+             * Format: uuid
+             */
+            actor_id: string;
+            /** Correlation Id */
+            correlation_id: string;
+            /** Event Type */
+            event_type: string;
+            /**
+             * Finding Id
+             * Format: uuid
+             */
+            finding_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /** Reason */
+            reason: string;
+            /** Request Id */
+            request_id: string;
+            /** Review At */
+            review_at: string | null;
+            /** Scope Reference */
+            scope_reference: string;
+        };
+        /** FindingResponse */
+        FindingResponse: {
+            /**
+             * Asset Id
+             * Format: uuid
+             */
+            asset_id: string;
+            /** Check Id */
+            check_id: string;
+            /**
+             * Classification
+             * @enum {string}
+             */
+            classification: "DEMO/FIXTURE" | "PRIVATE";
+            /**
+             * Evidence Mode
+             * @enum {string}
+             */
+            evidence_mode: "fixture" | "live";
+            /**
+             * First Seen At
+             * Format: date-time
+             */
+            first_seen_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Publishable */
+            publishable: boolean;
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "info" | "low" | "medium" | "high" | "critical";
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -995,6 +1149,46 @@ export interface components {
             manifest_version: "v1";
             /** Payload Sha256 */
             payload_sha256: string;
+        };
+        /** ScoreSnapshotResponse */
+        ScoreSnapshotResponse: {
+            /**
+             * Asset Id
+             * Format: uuid
+             */
+            asset_id: string;
+            /** Attribution Confidence */
+            attribution_confidence: number;
+            /**
+             * Classification
+             * @enum {string}
+             */
+            classification: "DEMO/FIXTURE" | "PRIVATE";
+            /** Coverage */
+            coverage: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Evidence Confidence */
+            evidence_confidence: number;
+            /**
+             * Evidence Mode
+             * @enum {string}
+             */
+            evidence_mode: "fixture" | "live";
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Methodology Version */
+            methodology_version: string;
+            /** Publishable */
+            publishable: boolean;
+            /** Technical Posture */
+            technical_posture: number | null;
         };
         /** SessionResponse */
         SessionResponse: {
@@ -1871,6 +2065,144 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EmergencyControlResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_findings_api_v1_organizations__organization_id__evidence_findings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: {
+                "__Host-siembiot_session"?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FindingResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_finding_event_api_v1_organizations__organization_id__evidence_findings__finding_id__events_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                finding_id: string;
+            };
+            cookie?: {
+                "__Host-siembiot_session"?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FindingEventCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FindingEventResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    finding_history_api_v1_organizations__organization_id__evidence_findings__finding_id__history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                finding_id: string;
+            };
+            cookie?: {
+                "__Host-siembiot_session"?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FindingEventResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_snapshots_api_v1_organizations__organization_id__evidence_snapshots_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: {
+                "__Host-siembiot_session"?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScoreSnapshotResponse"][];
                 };
             };
             /** @description Validation Error */
