@@ -129,6 +129,23 @@ def test_fixture_evaluation_is_policy_hash_bound_and_non_publishable() -> None:
     assert evaluation.evaluation_id.startswith("sha256-v1:")
     assert evaluation.mode.value == "fixture"
     assert not evaluation.publishable
+    assert evaluation.asset_authorized is False
+
+
+def test_asset_authorization_requires_explicit_affirmative_proof() -> None:
+    check = next(item for item in CATALOG.checks if item.check_id == "dns.dnssec")
+    result = evaluate_check(
+        check,
+        (
+            normalized(
+                ObservationOutcome.PASS,
+                {"record_type": "DNSSEC", "secure": True, "asset_authorized": True},
+            ),
+        ),
+        CATALOG,
+        context(),
+    )
+    assert result.asset_authorized is True
 
 
 def test_stale_and_future_evidence_never_drive_posture() -> None:

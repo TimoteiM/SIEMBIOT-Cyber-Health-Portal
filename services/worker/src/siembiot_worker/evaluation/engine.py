@@ -88,9 +88,7 @@ def evaluate_check(
         disagreement = len({result[0] for result in results}) > 1 or any(
             item.payload.get("provider_disagreement") is True for item in matches
         )
-        asset_authorized = all(
-            item.payload.get("asset_authorized") is not False for item in matches
-        )
+        asset_authorized = all(item.payload.get("asset_authorized") is True for item in matches)
     else:
         if organization_id is None or asset_id is None or mode is None:
             raise ValueError("missing_evaluation_identity")

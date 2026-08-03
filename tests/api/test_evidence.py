@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 import psycopg
+import pytest
 from fastapi.testclient import TestClient
 from siembiot.auth import Principal, current_principal, require_csrf
 from siembiot.config import Settings
@@ -156,3 +157,34 @@ def test_cross_tenant_and_low_role_decisions_are_denied(postgres_database: dict[
             },
         )
         assert response.status_code in {403, 404}
+
+
+def test_database_rejects_equal_timestamp_finding_events(
+    postgres_database: dict[str, str],
+) -> None:
+    org, finding, principal = seed_finding(postgres_database["owner_url"])
+    with psycopg.connect(postgres_database["owner_url"]) as owner:
+        previous = owner.execute(
+            "SELECT occurred_at,scope_reference FROM finding_events WHERE finding_id=%s",
+            (finding,),
+        ).fetchone()
+        assert previous is not None
+        audit = owner.execute(
+            "INSERT INTO audit_events(organization_id,actor_type,actor_id,action,resource_type,resource_id,request_id,correlation_id,outcome) VALUES(%s,'user',%s,'finding.suppressed','finding',%s,'01K1X6HBFM6W2Y0M76K5G5HT3E','01K1X6HBFM6W2Y0M76K5G5HT3F','success') RETURNING id",
+            (org, str(principal.user_id), str(finding)),
+        ).fetchone()
+        assert audit is not None
+        with pytest.raises(psycopg.errors.CheckViolation, match="chronology violation"):
+            owner.execute(
+                "INSERT INTO finding_events(organization_id,finding_id,evidence_mode,event_hash,event_type,actor_id,reason,scope_reference,occurred_at,review_at,request_id,correlation_id,audit_event_id) VALUES(%s,%s,'fixture',%s,'suppressed',%s,'Equal timestamps are rejected',%s,%s,%s + interval '1 day','01K1X6HBFM6W2Y0M76K5G5HT3E','01K1X6HBFM6W2Y0M76K5G5HT3F',%s)",
+                (
+                    org,
+                    finding,
+                    bytes.fromhex("55" * 32),
+                    principal.user_id,
+                    previous[1],
+                    previous[0],
+                    previous[0],
+                    audit[0],
+                ),
+            )

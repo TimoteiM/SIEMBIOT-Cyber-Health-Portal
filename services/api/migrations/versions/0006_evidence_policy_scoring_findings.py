@@ -36,7 +36,7 @@ def upgrade() -> None:
       normalized_hash bytea NOT NULL CHECK(octet_length(normalized_hash)=32), hash_version text NOT NULL CHECK(hash_version='sha256-v1'),
       schema_version text NOT NULL CHECK(schema_version='v1'), observation_type text NOT NULL CHECK(observation_type ~ '^[a-z][a-z0-9._-]{1,127}$'),
       source_evidence_id text NOT NULL CHECK(source_evidence_id ~ '^sha256:[a-f0-9]{64}$'), payload jsonb NOT NULL CHECK(jsonb_typeof(payload)='object'),
-      provenance jsonb NOT NULL CHECK(jsonb_typeof(provenance)='object'), freshness_seconds integer NOT NULL CHECK(freshness_seconds>=0),
+      provenance jsonb NOT NULL CHECK(jsonb_typeof(provenance)='object' AND provenance ?& ARRAY['collector_id','collector_version','adapter_id','adapter_version','normalizer_version','scenario_id','scenario_sha256']), freshness_seconds integer NOT NULL CHECK(freshness_seconds>=0),
       observed_at timestamptz NOT NULL, source_confidence numeric(7,6) NOT NULL CHECK(source_confidence BETWEEN 0 AND 1),
       attribution_confidence numeric(7,6) NOT NULL CHECK(attribution_confidence BETWEEN 0 AND 1),
       publishable boolean NOT NULL DEFAULT false, real_world boolean NOT NULL DEFAULT false, created_at timestamptz NOT NULL DEFAULT now(),
@@ -138,7 +138,7 @@ def upgrade() -> None:
       LOOP EXECUTE format('CREATE TRIGGER %I_immutable BEFORE UPDATE OR DELETE ON %I FOR EACH ROW EXECUTE FUNCTION prevent_evidence_mutation()', table_name, table_name); END LOOP;
     END $$;
     CREATE FUNCTION validate_finding_event() RETURNS trigger LANGUAGE plpgsql AS $$
-    DECLARE prior_state text; expected_scope text; member_role text;
+    DECLARE prior_state text; prior_occurred timestamptz; expected_scope text; member_role text;
     BEGIN
       PERFORM pg_advisory_xact_lock(hashtextextended(NEW.organization_id::text || ':' || NEW.finding_id::text, 0));
       SELECT scope_manifest_id::text INTO expected_scope FROM findings
@@ -146,11 +146,10 @@ def upgrade() -> None:
       IF NEW.scope_reference <> expected_scope THEN
         RAISE EXCEPTION 'finding scope mismatch' USING ERRCODE='23514';
       END IF;
-      SELECT event_type INTO prior_state FROM finding_events
+      SELECT event_type,occurred_at INTO prior_state,prior_occurred FROM finding_events
         WHERE organization_id=NEW.organization_id AND finding_id=NEW.finding_id
         ORDER BY occurred_at DESC,id DESC LIMIT 1;
-      IF EXISTS(SELECT 1 FROM finding_events WHERE organization_id=NEW.organization_id
-        AND finding_id=NEW.finding_id AND occurred_at>NEW.occurred_at) THEN
+      IF prior_occurred IS NOT NULL AND NEW.occurred_at<=prior_occurred THEN
         RAISE EXCEPTION 'finding event chronology violation' USING ERRCODE='23514';
       END IF;
       IF prior_state IS NULL AND NEW.event_type <> 'observed' THEN
@@ -194,6 +193,45 @@ def upgrade() -> None:
     END $$;
     CREATE TRIGGER findings_collision_guard BEFORE INSERT ON findings
       FOR EACH ROW EXECUTE FUNCTION reject_finding_fingerprint_collision();
+    CREATE FUNCTION validate_evaluation_lineage() RETURNS trigger LANGUAGE plpgsql AS $$
+    DECLARE target_org uuid; target_id uuid; declared_ids text[]; declared_types text[]; actual_ids text[]; actual_types text[];
+    BEGIN
+      target_org := NEW.organization_id;
+      target_id := coalesce((to_jsonb(NEW)->>'evaluation_id')::uuid,(to_jsonb(NEW)->>'id')::uuid);
+      SELECT evidence_ids,evidence_types INTO declared_ids,declared_types FROM check_evaluations WHERE organization_id=target_org AND id=target_id;
+      SELECT coalesce(array_agg('sha256-v1:'||encode(o.normalized_hash,'hex') ORDER BY o.normalized_hash) FILTER (WHERE o.id IS NOT NULL),'{}'),
+             coalesce(array_agg(DISTINCT o.observation_type ORDER BY o.observation_type) FILTER (WHERE o.id IS NOT NULL),'{}')
+        INTO actual_ids,actual_types FROM evaluation_evidence e JOIN normalized_observations o
+        ON o.organization_id=e.organization_id AND o.id=e.observation_id
+        WHERE e.organization_id=target_org AND e.evaluation_id=target_id;
+      IF declared_ids<>actual_ids OR declared_types<>actual_types THEN
+        RAISE EXCEPTION 'evaluation lineage mismatch' USING ERRCODE='23514';
+      END IF;
+      RETURN NEW;
+    END $$;
+    CREATE CONSTRAINT TRIGGER check_evaluation_lineage AFTER INSERT ON check_evaluations
+      DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION validate_evaluation_lineage();
+    CREATE CONSTRAINT TRIGGER evaluation_evidence_lineage AFTER INSERT ON evaluation_evidence
+      DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION validate_evaluation_lineage();
+    CREATE FUNCTION validate_snapshot_lineage() RETURNS trigger LANGUAGE plpgsql AS $$
+    DECLARE target_org uuid; target_id uuid; declared_ids text[]; actual_ids text[];
+    BEGIN
+      target_org := NEW.organization_id;
+      target_id := coalesce((to_jsonb(NEW)->>'snapshot_id')::uuid,(to_jsonb(NEW)->>'id')::uuid);
+      SELECT evaluation_ids INTO declared_ids FROM score_snapshots WHERE organization_id=target_org AND id=target_id;
+      SELECT coalesce(array_agg('sha256-v1:'||encode(e.evaluation_hash,'hex') ORDER BY e.evaluation_hash) FILTER (WHERE e.id IS NOT NULL),'{}')
+        INTO actual_ids FROM snapshot_evaluations s JOIN check_evaluations e
+        ON e.organization_id=s.organization_id AND e.id=s.evaluation_id
+        WHERE s.organization_id=target_org AND s.snapshot_id=target_id;
+      IF declared_ids<>actual_ids THEN
+        RAISE EXCEPTION 'snapshot lineage mismatch' USING ERRCODE='23514';
+      END IF;
+      RETURN NEW;
+    END $$;
+    CREATE CONSTRAINT TRIGGER score_snapshot_lineage AFTER INSERT ON score_snapshots
+      DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION validate_snapshot_lineage();
+    CREATE CONSTRAINT TRIGGER snapshot_evaluation_lineage AFTER INSERT ON snapshot_evaluations
+      DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION validate_snapshot_lineage();
     DO $$ DECLARE table_name text; BEGIN
       FOREACH table_name IN ARRAY ARRAY['raw_artifacts','normalized_observations','check_evaluations','evaluation_evidence','score_snapshots','snapshot_evaluations','score_attributions','findings','finding_occurrences','finding_events']
       LOOP
@@ -232,5 +270,7 @@ def downgrade() -> None:
     DROP FUNCTION IF EXISTS prevent_evidence_mutation();
     DROP FUNCTION IF EXISTS validate_finding_event();
     DROP FUNCTION IF EXISTS reject_finding_fingerprint_collision();
+    DROP FUNCTION IF EXISTS validate_evaluation_lineage();
+    DROP FUNCTION IF EXISTS validate_snapshot_lineage();
     DROP TYPE IF EXISTS evaluation_outcome; DROP TYPE IF EXISTS evidence_mode;
     """)

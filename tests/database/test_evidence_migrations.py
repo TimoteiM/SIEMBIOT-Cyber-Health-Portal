@@ -5,6 +5,12 @@ from uuid import UUID, uuid4
 import psycopg
 import pytest
 
+PROVENANCE = (
+    '{"collector_id":"dns","collector_version":"1.0.0","adapter_id":"fixture-dns",'
+    '"adapter_version":"1.0.0","normalizer_version":"1.0.0","scenario_id":"healthy",'
+    '"scenario_sha256":"' + "b" * 64 + '"}'
+)
+
 
 def seed_scope(owner_url: str, label: str) -> tuple[str, str, str, str]:
     org, user = str(uuid4()), str(uuid4())
@@ -48,7 +54,7 @@ def insert_observation(
     digest = bytes.fromhex("ab" * 32)
     with psycopg.connect(owner_url) as owner:
         row = owner.execute(
-            "INSERT INTO normalized_observations (organization_id,asset_id,scope_manifest_id,evidence_mode,normalized_hash,hash_version,schema_version,observation_type,source_evidence_id,payload,provenance,freshness_seconds,observed_at,source_confidence,attribution_confidence,publishable,real_world) VALUES (%s,%s,%s,%s,%s,'sha256-v1','v1','dns.dnssec',%s,'{}','{}',3600,now(),1,1,%s,%s) RETURNING id::text",
+            "INSERT INTO normalized_observations (organization_id,asset_id,scope_manifest_id,evidence_mode,normalized_hash,hash_version,schema_version,observation_type,source_evidence_id,payload,provenance,freshness_seconds,observed_at,source_confidence,attribution_confidence,publishable,real_world) VALUES (%s,%s,%s,%s,%s,'sha256-v1','v1','dns.dnssec',%s,'{}',%s,3600,now(),1,1,%s,%s) RETURNING id::text",
             (
                 org,
                 asset,
@@ -56,6 +62,7 @@ def insert_observation(
                 mode,
                 digest,
                 "sha256:" + "a" * 64,
+                PROVENANCE,
                 mode == "live",
                 mode == "live",
             ),
@@ -160,8 +167,8 @@ def test_interactive_app_cannot_forge_worker_evidence(
         app.execute("SELECT set_config('app.organization_id',%s,false)", (org,))
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             app.execute(
-                "INSERT INTO normalized_observations (organization_id,asset_id,scope_manifest_id,evidence_mode,normalized_hash,hash_version,schema_version,observation_type,source_evidence_id,payload,provenance,freshness_seconds,observed_at,source_confidence,attribution_confidence,publishable,real_world) VALUES (%s,%s,%s,'fixture',%s,'sha256-v1','v1','dns.dnssec',%s,'{}','{}',3600,now(),1,1,false,false)",
-                (org, asset, manifest, bytes.fromhex("cd" * 32), "sha256:" + "c" * 64),
+                "INSERT INTO normalized_observations (organization_id,asset_id,scope_manifest_id,evidence_mode,normalized_hash,hash_version,schema_version,observation_type,source_evidence_id,payload,provenance,freshness_seconds,observed_at,source_confidence,attribution_confidence,publishable,real_world) VALUES (%s,%s,%s,'fixture',%s,'sha256-v1','v1','dns.dnssec',%s,'{}',%s,3600,now(),1,1,false,false)",
+                (org, asset, manifest, bytes.fromhex("cd" * 32), "sha256:" + "c" * 64, PROVENANCE),
             )
 
 
@@ -172,8 +179,8 @@ def test_worker_append_is_tenant_scoped_and_fixture_is_not_publishable(
     with psycopg.connect(postgres_database["worker_url"]) as worker:
         worker.execute("SELECT set_config('app.organization_id',%s,false)", (org,))
         worker.execute(
-            "INSERT INTO normalized_observations (organization_id,asset_id,scope_manifest_id,evidence_mode,normalized_hash,hash_version,schema_version,observation_type,source_evidence_id,payload,provenance,freshness_seconds,observed_at,source_confidence,attribution_confidence,publishable,real_world) VALUES (%s,%s,%s,'fixture',%s,'sha256-v1','v1','dns.dnssec',%s,'{}','{}',3600,now(),1,1,false,false)",
-            (org, asset, manifest, bytes.fromhex("ef" * 32), "sha256:" + "e" * 64),
+            "INSERT INTO normalized_observations (organization_id,asset_id,scope_manifest_id,evidence_mode,normalized_hash,hash_version,schema_version,observation_type,source_evidence_id,payload,provenance,freshness_seconds,observed_at,source_confidence,attribution_confidence,publishable,real_world) VALUES (%s,%s,%s,'fixture',%s,'sha256-v1','v1','dns.dnssec',%s,'{}',%s,3600,now(),1,1,false,false)",
+            (org, asset, manifest, bytes.fromhex("ef" * 32), "sha256:" + "e" * 64, PROVENANCE),
         )
         assert worker.execute("SELECT count(*) FROM normalized_observations").fetchone() == (1,)
         assert worker.execute("SELECT count(*) FROM publishable_score_snapshots").fetchone() == (0,)
@@ -188,4 +195,23 @@ def test_database_rejects_unbound_finding_fingerprint(
             owner.execute(
                 "INSERT INTO findings(organization_id,asset_id,scope_manifest_id,evidence_mode,fingerprint,fingerprint_version,identity_digest,material_evidence_key,check_id,policy_hash,attribution_state,severity,first_seen_at,publishable,classification) VALUES(%s,%s,%s,'fixture',%s,'fingerprint-v1',%s,'dnssec-fixture','dns.dnssec',%s,'direct','high',now(),false,'DEMO/FIXTURE')",
                 (org, asset, manifest, bytes(32), bytes(32), bytes.fromhex("03" * 32)),
+            )
+
+
+def test_deferred_constraints_reject_contradictory_evidence_lineage(
+    postgres_database: dict[str, str],
+) -> None:
+    org, _, asset, manifest = seed_scope(postgres_database["owner_url"], "lineage")
+    with pytest.raises(psycopg.errors.CheckViolation, match="evaluation lineage mismatch"):
+        with psycopg.connect(postgres_database["owner_url"]) as owner:
+            owner.execute(
+                "INSERT INTO check_evaluations(organization_id,asset_id,scope_manifest_id,evidence_mode,evaluation_hash,policy_hash,check_id,methodology_version,scoring_behavior_version,outcome,reason_code,evidence_ids,evidence_types,source_confidence,attribution_confidence,fresh,directly_attributable,provider_disagreement,asset_authorized,evaluated_at,publishable) VALUES(%s,%s,%s,'fixture',%s,%s,'dns.dnssec','1.0.0','1.0.0','pass','control_present',ARRAY[%s],ARRAY['dns.dnssec'],1,1,true,true,false,true,now(),false)",
+                (
+                    org,
+                    asset,
+                    manifest,
+                    bytes.fromhex("12" * 32),
+                    bytes.fromhex("13" * 32),
+                    "sha256-v1:" + "f" * 64,
+                ),
             )
