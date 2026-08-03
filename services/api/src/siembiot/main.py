@@ -12,6 +12,8 @@ from siembiot.auth import build_auth_router
 from siembiot.config import Settings
 from siembiot.contracts import ErrorBody, ErrorEnvelope, HealthResponse
 from siembiot.db import Database
+from siembiot.domains.dns_verification import BoundedTXTResolver, TXTResolver
+from siembiot.domains.router import build_domain_router
 from siembiot.errors import AppError
 from siembiot.oidc import OIDCClient, StandardOIDCClient
 from siembiot.organizations import build_invitation_router, build_organization_router
@@ -32,6 +34,7 @@ def _error(request: Request, status_code: int, code: str, message: str) -> JSONR
 def create_app(
     settings: Settings | None = None,
     oidc_client: OIDCClient | None = None,
+    txt_resolver: TXTResolver | None = None,
 ) -> FastAPI:
     resolved_settings = settings or Settings()
     database = Database(resolved_settings.database_url)
@@ -45,6 +48,7 @@ def create_app(
     app.state.settings = resolved_settings
     app.state.database = database
     app.state.oidc_client = oidc_client or StandardOIDCClient(resolved_settings)
+    app.state.txt_resolver = txt_resolver or BoundedTXTResolver()
     app.add_middleware(RequestContextMiddleware)
 
     @app.exception_handler(AppError)
@@ -76,6 +80,7 @@ def create_app(
     app.include_router(build_auth_router())
     app.include_router(build_organization_router())
     app.include_router(build_invitation_router())
+    app.include_router(build_domain_router())
 
     return app
 
