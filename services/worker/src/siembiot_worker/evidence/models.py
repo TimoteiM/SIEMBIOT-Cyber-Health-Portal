@@ -140,3 +140,46 @@ class CheckEvaluation(StrictModel):
         draft = cls.model_construct(evaluation_id="sha256-v1:" + "0" * 64, **values)
         values["evaluation_id"] = canonical_hash(draft.identity())
         return cls.model_validate(values)
+
+
+class ScoreSnapshot(StrictModel):
+    contract_version: Literal["v1"] = "v1"
+    snapshot_id: str = Field(pattern=r"^sha256-v1:[a-f0-9]{64}$")
+    organization_id: str
+    asset_id: str
+    policy_hash: str = Field(pattern=r"^sha256-v1:[a-f0-9]{64}$")
+    methodology_version: str
+    scoring_behavior_version: str
+    mode: EvidenceMode
+    evaluation_ids: tuple[str, ...]
+    pillar_scores: Mapping[str, float | None]
+    technical_posture: float | None = Field(default=None, ge=0, le=100)
+    coverage: float = Field(ge=0, le=100)
+    evidence_confidence: float = Field(ge=0, le=1)
+    attribution_confidence: float = Field(ge=0, le=1)
+    caps_applied: tuple[str, ...] = ()
+    created_at: datetime
+    publishable: bool
+    classification: str
+
+    @model_validator(mode="after")
+    def validate_snapshot(self) -> ScoreSnapshot:
+        if self.created_at.utcoffset() is None:
+            raise ValueError("timezone_aware_timestamp_required")
+        if self.mode is EvidenceMode.FIXTURE and (
+            self.publishable or self.classification != "DEMO/FIXTURE"
+        ):
+            raise ValueError("fixture_snapshot_boundary")
+        identity = self.model_dump(mode="python", exclude={"snapshot_id"})
+        if self.snapshot_id != canonical_hash(identity):
+            raise ValueError("snapshot_id_mismatch")
+        object.__setattr__(self, "pillar_scores", deep_freeze(self.pillar_scores))
+        return self
+
+    @classmethod
+    def build(cls, **values: Any) -> ScoreSnapshot:
+        draft = cls.model_construct(snapshot_id="sha256-v1:" + "0" * 64, **values)
+        values["snapshot_id"] = canonical_hash(
+            draft.model_dump(mode="python", exclude={"snapshot_id"})
+        )
+        return cls.model_validate(values)
