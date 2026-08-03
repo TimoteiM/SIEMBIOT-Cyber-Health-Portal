@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ipaddress
+import re
 from dataclasses import dataclass
 from urllib.parse import urljoin, urlsplit
 
@@ -37,6 +38,31 @@ def canonical_host(host: str) -> str:
     """Validate an already-canonical DNS host without resolving it."""
 
     return _canonical_host(host)
+
+
+SERVICE_LABEL = re.compile(r"^_[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
+
+
+def canonical_dns_name(name: str) -> str:
+    """Validate a DNS owner name, including underscore-prefixed service labels."""
+
+    if not name or name != name.lower() or name.endswith(".") or len(name) > 253:
+        raise DestinationPolicyError("noncanonical_dns_name")
+    labels = name.split(".")
+    if any(not label for label in labels):
+        raise DestinationPolicyError("noncanonical_dns_name")
+    try:
+        for label in labels:
+            if label.startswith("_"):
+                if SERVICE_LABEL.fullmatch(label) is None:
+                    raise DestinationPolicyError("noncanonical_dns_name")
+            elif idna.encode(
+                label, uts46=True, std3_rules=True, transitional=False
+            ).decode("ascii") != label:
+                raise DestinationPolicyError("noncanonical_dns_name")
+    except idna.IDNAError as exc:
+        raise DestinationPolicyError("noncanonical_dns_name") from exc
+    return name
 
 
 COLLECTION_PATHS = frozenset({"/", "/.well-known/security.txt"})

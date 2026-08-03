@@ -15,6 +15,7 @@ from siembiot_worker.network_safety.url_policy import (
     CollectionDestination,
     DestinationPolicyError,
     authorize_collection_redirect,
+    canonical_dns_name,
     canonical_host,
 )
 
@@ -139,7 +140,7 @@ class FixtureInternetBroker:
         if self._is_cancelled(cancelled):
             return self._cancelled(scenario)
         try:
-            canonical_host(host)
+            canonical_dns_name(host)
         except DestinationPolicyError as exc:
             raise BrokerRequestError(exc.reason) from exc
         if record_type not in {
