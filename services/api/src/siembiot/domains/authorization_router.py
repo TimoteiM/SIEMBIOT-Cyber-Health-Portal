@@ -381,6 +381,27 @@ def build_authorization_router() -> APIRouter:
                     "reason": body.reason,
                 },
             )
+            connection.execute(
+                text(
+                    """
+                    UPDATE network_operations
+                    SET cancel_requested_at = COALESCE(cancel_requested_at, now()),
+                        status = CASE WHEN status = 'queued' THEN 'cancelled' ELSE status END,
+                        completed_at = CASE WHEN status = 'queued' THEN now() ELSE completed_at END,
+                        reason_code = 'authorization_revoked'
+                    WHERE organization_id = :organization_id
+                      AND manifest_id IN (
+                        SELECT id FROM scope_manifests
+                        WHERE authorization_id = :authorization_id
+                      )
+                      AND status IN ('queued', 'running')
+                    """
+                ),
+                {
+                    "organization_id": organization_id,
+                    "authorization_id": authorization_id,
+                },
+            )
             append_audit_event(
                 connection,
                 organization_id=organization_id,

@@ -5,7 +5,7 @@ from typing import cast
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Request
-from sqlalchemy import text
+from sqlalchemy import Connection, text
 from sqlalchemy.engine import RowMapping
 from sqlalchemy.exc import IntegrityError
 
@@ -39,6 +39,40 @@ def _response(row: RowMapping) -> EmergencyControlResponse:
         and (row["expires_at"] is None or row["expires_at"] > now),
         created_at=row["created_at"],
         expires_at=row["expires_at"],
+    )
+
+
+def _cancel_matching_operations(
+    connection: Connection,
+    *,
+    organization_id: UUID,
+    scope: str,
+    domain_id: UUID | None,
+    operation_class: str | None,
+) -> None:
+    connection.execute(
+        text(
+            """
+            UPDATE network_operations
+            SET cancel_requested_at = COALESCE(cancel_requested_at, now()),
+                status = CASE WHEN status = 'queued' THEN 'cancelled' ELSE status END,
+                completed_at = CASE WHEN status = 'queued' THEN now() ELSE completed_at END,
+                reason_code = 'emergency_control_active'
+            WHERE organization_id = :organization_id
+              AND status IN ('queued', 'running')
+              AND (
+                :scope = 'organization'
+                OR (:scope = 'domain' AND domain_id = :domain_id)
+                OR (:scope = 'operation_class' AND operation_class = :operation_class)
+              )
+            """
+        ),
+        {
+            "organization_id": organization_id,
+            "scope": scope,
+            "domain_id": domain_id,
+            "operation_class": operation_class,
+        },
     )
 
 
@@ -116,6 +150,13 @@ def build_emergency_router() -> APIRouter:
                     )
                     .mappings()
                     .one()
+                )
+                _cancel_matching_operations(
+                    connection,
+                    organization_id=organization_id,
+                    scope=body.scope,
+                    domain_id=body.domain_id,
+                    operation_class=body.operation_class,
                 )
                 append_audit_event(
                     connection,
