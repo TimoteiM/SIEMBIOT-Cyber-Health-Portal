@@ -4,7 +4,10 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
 
-from siembiot_worker.collection.broker import FixtureBrokerResult
+from siembiot_worker.collection.broker import (
+    FixtureBrokerResult,
+    HTTPFixtureRequest,
+)
 from siembiot_worker.collection.models import (
     CollectionObservation,
     ObservationOutcome,
@@ -18,6 +21,26 @@ class DNSBroker(Protocol):
         scenario_id: str,
         host: str,
         record_type: str,
+        *,
+        cancelled: Callable[[], bool] | None = None,
+    ) -> FixtureBrokerResult: ...
+
+
+class HTTPBroker(Protocol):
+    def fetch_http(
+        self,
+        scenario_id: str,
+        request: HTTPFixtureRequest,
+        *,
+        cancelled: Callable[[], bool] | None = None,
+    ) -> FixtureBrokerResult: ...
+
+
+class TLSBroker(Protocol):
+    def handshake_tls(
+        self,
+        scenario_id: str,
+        host: str,
         *,
         cancelled: Callable[[], bool] | None = None,
     ) -> FixtureBrokerResult: ...
