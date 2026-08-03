@@ -109,6 +109,10 @@ make fixture-stack test-adapters test-collectors
 
 The Docker-backed tests use only fixed test placeholders and reserved domains. They do not access assessment targets or Tyche.
 
+### Evidence migration rollback
+
+Migration `0006_evidence_scoring` may be downgraded to `0005_authorization_consent` only in a disposable local development database. The downgrade removes all Milestone 4 evidence, evaluations, snapshots, findings, and history. Shared, staging, or production-like databases must preserve append-only assessment history and use a reviewed forward fix or point-in-time recovery instead. Test both an empty upgrade and the `0005 -> 0006` path before integration.
+
 ## Production blocker
 
 The upstream Tyche credential exposure remains unresolved and is a production launch blocker. Its rotation and Git-history remediation are separately authorized security actions. This repository does not contain, access, test, rotate, or modify that credential.

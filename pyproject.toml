@@ -45,6 +45,7 @@ select = ["E", "F", "I", "N", "S", "UP"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S101"]
+"tests/database/test_evidence_migrations.py" = ["E501", "S101"]
 "services/api/migrations/versions/*.py" = ["E501"]
 
 [tool.mypy]
