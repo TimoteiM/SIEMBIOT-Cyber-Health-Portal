@@ -36,6 +36,7 @@ def normalize_observation(
         scope_reference=source.scope_reference,
         source_evidence_id=source.evidence_id,
         observation_type=resolver(payload),
+        source_outcome=source.outcome,
         observed_at=source.collected_at,
         mode="fixture",
         provenance=Provenance(

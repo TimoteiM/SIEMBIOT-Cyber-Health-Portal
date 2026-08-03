@@ -8,6 +8,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from siembiot_worker.collection.immutability import deep_freeze, json_compatible
+from siembiot_worker.collection.models import ObservationOutcome
 from siembiot_worker.evidence.canonical import canonical_hash
 
 
@@ -49,6 +50,7 @@ class NormalizedObservation(StrictModel):
     scope_reference: str = Field(min_length=1, max_length=256)
     source_evidence_id: str = Field(pattern=r"^sha256:[a-f0-9]{64}$")
     observation_type: str = Field(pattern=r"^[a-z][a-z0-9._-]{1,127}$")
+    source_outcome: ObservationOutcome
     observed_at: datetime
     mode: Literal[EvidenceMode.FIXTURE]
     provenance: Provenance
@@ -67,6 +69,11 @@ class NormalizedObservation(StrictModel):
             "scope_reference": self.scope_reference,
             "source_evidence_id": self.source_evidence_id,
             "observation_type": self.observation_type,
+            "source_outcome": (
+                self.source_outcome.value
+                if isinstance(self.source_outcome, ObservationOutcome)
+                else str(self.source_outcome)
+            ),
             "observed_at": self.observed_at,
             "mode": self.mode.value if isinstance(self.mode, EvidenceMode) else str(self.mode),
             "provenance": self.provenance.model_dump(mode="json"),
@@ -91,4 +98,45 @@ class NormalizedObservation(StrictModel):
     def build(cls, **values: Any) -> NormalizedObservation:
         draft = cls.model_construct(normalized_id="sha256-v1:" + "0" * 64, **values)
         values["normalized_id"] = canonical_hash(draft.identity())
+        return cls.model_validate(values)
+
+
+class CheckEvaluation(StrictModel):
+    contract_version: Literal["v1"] = "v1"
+    evaluation_id: str = Field(pattern=r"^sha256-v1:[a-f0-9]{64}$")
+    organization_id: str
+    asset_id: str
+    check_id: str
+    policy_hash: str = Field(pattern=r"^sha256-v1:[a-f0-9]{64}$")
+    methodology_version: str
+    scoring_behavior_version: str
+    mode: EvidenceMode
+    outcome: EvaluationOutcome
+    evidence_ids: tuple[str, ...]
+    reason_code: str = Field(pattern=r"^[a-z][a-z0-9_]{1,63}$")
+    evaluated_at: datetime
+    source_confidence: float = Field(ge=0, le=1)
+    attribution_confidence: float = Field(ge=0, le=1)
+    fresh: bool
+    directly_attributable: bool
+    provider_disagreement: bool
+    publishable: bool
+
+    def identity(self) -> dict[str, Any]:
+        return self.model_dump(mode="python", exclude={"evaluation_id"})
+
+    @model_validator(mode="after")
+    def validate_evaluation(self) -> CheckEvaluation:
+        if self.evaluated_at.utcoffset() is None:
+            raise ValueError("timezone_aware_timestamp_required")
+        if self.mode is EvidenceMode.FIXTURE and self.publishable:
+            raise ValueError("fixture_evaluation_boundary")
+        if self.evaluation_id != canonical_hash(self.identity()):
+            raise ValueError("evaluation_id_mismatch")
+        return self
+
+    @classmethod
+    def build(cls, **values: Any) -> CheckEvaluation:
+        draft = cls.model_construct(evaluation_id="sha256-v1:" + "0" * 64, **values)
+        values["evaluation_id"] = canonical_hash(draft.identity())
         return cls.model_validate(values)

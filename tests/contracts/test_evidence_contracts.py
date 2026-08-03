@@ -39,6 +39,7 @@ def observation(**changes: object) -> NormalizedObservation:
         "scope_reference": "018f5f80-8a4b-7c1b-b55e-ea65c9126203",
         "source_evidence_id": "sha256:" + "a" * 64,
         "observation_type": "dns.nameservers",
+        "source_outcome": "pass",
         "observed_at": datetime(2026, 8, 3, 12, tzinfo=UTC),
         "mode": "fixture",
         "provenance": Provenance(

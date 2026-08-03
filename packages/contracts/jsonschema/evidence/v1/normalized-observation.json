@@ -3,7 +3,7 @@
   "$id": "https://siembiot.example/contracts/evidence/v1/normalized-observation.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["contract_version", "canonicalization_version", "hash_version", "normalized_id", "organization_id", "asset_id", "scope_reference", "source_evidence_id", "observation_type", "observed_at", "mode", "provenance", "payload", "source_confidence", "attribution_confidence", "freshness_seconds", "publishable", "real_world"],
+  "required": ["contract_version", "canonicalization_version", "hash_version", "normalized_id", "organization_id", "asset_id", "scope_reference", "source_evidence_id", "observation_type", "source_outcome", "observed_at", "mode", "provenance", "payload", "source_confidence", "attribution_confidence", "freshness_seconds", "publishable", "real_world"],
   "properties": {
     "contract_version": {"const": "v1"},
     "canonicalization_version": {"const": "canonical-json-v1"},
@@ -14,6 +14,7 @@
     "scope_reference": {"type": "string", "minLength": 1, "maxLength": 256},
     "source_evidence_id": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
     "observation_type": {"type": "string", "pattern": "^[a-z][a-z0-9._-]{1,127}$"},
+    "source_outcome": {"enum": ["pass", "fail", "warning", "unknown", "error", "unavailable", "disabled_by_policy"]},
     "observed_at": {"type": "string", "format": "date-time"},
     "mode": {"const": "fixture"},
     "provenance": {"type": "object"},
