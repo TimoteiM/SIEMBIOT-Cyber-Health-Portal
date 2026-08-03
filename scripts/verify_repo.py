@@ -45,13 +45,68 @@ def build_checks(root: Path | None = None) -> tuple[Check, ...]:
             "locks", (uv + ("lock", "--check"), (corepack, "pnpm", "install", "--frozen-lockfile"))
         ),
         Check(
-            "format", (uv + ("run", "--frozen", "ruff", "format", "--check", "scripts", "tests"),)
+            "format",
+            (
+                uv
+                + (
+                    "run",
+                    "--frozen",
+                    "ruff",
+                    "format",
+                    "--check",
+                    "scripts",
+                    "tests",
+                    "services/api/src",
+                    "services/api/migrations",
+                ),
+            ),
         ),
-        Check("lint", (uv + ("run", "--frozen", "ruff", "check", "scripts", "tests"),)),
-        Check("types", (uv + ("run", "--frozen", "mypy", "scripts", "tests"),)),
-        Check("unit", (uv + ("run", "--frozen", "pytest", "-q"),)),
-        Check("contracts"),
-        Check("migrations"),
+        Check(
+            "lint",
+            (
+                uv
+                + (
+                    "run",
+                    "--frozen",
+                    "ruff",
+                    "check",
+                    "scripts",
+                    "tests",
+                    "services/api/src",
+                    "services/api/migrations",
+                ),
+            ),
+        ),
+        Check(
+            "types",
+            (
+                uv
+                + (
+                    "run",
+                    "--frozen",
+                    "mypy",
+                    "scripts",
+                    "tests",
+                    "services/api/src",
+                    "services/api/migrations",
+                ),
+                (corepack, "pnpm", "--filter", "@siembiot/contracts", "typecheck"),
+                (corepack, "pnpm", "--filter", "@siembiot/web", "typecheck"),
+            ),
+        ),
+        Check(
+            "unit",
+            (
+                uv + ("run", "--frozen", "pytest", "-q"),
+                (corepack, "pnpm", "--filter", "@siembiot/web", "test"),
+                (corepack, "pnpm", "--filter", "@siembiot/web", "build"),
+            ),
+        ),
+        Check("contracts", (uv + ("run", "--frozen", "python", "scripts/check_contracts.py"),)),
+        Check(
+            "migrations",
+            (uv + ("run", "--frozen", "alembic", "-c", "services/api/alembic.ini", "heads"),),
+        ),
         Check("secrets"),
         Check("images"),
         Check("sbom"),
@@ -122,10 +177,6 @@ def verify_internal_gate(name: str, root: Path) -> list[str]:
             for path in required
             if not path.is_file()
         ]
-    if name == "contracts" and (root / "packages" / "contracts").exists():
-        return ["contracts were introduced before Milestone 1"]
-    if name == "migrations" and any(root.glob("services/**/migrations/*")):
-        return ["migrations were introduced before Milestone 1"]
     if name == "images" and any(root.glob("**/Dockerfile*")):
         return ["container images were introduced before Milestone 10"]
     if name == "sbom":

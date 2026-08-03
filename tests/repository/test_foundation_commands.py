@@ -94,6 +94,13 @@ class FoundationCommandContractTests(unittest.TestCase):
             bootstrap.node_version_error("v20.20.0", "24.18.1"),
         )
 
+    def test_phase0_scans_only_repository_controlled_files(self) -> None:
+        verifier = load_script("verify_phase0")
+        files = verifier.repository_files(ROOT)
+        self.assertIn("tests/repository/test_foundation_commands.py", files)
+        self.assertFalse(any(path.startswith(".venv/") for path in files))
+        self.assertFalse(any("node_modules/" in path for path in files))
+
     def test_secret_scanner_rejects_secret_and_allows_documented_placeholder(self) -> None:
         verifier = load_script("verify_repo")
         with tempfile.TemporaryDirectory() as directory:

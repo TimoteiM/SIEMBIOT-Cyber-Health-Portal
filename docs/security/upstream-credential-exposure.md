@@ -6,6 +6,12 @@
 
 **Recorded:** 2026-08-03
 
+**Rotation status:** Unconfirmed / unresolved
+
+**Git-history remediation status:** Unconfirmed / unresolved
+
+**Milestone 1 disposition:** Does not block isolated local implementation; continues to block production launch
+
 Tracked Tyche backend files contain database credentials or credential-bearing defaults. This document intentionally excludes every secret and exact endpoint.
 
 Required action by the credential owner, outside the SIEMBIOT repository:

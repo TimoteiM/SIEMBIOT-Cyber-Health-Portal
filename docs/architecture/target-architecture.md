@@ -154,3 +154,9 @@ API status remains available when workers, providers, or the model fail. Partial
 Local development uses Docker Compose with PostgreSQL, Redis, MinIO, Keycloak, Mailpit, ClamAV, OpenTelemetry, and fake DNS/HTTP/TLS fixtures. Production uses independently scalable non-root OCI workloads, managed-equivalent stateful services where chosen, collector egress network policies, secret-manager injection, encrypted backups, restore drills, and signed SBOM/provenance.
 
 Initial SLOs: API availability 99.9% monthly; normal API p95 under 500 ms at agreed load; queued assessment starts within two minutes under normal load. Cross-tenant exposure and out-of-scope I/O have zero error budget.
+
+## Milestone 1 realized boundary
+
+The implemented private path is browser → HTTPS Next.js same-origin rewrite → FastAPI → PostgreSQL. FastAPI owns the provider-neutral OIDC exchange and stores only hashed/encrypted one-time transaction material and opaque server sessions. Next.js never receives provider tokens and keeps the rotated CSRF value in memory. Organization identifiers in routes select a context but do not grant it: FastAPI verifies the current active membership/action/object and PostgreSQL independently applies forced RLS using transaction-local user and organization settings.
+
+PostgreSQL exposes tenant rows to the application role only through active membership or an explicit unexpired support grant. Support access also requires a platform-admin identity with phishing-resistant MFA assurance; the platform role alone returns no tenant rows. Audit events cross the application/data boundary as structured append-only records and cannot be updated or deleted by the application role.

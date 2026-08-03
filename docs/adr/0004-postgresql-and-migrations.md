@@ -11,3 +11,7 @@ Tenant rows require `organization_id` foreign keys and constraints. Immutable re
 ## Consequences
 
 JSONB supports versioned evidence payloads, but indexed/query-critical fields remain typed columns. Backups, PITR, and restore exercises are release-operational requirements.
+
+## Milestone 1 implementation evidence
+
+The digest-pinned local PostgreSQL service creates separate migration-owner and application roles. Three Alembic revisions build identity, organizations, memberships, invitations, OIDC transactions, sessions, explicit support grants, and audit events from an empty database, then constrain global audit reads to the matching user actor. Forced RLS uses transaction-local user/organization context and security-definer membership/grant predicates. The application role has no audit update/delete grant, and a trigger independently rejects mutation. Empty upgrade and disposable development downgrade/re-upgrade are integration tested; production rollback remains forward-fix/PITR only.

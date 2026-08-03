@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -52,13 +53,24 @@ def fail(message: str, errors: list[str]) -> None:
     errors.append(message)
 
 
+def repository_files(root: Path) -> set[str]:
+    """Return tracked, staged, and untracked files while honoring Git ignores."""
+    result = subprocess.run(  # noqa: S603
+        ("git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"),
+        cwd=root,
+        check=True,
+        capture_output=True,
+    )
+    return {
+        entry.decode("utf-8", errors="surrogateescape")
+        for entry in result.stdout.split(b"\0")
+        if entry
+    }
+
+
 def main() -> int:
     errors: list[str] = []
-    files = {
-        path.relative_to(ROOT).as_posix()
-        for path in ROOT.rglob("*")
-        if path.is_file() and ".git" not in path.parts
-    }
+    files = repository_files(ROOT)
 
     for required in sorted(REQUIRED_FILES - files):
         fail(f"missing required file: {required}", errors)

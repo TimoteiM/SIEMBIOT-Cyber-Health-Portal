@@ -143,6 +143,35 @@ def test_platform_admin_requires_explicit_grant_and_phishing_resistant_mfa(
         assert app.execute("SELECT id::text FROM organizations").fetchall() == [(organization_id,)]
 
 
+def test_global_audit_events_are_actor_isolated(postgres_database: dict[str, str]) -> None:
+    first_user_id = str(uuid4())
+    second_user_id = str(uuid4())
+    with psycopg.connect(postgres_database["owner_url"]) as owner:
+        for user_id in (first_user_id, second_user_id):
+            owner.execute(
+                "INSERT INTO users (id, oidc_issuer, oidc_subject, email, display_name) "
+                "VALUES (%s, 'https://idp.example.test', %s, %s, 'Audit actor')",
+                (user_id, user_id, f"{user_id}@example.test"),
+            )
+            owner.execute(
+                "INSERT INTO audit_events "
+                "(actor_type, actor_id, action, resource_type, resource_id, request_id, "
+                "correlation_id, outcome, context) VALUES "
+                "('user', %s, 'session.created', 'session', %s, "
+                "'01K1X6HBFM6W2Y0M76K5G5HT3C', '01K1X6HBFM6W2Y0M76K5G5HT3C', "
+                "'success', '{}'::jsonb)",
+                (user_id, user_id),
+            )
+
+    with psycopg.connect(postgres_database["app_url"]) as app:
+        app.execute("SELECT set_config('app.user_id', %s, false)", (first_user_id,))
+        rows = app.execute(
+            "SELECT actor_id FROM audit_events WHERE organization_id IS NULL ORDER BY actor_id"
+        ).fetchall()
+
+    assert rows == [(first_user_id,)]
+
+
 def test_development_downgrade_and_reupgrade(postgres_database: dict[str, str]) -> None:
     environment = os.environ.copy()
     environment["SIEMBIOT_DATABASE_URL"] = (
