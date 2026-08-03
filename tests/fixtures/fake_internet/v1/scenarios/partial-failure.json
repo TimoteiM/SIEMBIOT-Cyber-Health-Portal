@@ -1,0 +1,1 @@
+{"dns":{"portal.example.test":{"A":["93.184.216.34"]}},"http":{"https://portal.example.test/":{"error":"timeout"}},"id":"partial-failure","timestamp":"2026-08-03T12:00:00Z","tls":{"portal.example.test":{"cipher":"TLS_AES_128_GCM_SHA256","hostname_valid":true,"version":"TLSv1.3"}}}

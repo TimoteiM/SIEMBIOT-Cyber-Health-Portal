@@ -33,6 +33,70 @@ def _canonical_host(host: str) -> str:
     return host
 
 
+def canonical_host(host: str) -> str:
+    """Validate an already-canonical DNS host without resolving it."""
+
+    return _canonical_host(host)
+
+
+COLLECTION_PATHS = frozenset({"/", "/.well-known/security.txt"})
+
+
+@dataclass(frozen=True)
+class CollectionDestination:
+    scheme: str
+    host: str
+    path: str
+
+    def __post_init__(self) -> None:
+        if self.scheme not in {"http", "https"}:
+            raise DestinationPolicyError("unsupported_scheme")
+        _canonical_host(self.host)
+        if self.path not in COLLECTION_PATHS:
+            raise DestinationPolicyError("forbidden_path")
+
+    @property
+    def url(self) -> str:
+        return f"{self.scheme}://{self.host}{self.path}"
+
+
+def authorize_collection_redirect(
+    current: CollectionDestination,
+    location: str,
+    *,
+    authorized_hosts: set[str],
+) -> CollectionDestination:
+    parsed = urlsplit(urljoin(current.url, location))
+    if parsed.username is not None or parsed.password is not None:
+        raise DestinationPolicyError("credentials")
+    if parsed.fragment:
+        raise DestinationPolicyError("fragment")
+    if parsed.query:
+        raise DestinationPolicyError("query")
+    if parsed.scheme not in {"http", "https"}:
+        raise DestinationPolicyError("unsupported_scheme")
+    if current.scheme == "https" and parsed.scheme == "http":
+        raise DestinationPolicyError("tls_downgrade")
+    if parsed.path not in COLLECTION_PATHS:
+        raise DestinationPolicyError("forbidden_path")
+    if any(character.isupper() for character in parsed.netloc):
+        raise DestinationPolicyError("noncanonical_host")
+    host = parsed.hostname
+    if host is None:
+        raise DestinationPolicyError("noncanonical_host")
+    canonical = _canonical_host(host)
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise DestinationPolicyError("forbidden_port") from exc
+    expected_port = 443 if parsed.scheme == "https" else 80
+    if port not in {None, expected_port}:
+        raise DestinationPolicyError("forbidden_port")
+    if canonical not in authorized_hosts:
+        raise DestinationPolicyError("redirect_not_authorized")
+    return CollectionDestination(parsed.scheme, canonical, parsed.path)
+
+
 @dataclass(frozen=True)
 class VerificationDestination:
     scheme: str
