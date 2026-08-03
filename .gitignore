@@ -35,3 +35,6 @@ artifacts/
 data/
 *.log
 *.sqlite*
+
+# Isolated implementation worktrees
+.worktrees/
