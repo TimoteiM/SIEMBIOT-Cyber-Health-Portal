@@ -55,6 +55,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/emergency-controls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Activate Global */
+        post: operations["activate_global_api_v1_emergency_controls_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/emergency-controls/{control_id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deactivate Global */
+        post: operations["deactivate_global_api_v1_emergency_controls__control_id__deactivate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/health": {
         parameters: {
             query?: never;
@@ -273,6 +307,41 @@ export interface paths {
         put?: never;
         /** Verify Challenge */
         post: operations["verify_challenge_api_v1_organizations__organization_id__domains__domain_id__challenges__challenge_id__verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/emergency-controls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Controls */
+        get: operations["list_controls_api_v1_organizations__organization_id__emergency_controls_get"];
+        put?: never;
+        /** Activate */
+        post: operations["activate_api_v1_organizations__organization_id__emergency_controls_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/emergency-controls/{control_id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deactivate */
+        post: operations["deactivate_api_v1_organizations__organization_id__emergency_controls__control_id__deactivate_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -550,6 +619,63 @@ export interface components {
             unicode_display: string;
             /** Warnings */
             warnings: ("idn_present" | "mixed_scripts")[];
+        };
+        /** EmergencyControlCreate */
+        EmergencyControlCreate: {
+            /** Domain Id */
+            domain_id?: string | null;
+            /** Expires At */
+            expires_at?: string | null;
+            /** Operation Class */
+            operation_class?: ("dns_verification" | "https_verification" | "passive_assessment" | "active_assessment") | null;
+            /** Reason */
+            reason: string;
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "global" | "organization" | "domain" | "operation_class";
+        };
+        /** EmergencyControlDeactivate */
+        EmergencyControlDeactivate: {
+            /** Reason */
+            reason: string;
+        };
+        /** EmergencyControlResponse */
+        EmergencyControlResponse: {
+            /** Active */
+            active: boolean;
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Domain Id */
+            domain_id?: string | null;
+            /** Expires At */
+            expires_at?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Operation Class */
+            operation_class?: string | null;
+            /** Organization Id */
+            organization_id?: string | null;
+            /** Reason */
+            reason: string;
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "global" | "organization" | "domain" | "operation_class";
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -914,6 +1040,78 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LogoutResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    activate_global_api_v1_emergency_controls_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                "__Host-siembiot_session"?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmergencyControlCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmergencyControlResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deactivate_global_api_v1_emergency_controls__control_id__deactivate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                control_id: string;
+            };
+            cookie?: {
+                "__Host-siembiot_session"?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmergencyControlDeactivate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmergencyControlResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1455,6 +1653,114 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DomainResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_controls_api_v1_organizations__organization_id__emergency_controls_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: {
+                "__Host-siembiot_session"?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmergencyControlResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    activate_api_v1_organizations__organization_id__emergency_controls_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: {
+                "__Host-siembiot_session"?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmergencyControlCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmergencyControlResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deactivate_api_v1_organizations__organization_id__emergency_controls__control_id__deactivate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                control_id: string;
+            };
+            cookie?: {
+                "__Host-siembiot_session"?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmergencyControlDeactivate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmergencyControlResponse"];
                 };
             };
             /** @description Validation Error */

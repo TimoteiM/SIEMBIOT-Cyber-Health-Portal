@@ -227,6 +227,11 @@ class EmergencyControlResponse(ContractModel):
     expires_at: datetime | None = None
 
 
+class EmergencyControlDeactivate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    reason: str = Field(min_length=10, max_length=500)
+
+
 class NetworkDecisionResponse(ContractModel):
     allowed: bool
     reason_code: Literal[

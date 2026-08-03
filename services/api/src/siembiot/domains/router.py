@@ -23,6 +23,7 @@ from siembiot.contracts import (
 from siembiot.db import Database
 from siembiot.domains.challenges import new_challenge_token
 from siembiot.domains.dns_verification import DNSVerificationService, TXTResolver
+from siembiot.domains.network_adapter import HTTPSVerificationService, NetworkBrokerFactory
 from siembiot.domains.normalization import DomainValidationError, normalize_domain
 from siembiot.domains.service import challenge_response, domain_response
 from siembiot.errors import AppError
@@ -407,18 +408,42 @@ def build_domain_router() -> APIRouter:
                     },
                 )
                 failure = AppError(410, "challenge_expired", "The challenge has expired.")
-            elif challenge["method"] != "dns_txt":
-                failure = AppError(
-                    409,
-                    "verification_method_unavailable",
-                    "The verification method is unavailable.",
-                )
-            else:
+            elif challenge["method"] in {"dns_txt", "https_file"}:
+                reason_code = "token_not_found"
                 resolver = cast(TXTResolver, request.app.state.txt_resolver)
-                matched = DNSVerificationService(resolver).verify(
-                    challenge["canonical_name"], challenge["token_digest"]
-                )
-                if matched:
+                if challenge["method"] == "dns_txt":
+                    matched = DNSVerificationService(resolver).verify(
+                        challenge["canonical_name"], challenge["token_digest"]
+                    )
+                else:
+                    broker_factory = cast(
+                        NetworkBrokerFactory, request.app.state.network_broker_factory
+                    )
+                    outcome = HTTPSVerificationService(broker_factory).verify(
+                        connection,
+                        organization_id=organization_id,
+                        domain_id=domain_id,
+                        challenge_id=challenge_id,
+                        canonical_host=challenge["canonical_name"],
+                        expected_digest=challenge["token_digest"],
+                    )
+                    matched = outcome.matched
+                    reason_code = outcome.reason_code
+                if reason_code in {"emergency_control_active", "authorization_revoked"}:
+                    _record_verification_event(
+                        connection,
+                        organization_id=organization_id,
+                        domain_id=domain_id,
+                        challenge_id=challenge_id,
+                        event_type="verification_denied",
+                        outcome="denied",
+                        reason_code=reason_code,
+                        context={"method": challenge["method"]},
+                    )
+                    failure = AppError(
+                        409, reason_code, "Verification is disabled by current security policy."
+                    )
+                elif matched:
                     connection.execute(
                         text(
                             "UPDATE domain_challenges SET state = 'verified', verified_at = now(), "
@@ -445,7 +470,7 @@ def build_domain_router() -> APIRouter:
                         event_type="ownership_verified",
                         outcome="success",
                         reason_code="token_matched",
-                        context={"method": "dns_txt"},
+                        context={"method": challenge["method"]},
                     )
                     append_audit_event(
                         connection,
@@ -458,7 +483,10 @@ def build_domain_router() -> APIRouter:
                         request_id=_request_id(request),
                         correlation_id=request.state.correlation_id,
                         outcome="success",
-                        context={"method": "dns_txt", "challenge_id": str(challenge_id)},
+                        context={
+                            "method": challenge["method"],
+                            "challenge_id": str(challenge_id),
+                        },
                     )
                     result = _domain_row(connection, domain_id)
                 else:
@@ -490,8 +518,8 @@ def build_domain_router() -> APIRouter:
                         challenge_id=challenge_id,
                         event_type="verification_attempted",
                         outcome="failure",
-                        reason_code="token_not_found",
-                        context={"method": "dns_txt"},
+                        reason_code=reason_code,
+                        context={"method": challenge["method"]},
                     )
                     append_audit_event(
                         connection,
@@ -506,8 +534,8 @@ def build_domain_router() -> APIRouter:
                         outcome="failure",
                         context={
                             "domain_id": str(domain_id),
-                            "method": "dns_txt",
-                            "reason_code": "token_not_found",
+                            "method": challenge["method"],
+                            "reason_code": reason_code,
                             "attempts_remaining": max(0, challenge["max_attempts"] - attempts),
                         },
                     )
@@ -516,6 +544,12 @@ def build_domain_router() -> APIRouter:
                         "challenge_not_verified",
                         "The verification value was not found.",
                     )
+            else:
+                failure = AppError(
+                    409,
+                    "verification_method_unavailable",
+                    "The verification method is unavailable.",
+                )
         if failure is not None:
             raise failure
         if result is None:
