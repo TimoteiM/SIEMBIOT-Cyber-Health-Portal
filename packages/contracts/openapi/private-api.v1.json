@@ -1,0 +1,1317 @@
+{
+  "components": {
+    "schemas": {
+      "AuditEventResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "actor": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Actor",
+            "type": "object"
+          },
+          "context": {
+            "additionalProperties": true,
+            "title": "Context",
+            "type": "object"
+          },
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "correlation_id": {
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "organization_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization Id"
+          },
+          "outcome": {
+            "title": "Outcome",
+            "type": "string"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "resource": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Resource",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "actor",
+          "action",
+          "resource",
+          "request_id",
+          "correlation_id",
+          "occurred_at",
+          "outcome",
+          "context"
+        ],
+        "title": "AuditEventResponse",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HealthResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "status": {
+            "const": "ok",
+            "default": "ok",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "title": "HealthResponse",
+        "type": "object"
+      },
+      "InvitationAccept": {
+        "additionalProperties": false,
+        "properties": {
+          "token": {
+            "maxLength": 256,
+            "minLength": 32,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "InvitationAccept",
+        "type": "object"
+      },
+      "InvitationCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "maxLength": 320,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "organization_owner",
+              "security_admin",
+              "analyst",
+              "viewer_auditor",
+              "maturity_contributor"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "role"
+        ],
+        "title": "InvitationCreate",
+        "type": "object"
+      },
+      "InvitationCreatedResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "acceptance_token": {
+            "title": "Acceptance Token",
+            "type": "string"
+          },
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "email",
+          "role",
+          "status",
+          "expires_at",
+          "created_at",
+          "acceptance_token"
+        ],
+        "title": "InvitationCreatedResponse",
+        "type": "object"
+      },
+      "InvitationResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "email",
+          "role",
+          "status",
+          "expires_at",
+          "created_at"
+        ],
+        "title": "InvitationResponse",
+        "type": "object"
+      },
+      "LogoutResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "logout_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logout Url"
+          }
+        },
+        "required": [
+          "logout_url"
+        ],
+        "title": "LogoutResponse",
+        "type": "object"
+      },
+      "MembershipResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "user_id",
+          "role",
+          "status",
+          "created_at"
+        ],
+        "title": "MembershipResponse",
+        "type": "object"
+      },
+      "MembershipUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "role": {
+            "enum": [
+              "organization_owner",
+              "security_admin",
+              "analyst",
+              "viewer_auditor",
+              "maturity_contributor"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "title": "MembershipUpdate",
+        "type": "object"
+      },
+      "OrganizationCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$",
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "slug"
+        ],
+        "title": "OrganizationCreate",
+        "type": "object"
+      },
+      "OrganizationResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "created_at"
+        ],
+        "title": "OrganizationResponse",
+        "type": "object"
+      },
+      "SessionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "authenticated": {
+            "const": true,
+            "default": true,
+            "title": "Authenticated",
+            "type": "boolean"
+          },
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "csrf_token": {
+            "title": "Csrf Token",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserResponse"
+          }
+        },
+        "required": [
+          "user",
+          "expires_at",
+          "csrf_token"
+        ],
+        "title": "SessionResponse",
+        "type": "object"
+      },
+      "UserResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "email": {
+            "maxLength": 320,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "display_name"
+        ],
+        "title": "UserResponse",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "SIEMBIOT Private API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/auth/callback": {
+      "get": {
+        "operationId": "callback_api_v1_auth_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "title": "State",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Callback",
+        "tags": [
+          "authentication"
+        ]
+      }
+    },
+    "/api/v1/auth/login": {
+      "get": {
+        "operationId": "login_api_v1_auth_login_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "return_path",
+            "required": false,
+            "schema": {
+              "default": "/",
+              "title": "Return Path",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login",
+        "tags": [
+          "authentication"
+        ]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "logout_api_v1_auth_logout_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "__Host-siembiot_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "  Host-Siembiot Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogoutResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Logout",
+        "tags": [
+          "authentication"
+        ]
+      }
+    },
+    "/api/v1/health": {
+      "get": {
+        "operationId": "health_api_v1_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/v1/invitations/accept": {
+      "post": {
+        "operationId": "accept_invitation_api_v1_invitations_accept_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "__Host-siembiot_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "  Host-Siembiot Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvitationAccept"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Accept Invitation",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/api/v1/organizations": {
+      "get": {
+        "operationId": "list_organizations_api_v1_organizations_get",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "__Host-siembiot_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "  Host-Siembiot Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OrganizationResponse"
+                  },
+                  "title": "Response List Organizations Api V1 Organizations Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Organizations",
+        "tags": [
+          "organizations"
+        ]
+      },
+      "post": {
+        "operationId": "create_organization_api_v1_organizations_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "__Host-siembiot_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "  Host-Siembiot Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Organization",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/api/v1/organizations/{organization_id}": {
+      "get": {
+        "operationId": "get_organization_api_v1_organizations__organization_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "__Host-siembiot_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "  Host-Siembiot Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Organization",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/api/v1/organizations/{organization_id}/audit-events": {
+      "get": {
+        "operationId": "list_audit_events_api_v1_organizations__organization_id__audit_events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "__Host-siembiot_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "  Host-Siembiot Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AuditEventResponse"
+                  },
+                  "title": "Response List Audit Events Api V1 Organizations  Organization Id  Audit Events Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Audit Events",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/api/v1/organizations/{organization_id}/invitations": {
+      "post": {
+        "operationId": "create_invitation_api_v1_organizations__organization_id__invitations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "__Host-siembiot_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "  Host-Siembiot Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvitationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationCreatedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Invitation",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/api/v1/organizations/{organization_id}/memberships": {
+      "get": {
+        "operationId": "list_memberships_api_v1_organizations__organization_id__memberships_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "__Host-siembiot_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "  Host-Siembiot Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MembershipResponse"
+                  },
+                  "title": "Response List Memberships Api V1 Organizations  Organization Id  Memberships Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Memberships",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/api/v1/organizations/{organization_id}/memberships/{membership_id}": {
+      "delete": {
+        "operationId": "revoke_membership_api_v1_organizations__organization_id__memberships__membership_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "membership_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Membership Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "__Host-siembiot_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "  Host-Siembiot Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Membership",
+        "tags": [
+          "organizations"
+        ]
+      },
+      "patch": {
+        "operationId": "change_membership_api_v1_organizations__organization_id__memberships__membership_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "membership_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Membership Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "__Host-siembiot_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "  Host-Siembiot Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MembershipUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MembershipResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Change Membership",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/api/v1/session": {
+      "get": {
+        "operationId": "session_api_v1_session_get",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "__Host-siembiot_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "  Host-Siembiot Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Session",
+        "tags": [
+          "authentication"
+        ]
+      }
+    }
+  }
+}

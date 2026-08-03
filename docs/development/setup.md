@@ -1,35 +1,103 @@
 # Local Development Setup
 
-Milestone 0 establishes the reproducible toolchain only. Application services and containers are introduced in later milestones.
+Milestone 1 provides the private API, PostgreSQL authority, OIDC session lifecycle, tenancy/RBAC/audit APIs, and Romanian-first web shells. Tyche, model providers, collectors, scoring, queues, and assessments are intentionally absent.
 
 ## Prerequisites
 
-- Git
-- Node.js exactly `24.18.1` (the bootstrap fails closed on a mismatch)
-- a Python 3.12+ launcher; uv installs/manages the pinned Python 3.13 environment
-- Corepack, included with the pinned Node distribution
-- GNU Make is optional on Windows
+- Git;
+- Node.js exactly `24.18.1` and Corepack;
+- a Python 3.12+ launcher (uv installs the pinned Python 3.13 runtime);
+- Docker Desktop/Engine with Compose v2;
+- GNU Make optionally; direct PowerShell equivalents are shown below.
 
-Required versions are pinned in `.nvmrc`, `.python-version`, `package.json`, and `pyproject.toml`. The bootstrap command will validate/install project dependencies without reading credentials from Tyche or contacting assessment targets.
-
-```sh
-make bootstrap
-make check
-```
-
-On Windows without GNU Make, use the equivalent commands:
+Bootstrap only locked dependencies:
 
 ```powershell
 python scripts/bootstrap.py
+```
+
+## Local configuration
+
+Copy `.env.example` to the ignored `.env` and replace every `CHANGEME_LOCAL_ONLY` value with a local-only value. Generate the required Fernet session-encryption key locally:
+
+```powershell
+python -m uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+Configure any standards-compatible OIDC issuer that exposes discovery, authorization, token, JWKS, and optionally end-session endpoints. Register exactly this callback for the default setup:
+
+```text
+https://localhost:3000/api/v1/auth/callback
+```
+
+The API validates issuer, signed ID token, audience, expiry, state, nonce, and PKCE. It does not accept tenant or platform-role claims from the provider. Access and refresh tokens are never returned to the browser or stored in browser storage.
+
+## PostgreSQL and migrations
+
+Start the digest-pinned PostgreSQL 17.6 service. Compose creates distinct `siembiot_owner` and least-privilege `siembiot_app` roles from local environment values:
+
+```powershell
+docker compose --env-file .env -f infra/compose/postgres.compose.yml up -d --wait
+python -m uv run --frozen alembic -c services/api/alembic.ini upgrade head
+```
+
+An empty database upgrades through:
+
+1. `0001_identity_tenancy_audit`;
+2. `0002_invites_org_discovery`;
+3. `0003_global_audit_rls`.
+
+Production data rollback is not an Alembic downgrade. Production follows expand/backfill/verify/contract, then a forward fix or point-in-time restore. For disposable development databases only, rollback/re-upgrade is tested with:
+
+```powershell
+python -m uv run --frozen alembic -c services/api/alembic.ini downgrade base
+python -m uv run --frozen alembic -c services/api/alembic.ini upgrade head
+```
+
+Stop the local database without deleting its named volume:
+
+```powershell
+docker compose --env-file .env -f infra/compose/postgres.compose.yml down
+```
+
+## Run the application
+
+In one terminal, export the values from `.env` using your preferred local environment loader and run the API:
+
+```powershell
+python -m uv run --frozen uvicorn siembiot.main:app --app-dir services/api/src --host 127.0.0.1 --port 8000
+```
+
+In a second terminal, run the HTTPS development web server. HTTPS is required because the session cookie is always `Secure`:
+
+```powershell
+corepack pnpm --filter @siembiot/web dev
+```
+
+Open `https://localhost:3000`. The local development certificate is self-signed. The Next.js same-origin rewrite forwards `/api/*` to the API; the browser receives a `Secure`, `HttpOnly`, `SameSite=Lax`, `__Host-` opaque cookie. CSRF values live only in JavaScript memory and are rotated by the session endpoint.
+
+## Verification
+
+The complete gate starts a disposable, named PostgreSQL test project, migrates from empty, runs RLS/security/migration tests, removes only that test project and volume, tests/builds the web app, checks generated-contract drift, and runs all repository gates:
+
+```powershell
 python scripts/verify_repo.py
 ```
 
-Bootstrap installs uv `0.12.1` through pip, synchronizes `uv.lock` into `.venv`, activates pnpm `10.34.5` through Corepack, and installs only `pnpm-lock.yaml`. It does not start services, read `.env`, or make assessment-target connections.
+Focused commands are:
 
-`verify_repo.py` runs 14 named gates: Phase 0 structure, repository invariants, lock drift, formatting, lint, types, unit tests, contracts, migrations, secrets, images, SBOM inputs, documentation, and Git whitespace. Future-surface gates fail if their components are introduced before their planned milestone.
+```powershell
+python -m uv run --frozen pytest tests/api tests/contracts -q
+python -m uv run --frozen pytest tests/database -q
+python -m uv run --frozen pytest tests/security/test_auth_tenant_authorization.py -q
+python -m uv run --frozen python scripts/check_contracts.py
+corepack pnpm --filter @siembiot/web test
+corepack pnpm --filter @siembiot/web typecheck
+corepack pnpm --filter @siembiot/web build
+```
 
-Copy `.env.example` to `.env` only for local development and replace every `CHANGEME_LOCAL_ONLY` value. `.env` is ignored. Never use production credentials in the local fixture environment. The model provider remains disabled until the agent milestone.
+The Docker-backed tests use only fixed test placeholders and reserved domains. They do not access assessment targets or Tyche.
 
-## Runtime troubleshooting
+## Production blocker
 
-If bootstrap reports a Node mismatch, install the exact `.nvmrc` version using your normal version manager or the official Node distribution, open a fresh terminal, and rerun. Do not bypass the engine check or edit the pin locally.
+The upstream Tyche credential exposure remains unresolved and is a production launch blocker. Its rotation and Git-history remediation are separately authorized security actions. This repository does not contain, access, test, rotate, or modify that credential.

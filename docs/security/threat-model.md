@@ -1,6 +1,6 @@
 # Threat Model
 
-**Version:** 0.1
+**Version:** 0.2
 
 **Review date:** 2026-08-03
 
@@ -96,6 +96,10 @@ No chain-of-thought is stored. Audit retains run ID, tenant, model/provider/vers
 - secret/SAST/SCA/container/IaC scans and SBOM/provenance;
 - production-like smoke, backup restore, kill-switch, cancellation, provider/model outage, and public-suppression drills;
 - independent penetration test and privacy/legal review before public production.
+
+## Milestone 1 validation status
+
+TM-01 through TM-05 and the audit-integrity portion of TM-17 now have executable foundations. Tests cover one-time OIDC state, nonce and PKCE, secure cookie flags, session expiry/revocation, exact-origin CSRF, unauthenticated access, cross-tenant/IDOR attempts, forged tenant headers, role escalation, revoked membership, duplicate invitations, tenant RLS, explicit support grants with phishing-resistant MFA, and database denial of audit update/delete. Remaining abuse-rate limits, independent identity-provider conformance, penetration testing, production key management, and operational alerting remain later hardening work and launch gates.
 
 ## Open risks requiring accountable acceptance before launch
 

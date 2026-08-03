@@ -12,12 +12,21 @@ All notable changes are documented here. The project has no supported release ye
 - Cross-platform bootstrap and 14-gate repository verification commands.
 - Repository invariant, toolchain, secret-scanner, Windows command-shim, runtime, and CI pinning tests.
 - Commit-pinned CI foundation workflow with least-privilege permissions.
+- Milestone 1 versioned JSON Schema/OpenAPI contracts and generated TypeScript API definitions with drift checks.
+- Digest-pinned PostgreSQL startup and Alembic migrations for identities, organizations, memberships, invitations, OIDC transactions, server sessions, explicit support grants, and audit events.
+- Actor-isolated global audit-event reads in addition to tenant-scoped audit RLS.
+- Provider-neutral OIDC discovery, state/nonce/PKCE callback, opaque session, CSRF, logout, organization, membership, invitation, RBAC, and audit APIs.
+- Romanian-first accessible login, onboarding, team, and audit web shells with HTTPS local development.
 
 ### Security
 
 - Safe environment template with the model disabled by default.
 - Tracked secret/key/generated-file rejection and assignment-shaped secret scanning.
 - No Tyche configuration, credentials, dependencies, source, or ticket functionality imported.
+- Forced PostgreSQL RLS plus application-layer tenant/action/object authorization, with no implicit platform-admin tenant access.
+- Append-only structured audit events protected by application-role grants, RLS, and an immutability trigger.
+- Negative tests for unauthenticated, cross-tenant, IDOR/BOLA, forged tenant, role escalation, revoked membership, expired session, OIDC replay/nonce, CSRF origin, and support-access assurance cases.
+- Browser security invariant prohibits access/refresh token storage and keeps CSRF state in memory.
 
 ### Verification
 
@@ -26,5 +35,5 @@ All notable changes are documented here. The project has no supported release ye
 
 ### Known limitations
 
-- No application services, database schema, migrations, user journeys, containers, or deployment exist yet.
+- Tyche/agents, assessments, domain verification, collectors, providers, queues, evidence, scoring, reports, public projection, production deployment, and operational hardening are not implemented yet.
 - The upstream Tyche credential exposure remains a production launch blocker outside this repository's authority.

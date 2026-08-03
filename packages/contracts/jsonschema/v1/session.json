@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.siembiot.example/v1/session.json",
+  "title": "SessionV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "authenticated", "user", "expires_at", "csrf_token"],
+  "properties": {
+    "contract_version": { "const": "v1" },
+    "authenticated": { "const": true },
+    "user": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "email", "display_name"],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "email": { "type": "string", "format": "email", "maxLength": 320 },
+        "display_name": { "type": "string", "minLength": 1, "maxLength": 200 }
+      }
+    },
+    "expires_at": { "type": "string", "format": "date-time", "pattern": "Z$" },
+    "csrf_token": { "type": "string", "minLength": 20, "maxLength": 256 }
+  }
+}

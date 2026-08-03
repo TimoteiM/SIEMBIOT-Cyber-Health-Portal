@@ -19,6 +19,7 @@ build/
 
 # JavaScript
 node_modules/
+*.tsbuildinfo
 .next/
 coverage/
 playwright-report/

@@ -25,7 +25,7 @@ REQUIRED_FOUNDATION_FILES = {
     "scripts/verify_repo.py",
     "uv.lock",
 }
-FORBIDDEN_SUFFIXES = {".key", ".p12", ".pfx", ".pem"}
+FORBIDDEN_SUFFIXES = {".key", ".p12", ".pfx", ".pem", ".tsbuildinfo"}
 FORBIDDEN_PARTS = {".next", ".venv", "__pycache__", "node_modules"}
 
 
