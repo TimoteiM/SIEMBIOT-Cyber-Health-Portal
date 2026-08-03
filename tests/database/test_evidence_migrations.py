@@ -231,6 +231,8 @@ def test_database_rejects_incomplete_fixture_provenance(
                     manifest,
                     bytes.fromhex("77" * 32),
                     "sha256:" + "7" * 64,
-                    '{"collector_id":null}',
+                    '{"collector_id":null,"collector_version":null,"adapter_id":null,'
+                    '"adapter_version":null,"normalizer_version":null,"scenario_id":null,'
+                    '"scenario_sha256":null}',
                 ),
             )
