@@ -19,7 +19,7 @@
     "mode": {"const": "fixture"},
     "provenance": {"type": "object", "additionalProperties": false,
       "required": ["collector_id", "collector_version", "adapter_id", "adapter_version", "normalizer_version", "scenario_id", "scenario_sha256"],
-      "properties": {"collector_id": {"type": "string"}, "collector_version": {"type": "string"}, "adapter_id": {"type": "string"}, "adapter_version": {"type": "string"}, "normalizer_version": {"type": "string"}, "scenario_id": {"type": ["string", "null"]}, "scenario_sha256": {"type": ["string", "null"]}}
+      "properties": {"collector_id": {"type": "string", "minLength": 1}, "collector_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"}, "adapter_id": {"type": "string", "minLength": 1}, "adapter_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"}, "normalizer_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"}, "scenario_id": {"type": "string", "minLength": 1}, "scenario_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}
     },
     "payload": {"type": "object"},
     "source_confidence": {"type": "number", "minimum": 0, "maximum": 1},

@@ -140,7 +140,6 @@ def test_critical_caps_require_eligible_non_fixture_evidence() -> None:
         {"directly_attributable": False},
         {"source_confidence": 0.5},
         {"provider_disagreement": True},
-        {"evidence_types": ("unrelated.signal",)},
         {"asset_authorized": False},
     ],
 )
@@ -179,21 +178,16 @@ def test_cap_requires_actual_evidence_reference() -> None:
             "cap_requires_authorized_asset": True,
         }
     )
-    catalog = PolicyCatalog(
-        CATALOG.methodology_version,
-        CATALOG.scoring_behavior_version,
-        CATALOG.minimum_coverage,
-        CATALOG.pillars,
-        (capped, *CATALOG.checks[1:]),
-        CATALOG.policy_hash,
-    )
-    inputs = (
-        evaluation(capped, EvaluationOutcome.FAIL, mode=EvidenceMode.LIVE, evidence_ids=()),
-    ) + tuple(
-        evaluation(check, EvaluationOutcome.PASS, mode=EvidenceMode.LIVE)
-        for check in CATALOG.checks[1:]
-    )
-    assert score_evaluations(inputs, catalog, created_at=NOW).caps_applied == ()
+    with pytest.raises(ValueError, match="score_bearing_evidence_required"):
+        evaluation(capped, EvaluationOutcome.FAIL, mode=EvidenceMode.LIVE, evidence_ids=())
+
+
+def test_score_bearing_evidence_type_must_match_policy() -> None:
+    inputs = list(all_outcomes(EvaluationOutcome.PASS))
+    changed = inputs[0].model_dump(exclude={"evaluation_id", "evidence_types"})
+    inputs[0] = CheckEvaluation.build(**changed, evidence_types=("unrelated.signal",))
+    with pytest.raises(ValueError, match="score_evidence_type_mismatch"):
+        score_evaluations(tuple(inputs), CATALOG, created_at=NOW)
 
 
 def test_scoring_behavior_version_mismatch_is_rejected() -> None:

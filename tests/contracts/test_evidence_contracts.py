@@ -107,3 +107,10 @@ def test_shared_contract_rejects_fixture_publication(name: str) -> None:
     schema = json.loads((SCHEMAS / f"{name}.json").read_text(encoding="utf-8"))
     with pytest.raises(SchemaValidationError):
         Draft202012Validator(schema).validate(instance)
+
+
+def test_shared_contract_rejects_score_bearing_outcome_without_evidence() -> None:
+    instance = {**reproduce()["evaluations"][0], "evidence_ids": [], "evidence_types": []}
+    schema = json.loads((SCHEMAS / "check-evaluation.json").read_text(encoding="utf-8"))
+    with pytest.raises(SchemaValidationError):
+        Draft202012Validator(schema).validate(instance)

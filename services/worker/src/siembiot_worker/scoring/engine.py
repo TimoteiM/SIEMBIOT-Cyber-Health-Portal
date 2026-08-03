@@ -78,6 +78,13 @@ def score_evaluations(
         item not in {c.check_id for c in catalog.checks} for item in by_id
     ):
         raise ValueError("invalid_evaluation_set")
+    definitions = {item.check_id: item for item in catalog.checks}
+    if any(
+        item.outcome in _FACTORS
+        and item.evidence_types != (definitions[item.check_id].observation_type,)
+        for item in ordered
+    ):
+        raise ValueError("score_evidence_type_mismatch")
     weights = _effective_weights(catalog)
     applicable = [
         check

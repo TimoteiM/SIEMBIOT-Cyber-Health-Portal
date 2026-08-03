@@ -135,6 +135,15 @@ class CheckEvaluation(StrictModel):
             raise ValueError("timezone_aware_timestamp_required")
         if self.mode is EvidenceMode.FIXTURE and self.publishable:
             raise ValueError("fixture_evaluation_boundary")
+        score_bearing = {
+            EvaluationOutcome.PASS,
+            EvaluationOutcome.FAIL,
+            EvaluationOutcome.WARNING,
+            EvaluationOutcome.SUPPRESSED,
+            EvaluationOutcome.ACCEPTED_RISK,
+        }
+        if self.outcome in score_bearing and (not self.evidence_ids or not self.evidence_types):
+            raise ValueError("score_bearing_evidence_required")
         if self.evaluation_id != canonical_hash(self.identity()):
             raise ValueError("evaluation_id_mismatch")
         return self

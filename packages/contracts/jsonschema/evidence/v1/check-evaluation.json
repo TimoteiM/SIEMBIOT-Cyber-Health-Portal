@@ -15,5 +15,8 @@
     "source_confidence": {"type": "number", "minimum": 0, "maximum": 1}, "attribution_confidence": {"type": "number", "minimum": 0, "maximum": 1},
     "fresh": {"type": "boolean"}, "directly_attributable": {"type": "boolean"}, "provider_disagreement": {"type": "boolean"}, "asset_authorized": {"type": "boolean"}, "publishable": {"type": "boolean"}
   },
-  "allOf": [{"if": {"properties": {"mode": {"const": "fixture"}}}, "then": {"properties": {"publishable": {"const": false}}}}]
+  "allOf": [
+    {"if": {"properties": {"mode": {"const": "fixture"}}}, "then": {"properties": {"publishable": {"const": false}}}},
+    {"if": {"properties": {"outcome": {"enum": ["pass", "fail", "warning", "suppressed", "accepted_risk"]}}}, "then": {"properties": {"evidence_ids": {"minItems": 1}, "evidence_types": {"minItems": 1}}}}
+  ]
 }

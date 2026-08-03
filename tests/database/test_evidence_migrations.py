@@ -146,8 +146,8 @@ def test_database_rejects_fixture_relabel_and_mixed_mode_lineage(
             )
         owner.rollback()
         evaluation_row = owner.execute(
-            "INSERT INTO check_evaluations (organization_id,asset_id,scope_manifest_id,evidence_mode,evaluation_hash,policy_hash,check_id,methodology_version,scoring_behavior_version,outcome,reason_code,evidence_ids,evidence_types,source_confidence,attribution_confidence,fresh,directly_attributable,provider_disagreement,asset_authorized,evaluated_at,publishable) VALUES (%s,%s,%s,'live',%s,%s,'dns.dnssec','1.0.0','1.0.0','pass','source_outcome','{}',ARRAY['dns.dnssec'],1,1,true,true,false,true,now(),true) RETURNING id",
-            (org, asset, manifest, bytes([2]) * 32, bytes([1]) * 32),
+            "INSERT INTO check_evaluations (organization_id,asset_id,scope_manifest_id,evidence_mode,evaluation_hash,policy_hash,check_id,methodology_version,scoring_behavior_version,outcome,reason_code,evidence_ids,evidence_types,source_confidence,attribution_confidence,fresh,directly_attributable,provider_disagreement,asset_authorized,evaluated_at,publishable) VALUES (%s,%s,%s,'live',%s,%s,'dns.dnssec','1.0.0','1.0.0','pass','source_outcome',ARRAY[%s],ARRAY['dns.dnssec'],1,1,true,true,false,true,now(),true) RETURNING id",
+            (org, asset, manifest, bytes([2]) * 32, bytes([1]) * 32, "sha256-v1:" + "ab" * 32),
         ).fetchone()
         assert evaluation_row is not None
         evaluation = evaluation_row[0]
@@ -213,5 +213,24 @@ def test_deferred_constraints_reject_contradictory_evidence_lineage(
                     bytes.fromhex("12" * 32),
                     bytes.fromhex("13" * 32),
                     "sha256-v1:" + "f" * 64,
+                ),
+            )
+
+
+def test_database_rejects_incomplete_fixture_provenance(
+    postgres_database: dict[str, str],
+) -> None:
+    org, _, asset, manifest = seed_scope(postgres_database["owner_url"], "provenance")
+    with psycopg.connect(postgres_database["owner_url"]) as owner:
+        with pytest.raises(psycopg.errors.CheckViolation):
+            owner.execute(
+                "INSERT INTO normalized_observations (organization_id,asset_id,scope_manifest_id,evidence_mode,normalized_hash,hash_version,schema_version,observation_type,source_evidence_id,payload,provenance,freshness_seconds,observed_at,source_confidence,attribution_confidence,publishable,real_world) VALUES (%s,%s,%s,'fixture',%s,'sha256-v1','v1','dns.dnssec',%s,'{}',%s,3600,now(),1,1,false,false)",
+                (
+                    org,
+                    asset,
+                    manifest,
+                    bytes.fromhex("77" * 32),
+                    "sha256:" + "7" * 64,
+                    '{"collector_id":null}',
                 ),
             )

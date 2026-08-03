@@ -36,7 +36,7 @@ def upgrade() -> None:
       normalized_hash bytea NOT NULL CHECK(octet_length(normalized_hash)=32), hash_version text NOT NULL CHECK(hash_version='sha256-v1'),
       schema_version text NOT NULL CHECK(schema_version='v1'), observation_type text NOT NULL CHECK(observation_type ~ '^[a-z][a-z0-9._-]{1,127}$'),
       source_evidence_id text NOT NULL CHECK(source_evidence_id ~ '^sha256:[a-f0-9]{64}$'), payload jsonb NOT NULL CHECK(jsonb_typeof(payload)='object'),
-      provenance jsonb NOT NULL CHECK(jsonb_typeof(provenance)='object' AND provenance ?& ARRAY['collector_id','collector_version','adapter_id','adapter_version','normalizer_version','scenario_id','scenario_sha256']), freshness_seconds integer NOT NULL CHECK(freshness_seconds>=0),
+      provenance jsonb NOT NULL CHECK(jsonb_typeof(provenance)='object' AND provenance ?& ARRAY['collector_id','collector_version','adapter_id','adapter_version','normalizer_version','scenario_id','scenario_sha256'] AND provenance->>'collector_id' ~ '^[a-z][a-z0-9._-]{1,63}$' AND provenance->>'adapter_id' ~ '^[a-z][a-z0-9._-]{1,63}$' AND provenance->>'collector_version' ~ '^[0-9]+\.[0-9]+\.[0-9]+$' AND provenance->>'adapter_version' ~ '^[0-9]+\.[0-9]+\.[0-9]+$' AND provenance->>'normalizer_version' ~ '^[0-9]+\.[0-9]+\.[0-9]+$' AND length(provenance->>'scenario_id') BETWEEN 1 AND 128 AND provenance->>'scenario_sha256' ~ '^[a-f0-9]{64}$'), freshness_seconds integer NOT NULL CHECK(freshness_seconds>=0),
       observed_at timestamptz NOT NULL, source_confidence numeric(7,6) NOT NULL CHECK(source_confidence BETWEEN 0 AND 1),
       attribution_confidence numeric(7,6) NOT NULL CHECK(attribution_confidence BETWEEN 0 AND 1),
       publishable boolean NOT NULL DEFAULT false, real_world boolean NOT NULL DEFAULT false, created_at timestamptz NOT NULL DEFAULT now(),
@@ -58,7 +58,8 @@ def upgrade() -> None:
       evaluated_at timestamptz NOT NULL, publishable boolean NOT NULL DEFAULT false, created_at timestamptz NOT NULL DEFAULT now(),
       FOREIGN KEY(organization_id,asset_id) REFERENCES domains(organization_id,id) ON DELETE RESTRICT,
       FOREIGN KEY(organization_id,scope_manifest_id) REFERENCES scope_manifests(organization_id,id) ON DELETE RESTRICT,
-      UNIQUE(organization_id,id,evidence_mode), UNIQUE(organization_id,evaluation_hash), CHECK(evidence_mode <> 'fixture' OR NOT publishable)
+      UNIQUE(organization_id,id,evidence_mode), UNIQUE(organization_id,evaluation_hash), CHECK(evidence_mode <> 'fixture' OR NOT publishable),
+      CHECK(outcome NOT IN ('pass','fail','warning','suppressed','accepted_risk') OR (cardinality(evidence_ids)>0 AND cardinality(evidence_types)>0))
     );
     CREATE TABLE evaluation_evidence (
       organization_id uuid NOT NULL, evaluation_id uuid NOT NULL, observation_id uuid NOT NULL, evidence_mode evidence_mode NOT NULL,
