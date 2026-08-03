@@ -6,7 +6,6 @@ import re
 import sys
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_FILES = {
     "README.md",
@@ -55,7 +54,11 @@ def fail(message: str, errors: list[str]) -> None:
 
 def main() -> int:
     errors: list[str] = []
-    files = {path.relative_to(ROOT).as_posix() for path in ROOT.rglob("*") if path.is_file() and ".git" not in path.parts}
+    files = {
+        path.relative_to(ROOT).as_posix()
+        for path in ROOT.rglob("*")
+        if path.is_file() and ".git" not in path.parts
+    }
 
     for required in sorted(REQUIRED_FILES - files):
         fail(f"missing required file: {required}", errors)
@@ -70,7 +73,9 @@ def main() -> int:
             if term.lower() not in text:
                 fail(f"{relative} missing term: {term}", errors)
 
-    for relative in sorted(path for path in files if path.endswith((".md", ".yml", ".yaml", ".py"))):
+    for relative in sorted(
+        path for path in files if path.endswith((".md", ".yml", ".yaml", ".py"))
+    ):
         text = (ROOT / relative).read_text(encoding="utf-8")
         if text.count("```mermaid") > text.count("```"):
             fail(f"unclosed Mermaid fence: {relative}", errors)

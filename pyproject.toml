@@ -1,0 +1,29 @@
+[project]
+name = "siembiot"
+version = "0.0.0"
+description = "Security-first community cyber health assessment platform"
+requires-python = "==3.13.*"
+license = "MIT"
+
+[dependency-groups]
+dev = [
+    "mypy==1.17.1",
+    "pytest==8.4.1",
+    "ruff==0.12.8",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-config --strict-markers"
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "S", "UP"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+files = ["scripts", "tests"]
