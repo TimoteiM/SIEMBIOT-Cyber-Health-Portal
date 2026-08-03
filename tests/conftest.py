@@ -9,7 +9,9 @@ from pathlib import Path
 import pytest
 
 API_SRC = Path(__file__).resolve().parents[1] / "services" / "api" / "src"
+WORKER_SRC = Path(__file__).resolve().parents[1] / "services" / "worker" / "src"
 sys.path.insert(0, str(API_SRC))
+sys.path.insert(0, str(WORKER_SRC))
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSE_FILE = ROOT / "infra" / "compose" / "postgres.compose.yml"
