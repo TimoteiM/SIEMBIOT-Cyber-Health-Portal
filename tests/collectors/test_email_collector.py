@@ -35,7 +35,6 @@ def _components() -> tuple[FixtureScenarioPack, FixtureCollectorContext]:
     return pack, FixtureCollectorContext(
         scope_reference="scope-example-test",
         scenario_id=scenario.id,
-        scenario_sha256=scenario.digest,
     )
 
 

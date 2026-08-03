@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[2]
 BOUNDARIES = (
     ROOT / "services" / "worker" / "src" / "siembiot_worker" / "adapters",
     ROOT / "services" / "worker" / "src" / "siembiot_worker" / "collectors",
+    ROOT / "services" / "worker" / "src" / "siembiot_worker" / "collection",
 )
 FORBIDDEN_MODULES = {
     "aiohttp",
@@ -44,8 +45,16 @@ def test_adapters_and_collectors_have_no_direct_network_or_process_capability() 
 
 def test_collectors_depend_on_broker_protocols_not_fixture_implementation() -> None:
     collector_source = "\n".join(
-        path.read_text(encoding="utf-8") for root in BOUNDARIES for path in root.rglob("*.py")
+        path.read_text(encoding="utf-8") for root in BOUNDARIES[:2] for path in root.rglob("*.py")
     )
     assert "FixtureInternetBroker" not in collector_source
     assert "SystemResolver" not in collector_source
     assert "SocketConnector" not in collector_source
+
+
+def test_adapter_runtime_has_no_executable_callback_surface() -> None:
+    runtime = (
+        ROOT / "services" / "worker" / "src" / "siembiot_worker" / "adapters" / "runtime.py"
+    ).read_text(encoding="utf-8")
+    assert "operation()" not in runtime
+    assert "Callable[[], Mapping" not in runtime

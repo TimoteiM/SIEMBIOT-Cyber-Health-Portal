@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-from typing import Any
-
 import pytest
 from siembiot_worker.adapters.runtime import (
+    AdapterInvocation,
     AdapterRuntime,
     BudgetLedger,
     BudgetLimits,
     CircuitBreaker,
-    ProviderUnavailableError,
     retain_provider_disagreement,
 )
 
@@ -35,70 +33,59 @@ def test_request_cost_and_concurrency_budgets_are_deterministic() -> None:
 
 def test_runtime_denies_capability_mismatch_retry_and_cancellation() -> None:
     runtime = AdapterRuntime(BudgetLedger(BudgetLimits()))
-    called = False
-
-    def operation() -> dict[str, bool]:
-        nonlocal called
-        called = True
-        return {"ok": True}
-
-    mismatch = runtime.execute(descriptor(), "http.head", operation)
-    retry = runtime.execute(descriptor(), "dns.lookup", operation, retry_count=1)
-    cancelled = runtime.execute(descriptor(), "dns.lookup", operation, cancelled=lambda: True)
+    mismatch = runtime.execute(descriptor(), AdapterInvocation("http.head", "success", "fixture"))
+    retry = runtime.execute(
+        descriptor(), AdapterInvocation("dns.lookup", "success", "fixture", retry_count=1)
+    )
+    cancelled = runtime.execute(
+        descriptor(),
+        AdapterInvocation("dns.lookup", "success", "fixture"),
+        cancelled=lambda: True,
+    )
     assert mismatch.reason_code == "capability_not_declared"
     assert retry.reason_code == "retry_not_declared"
     assert cancelled.reason_code == "cancelled"
-    assert not called
 
 
 def test_provider_unavailability_is_structured_and_opens_circuit() -> None:
     breaker = CircuitBreaker(failure_threshold=2, recovery_after_steps=2)
     runtime = AdapterRuntime(BudgetLedger(BudgetLimits(max_requests=10)), breaker=breaker)
-
-    def unavailable() -> dict[str, Any]:
-        raise ProviderUnavailableError("fixture_provider_unavailable")
-
-    first = runtime.execute(descriptor(), "dns.lookup", unavailable)
-    second = runtime.execute(descriptor(), "dns.lookup", unavailable)
-    opened = runtime.execute(descriptor(), "dns.lookup", lambda: {"unexpected": True})
+    unavailable = AdapterInvocation("dns.lookup", "unavailable", "fixture_provider_unavailable")
+    first = runtime.execute(descriptor(), unavailable)
+    second = runtime.execute(descriptor(), unavailable)
+    opened = runtime.execute(descriptor(), AdapterInvocation("dns.lookup", "success", "fixture"))
     assert first.status == second.status == "unavailable"
     assert opened.reason_code == "circuit_open"
 
     breaker.advance(steps=2)
-    recovered = runtime.execute(descriptor(), "dns.lookup", lambda: {"ok": True})
+    recovered = runtime.execute(
+        descriptor(),
+        AdapterInvocation("dns.lookup", "success", "fixture", {"ok": True}),
+    )
     assert recovered.status == "success"
     assert breaker.state == "closed"
 
 
-def test_operation_runs_once_and_safe_errors_do_not_leak_exception_text() -> None:
+def test_runtime_accepts_no_executable_callback_or_unsafe_error_text() -> None:
     runtime = AdapterRuntime(BudgetLedger(BudgetLimits()))
-    calls = 0
-
-    def broken() -> dict[str, Any]:
-        nonlocal calls
-        calls += 1
-        raise RuntimeError("secret value must never escape")
-
-    outcome = runtime.execute(descriptor(), "dns.lookup", broken)
-    assert calls == 1
+    outcome = runtime.execute(
+        descriptor(), AdapterInvocation("dns.lookup", "error", "adapter_error")
+    )
     assert outcome.status == "error"
     assert outcome.reason_code == "adapter_error"
-    assert "secret" not in repr(outcome)
+    with pytest.raises(ValueError, match="invalid_adapter_reason_code"):
+        AdapterInvocation("dns.lookup", "error", "secret value must never escape")
 
 
 def test_provider_disagreement_and_confidence_are_retained() -> None:
     runtime = AdapterRuntime(BudgetLedger(BudgetLimits(max_requests=4)))
     first = runtime.execute(
         descriptor(adapter_id="fixture-dns-a"),
-        "dns.lookup",
-        lambda: {"secure": True},
-        confidence=0.9,
+        AdapterInvocation("dns.lookup", "success", "fixture", {"secure": True}, confidence=0.9),
     )
     second = runtime.execute(
         descriptor(adapter_id="fixture-dns-b"),
-        "dns.lookup",
-        lambda: {"secure": False},
-        confidence=0.8,
+        AdapterInvocation("dns.lookup", "success", "fixture", {"secure": False}, confidence=0.8),
     )
     aggregate = retain_provider_disagreement((first, second))
     assert aggregate.disagreement

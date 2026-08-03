@@ -7,7 +7,11 @@ from siembiot_worker.collection.models import (
     ObservationOutcome,
     build_fixture_observation,
 )
-from siembiot_worker.collectors.common import FixtureCollectorContext, TLSBroker
+from siembiot_worker.collectors.common import (
+    FixtureCollectorContext,
+    TLSBroker,
+    broker_provenance,
+)
 
 FIELDS = ("version", "cipher", "hostname_valid", "chain_valid", "not_before", "not_after")
 
@@ -48,6 +52,7 @@ class TLSCollector:
             outcome = ObservationOutcome.UNKNOWN
         else:
             outcome = ObservationOutcome.ERROR
+        scenario_id, scenario_sha256 = broker_provenance(context, result)
         return build_fixture_observation(
             scope_reference=context.scope_reference,
             collector_id="tls",
@@ -55,8 +60,8 @@ class TLSCollector:
             adapter_id="fixture-internet",
             adapter_version="1.0.0",
             collected_at=result.fixture_timestamp,
-            scenario_id=context.scenario_id,
-            scenario_sha256=context.scenario_sha256,
+            scenario_id=scenario_id,
+            scenario_sha256=scenario_sha256,
             outcome=outcome,
             payload=payload,
         )

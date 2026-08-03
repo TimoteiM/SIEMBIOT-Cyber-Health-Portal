@@ -26,7 +26,7 @@ def test_complete_fixture_collection_opens_no_network_connection(
     scenario = pack.scenario("healthy")
     result = FixtureSuiteRunner.for_broker(FixtureInternetBroker(pack)).run(
         FixtureRunInput(
-            FixtureCollectorContext("scope-example-test", scenario.id, scenario.digest),
+            FixtureCollectorContext("scope-example-test", scenario.id),
             "example.test",
             "portal.example.test",
             ("selector1",),

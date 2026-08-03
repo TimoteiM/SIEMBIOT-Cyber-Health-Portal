@@ -15,8 +15,9 @@ FIXTURE_ROOT = Path(__file__).parents[1] / "fixtures" / "fake_internet" / "v1"
 
 
 class StaticDNSBroker:
-    def __init__(self, records: object) -> None:
+    def __init__(self, records: object, *, scenario_id: str = "healthy") -> None:
         self.records = records
+        self.scenario_id = scenario_id
 
     def resolve_dns(
         self,
@@ -28,10 +29,12 @@ class StaticDNSBroker:
     ) -> FixtureBrokerResult:
         del scenario_id, host, record_type, cancelled
         return FixtureBrokerResult(
-            True,
-            "fixture",
-            datetime(2026, 8, 3, 12, tzinfo=UTC),
-            {"records": self.records},
+            allowed=True,
+            reason_code="fixture",
+            fixture_timestamp=datetime(2026, 8, 3, 12, tzinfo=UTC),
+            scenario_id=self.scenario_id,
+            scenario_sha256="a" * 64,
+            data={"records": self.records},
         )
 
 
@@ -41,7 +44,6 @@ def _components() -> tuple[FixtureInternetBroker, FixtureCollectorContext]:
     return FixtureInternetBroker(pack), FixtureCollectorContext(
         scope_reference="scope-example-test",
         scenario_id=scenario.id,
-        scenario_sha256=scenario.digest,
     )
 
 
@@ -76,5 +78,12 @@ def test_malformed_and_oversized_dns_fixture_data_fails_safely(records: object) 
     _, context = _components()
     observations = DNSCollector(StaticDNSBroker(records)).collect(context, "example.test")
     assert all(item.outcome is ObservationOutcome.ERROR for item in observations)
-    assert all(item.payload["records"] == [] for item in observations)
+    assert all(item.payload["records"] == () for item in observations)
     assert all(item.payload["reason_code"] == "malformed_fixture_data" for item in observations)
+
+
+def test_collector_rejects_broker_result_for_a_different_scenario() -> None:
+    _, context = _components()
+    broker = StaticDNSBroker(["93.184.216.34"], scenario_id="different")
+    with pytest.raises(ValueError, match="broker_scenario_provenance_mismatch"):
+        DNSCollector(broker).collect(context, "example.test")

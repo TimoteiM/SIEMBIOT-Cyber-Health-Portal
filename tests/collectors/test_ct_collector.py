@@ -17,7 +17,6 @@ def _components() -> tuple[FixtureInternetBroker, FixtureCollectorContext]:
     return FixtureInternetBroker(pack), FixtureCollectorContext(
         scope_reference="scope-example-test",
         scenario_id=scenario.id,
-        scenario_sha256=scenario.digest,
     )
 
 
@@ -25,11 +24,11 @@ def test_ct_names_are_passive_fixture_assertions_and_do_not_authorize_assets() -
     broker, context = _components()
     observation = CTCollector(broker).collect(context, "example.test")
     assert observation.outcome is ObservationOutcome.PASS
-    assert observation.payload["asserted_names"] == [
+    assert observation.payload["asserted_names"] == (
         "*.example.test",
         "example.test",
         "portal.example.test",
-    ]
+    )
     assert observation.payload["ignored_unrelated_names"] == 1
     assert observation.payload["asset_authorized"] is False
     assert observation.payload["asset_created"] is False

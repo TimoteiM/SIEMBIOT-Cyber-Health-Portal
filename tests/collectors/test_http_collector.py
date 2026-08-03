@@ -24,7 +24,6 @@ def _components(
     return FixtureInternetBroker(pack), FixtureCollectorContext(
         scope_reference="scope-portal-example-test",
         scenario_id=scenario.id,
-        scenario_sha256=scenario.digest,
     )
 
 

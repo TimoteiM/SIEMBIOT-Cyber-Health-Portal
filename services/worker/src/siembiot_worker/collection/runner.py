@@ -101,15 +101,15 @@ class FixtureSuiteRunner:
         )
 
     @staticmethod
-    def _run_id(value: FixtureRunInput) -> str:
+    def _run_id(value: FixtureRunInput, observations: tuple[CollectionObservation, ...]) -> str:
         identity = json.dumps(
             {
                 "scope_reference": value.context.scope_reference,
                 "scenario_id": value.context.scenario_id,
-                "scenario_sha256": value.context.scenario_sha256,
                 "domain": value.domain,
                 "web_host": value.web_host,
                 "dkim_selectors": value.dkim_selectors,
+                "evidence_ids": [item.evidence_id for item in observations],
             },
             sort_keys=True,
             separators=(",", ":"),
@@ -153,13 +153,14 @@ class FixtureSuiteRunner:
             status = "partially_completed"
         else:
             status = "completed"
+        immutable_observations = tuple(observations)
         return FixtureRunResult(
-            self._run_id(value),
+            self._run_id(value, immutable_observations),
             status,
             True,
             False,
             FIXTURE_BANNER,
             "not_performed",
-            tuple(observations),
+            immutable_observations,
             tuple(coverage),
         )

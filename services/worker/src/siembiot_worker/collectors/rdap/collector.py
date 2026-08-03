@@ -8,7 +8,11 @@ from siembiot_worker.collection.models import (
     ObservationOutcome,
     build_fixture_observation,
 )
-from siembiot_worker.collectors.common import FixtureCollectorContext, RDAPBroker
+from siembiot_worker.collectors.common import (
+    FixtureCollectorContext,
+    RDAPBroker,
+    broker_provenance,
+)
 
 
 class RDAPCollector:
@@ -27,20 +31,24 @@ class RDAPCollector:
             events = result.data.get("events")
             entities = result.data.get("entities", [])
             valid = (
-                isinstance(status, list)
+                isinstance(status, list | tuple)
                 and len(status) <= 32
                 and all(isinstance(item, str) and len(item) <= 128 for item in status)
-                and isinstance(events, list)
+                and isinstance(events, list | tuple)
                 and len(events) <= 64
                 and all(self._valid_event(item) for item in events)
-                and isinstance(entities, list)
+                and isinstance(entities, list | tuple)
                 and len(entities) <= 64
                 and all(self._valid_entity(item) for item in entities)
             )
             if valid:
-                normalized_status = cast(list[str], status)
-                normalized_event_source = cast(list[Mapping[str, Any]], events)
-                normalized_entities = cast(list[Mapping[str, Any]], entities)
+                normalized_status = cast(tuple[str, ...] | list[str], status)
+                normalized_event_source = cast(
+                    tuple[Mapping[str, Any], ...] | list[Mapping[str, Any]], events
+                )
+                normalized_entities = cast(
+                    tuple[Mapping[str, Any], ...] | list[Mapping[str, Any]], entities
+                )
                 normalized_events = [
                     {"action": item["action"], "date": item["date"]}
                     for item in normalized_event_source
@@ -68,6 +76,7 @@ class RDAPCollector:
             outcome = ObservationOutcome.UNAVAILABLE
         else:
             outcome = ObservationOutcome.ERROR
+        scenario_id, scenario_sha256 = broker_provenance(context, result)
         return build_fixture_observation(
             scope_reference=context.scope_reference,
             collector_id="rdap",
@@ -75,8 +84,8 @@ class RDAPCollector:
             adapter_id="fixture-internet",
             adapter_version="1.0.0",
             collected_at=result.fixture_timestamp,
-            scenario_id=context.scenario_id,
-            scenario_sha256=context.scenario_sha256,
+            scenario_id=scenario_id,
+            scenario_sha256=scenario_sha256,
             outcome=outcome,
             payload=payload,
         )
@@ -98,7 +107,7 @@ class RDAPCollector:
             return False
         roles = value.get("roles", [])
         return (
-            isinstance(roles, list)
+            isinstance(roles, list | tuple)
             and len(roles) <= 16
             and all(isinstance(role, str) and len(role) <= 64 for role in roles)
         )

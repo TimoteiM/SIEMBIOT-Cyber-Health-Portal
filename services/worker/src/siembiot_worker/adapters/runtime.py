@@ -1,19 +1,14 @@
 from __future__ import annotations
 
 import json
+import re
 import threading
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from types import MappingProxyType
 from typing import Any, Literal
 
 from siembiot_worker.adapters.contracts import AdapterDescriptor
-
-
-class ProviderUnavailableError(RuntimeError):
-    def __init__(self, reason_code: str = "provider_unavailable") -> None:
-        super().__init__(reason_code)
-        self.reason_code = reason_code
+from siembiot_worker.collection.immutability import deep_freeze, json_compatible
 
 
 @dataclass(frozen=True)
@@ -134,6 +129,27 @@ class CircuitBreaker:
 
 
 AdapterStatus = Literal["success", "unavailable", "denied", "cancelled", "error"]
+InvocationStatus = Literal["success", "unavailable", "error"]
+
+
+@dataclass(frozen=True)
+class AdapterInvocation:
+    """Structured output from a previously allowlisted broker operation."""
+
+    capability: str
+    status: InvocationStatus
+    reason_code: str
+    data: Mapping[str, Any] = field(default_factory=dict)
+    cost_units: int = 0
+    confidence: float = 1.0
+    retry_count: int = 0
+
+    def __post_init__(self) -> None:
+        if re.fullmatch(r"[a-z][a-z0-9_]{1,63}", self.reason_code) is None:
+            raise ValueError("invalid_adapter_reason_code")
+        if self.cost_units < 0 or not 0 <= self.confidence <= 1 or self.retry_count < 0:
+            raise ValueError("invalid_adapter_invocation")
+        object.__setattr__(self, "data", deep_freeze(self.data))
 
 
 @dataclass(frozen=True)
@@ -146,6 +162,8 @@ class AdapterOutcome:
 
 
 class AdapterRuntime:
+    """Apply budgets and health policy to broker-mediated structured results only."""
+
     def __init__(self, ledger: BudgetLedger, *, breaker: CircuitBreaker | None = None) -> None:
         self._ledger = ledger
         self._breaker = breaker or CircuitBreaker()
@@ -164,45 +182,46 @@ class AdapterRuntime:
             status,
             reason,
             confidence,
-            MappingProxyType(dict(data or {})),
+            deep_freeze(data or {}),
         )
 
     def execute(
         self,
         descriptor: AdapterDescriptor,
-        capability: str,
-        operation: Callable[[], Mapping[str, Any]],
+        invocation: AdapterInvocation,
         *,
-        cost_units: int = 0,
-        confidence: float = 1.0,
-        retry_count: int = 0,
         cancelled: Callable[[], bool] | None = None,
     ) -> AdapterOutcome:
-        if capability not in descriptor.capabilities:
+        if invocation.capability not in descriptor.capabilities:
             return self._outcome(descriptor, "denied", "capability_not_declared")
-        if retry_count and not descriptor.retries_allowed:
+        if invocation.retry_count and not descriptor.retries_allowed:
             return self._outcome(descriptor, "denied", "retry_not_declared")
         if cancelled is not None and cancelled():
             return self._outcome(descriptor, "cancelled", "cancelled")
         if not self._breaker.allow():
             return self._outcome(descriptor, "unavailable", "circuit_open")
-        lease = self._ledger.reserve(cost_units=cost_units)
+        lease = self._ledger.reserve(cost_units=invocation.cost_units)
         if not lease.allowed:
             return self._outcome(descriptor, "denied", lease.reason_code)
         try:
-            result = operation()
             if cancelled is not None and cancelled():
                 return self._outcome(descriptor, "cancelled", "cancelled")
-        except ProviderUnavailableError as exc:
-            self._breaker.failure()
-            return self._outcome(descriptor, "unavailable", exc.reason_code)
-        except Exception:
-            self._breaker.failure()
-            return self._outcome(descriptor, "error", "adapter_error")
+            if invocation.status == "unavailable":
+                self._breaker.failure()
+                return self._outcome(descriptor, "unavailable", invocation.reason_code)
+            if invocation.status == "error":
+                self._breaker.failure()
+                return self._outcome(descriptor, "error", "adapter_error")
+            self._breaker.success()
+            return self._outcome(
+                descriptor,
+                "success",
+                "fixture",
+                confidence=invocation.confidence,
+                data=invocation.data,
+            )
         finally:
             lease.release()
-        self._breaker.success()
-        return self._outcome(descriptor, "success", "fixture", confidence=confidence, data=result)
 
 
 @dataclass(frozen=True)
@@ -216,7 +235,8 @@ def retain_provider_disagreement(outcomes: tuple[AdapterOutcome, ...]) -> Provid
     ordered = tuple(sorted(outcomes, key=lambda item: item.adapter_id))
     successful = tuple(item for item in ordered if item.status == "success")
     representations = {
-        json.dumps(dict(item.data), sort_keys=True, separators=(",", ":")) for item in successful
+        json.dumps(json_compatible(item.data), sort_keys=True, separators=(",", ":"))
+        for item in successful
     }
     confidence = min((item.confidence for item in successful), default=0)
     return ProviderAggregate(len(representations) > 1, confidence, ordered)

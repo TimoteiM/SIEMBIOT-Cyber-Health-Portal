@@ -41,23 +41,18 @@ def validate(name: str, payload: dict[str, Any]) -> None:
 
 
 def fixture_payload() -> dict[str, Any]:
-    return {
-        "contract_version": "v1",
-        "evidence_id": "sha256:" + "a" * 64,
-        "scope_reference": "018f5f80-8a4b-7c1b-b55e-ea65c9126205",
-        "collector": {"id": "dns", "version": "1.0.0"},
-        "adapter": {"id": "fixture-dns", "version": "1.0.0"},
-        "collected_at": "2026-08-03T12:00:00Z",
-        "execution_mode": "fixture",
-        "scenario": {"id": "healthy.test", "sha256": "b" * 64},
-        "classification": "public_metadata",
-        "outcome": "pass",
-        "confidence": 1.0,
-        "freshness_seconds": 0,
-        "publishable": False,
-        "real_world": False,
-        "payload": {"record_type": "NS", "values": ["ns1.healthy.test"]},
-    }
+    return build_fixture_observation(
+        scope_reference="018f5f80-8a4b-7c1b-b55e-ea65c9126205",
+        collector_id="dns",
+        collector_version="1.0.0",
+        adapter_id="fixture-dns",
+        adapter_version="1.0.0",
+        collected_at=datetime(2026, 8, 3, 12, tzinfo=UTC),
+        scenario_id="healthy.test",
+        scenario_sha256="b" * 64,
+        outcome=ObservationOutcome.PASS,
+        payload={"record_type": "NS", "values": ["ns1.healthy.test"]},
+    ).model_dump(mode="json")
 
 
 @pytest.mark.parametrize("name", ["observation", "run-summary", "adapter-manifest"])
@@ -103,6 +98,15 @@ def test_fixture_observation_cannot_be_relabelled_or_published() -> None:
         invalid = {**valid, field: value}
         with pytest.raises(ValidationError):
             CollectionObservation.model_validate(invalid)
+
+
+@pytest.mark.parametrize("mode", ["unavailable", "disabled_by_policy", "live"])
+def test_milestone_3_observation_schema_rejects_non_fixture_modes(mode: str) -> None:
+    invalid = {**fixture_payload(), "execution_mode": mode, "scenario": None}
+    with pytest.raises(Exception):
+        validate("observation", invalid)
+    with pytest.raises(ValidationError):
+        CollectionObservation.model_validate(invalid)
 
 
 def test_fixture_evidence_identifier_is_deterministic_and_provenance_bound() -> None:

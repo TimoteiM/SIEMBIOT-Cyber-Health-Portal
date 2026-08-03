@@ -16,7 +16,7 @@ def test_exact_rerun_identity_and_report_banner() -> None:
     pack = FixtureScenarioPack.load(FIXTURE_ROOT)
     scenario = pack.scenario("healthy")
     run_input = FixtureRunInput(
-        FixtureCollectorContext("scope-example-test", scenario.id, scenario.digest),
+        FixtureCollectorContext("scope-example-test", scenario.id),
         "example.test",
         "portal.example.test",
         ("selector1",),

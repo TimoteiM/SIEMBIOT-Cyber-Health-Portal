@@ -23,10 +23,12 @@ class StaticRDAPBroker:
     ) -> FixtureBrokerResult:
         del scenario_id, domain, cancelled
         return FixtureBrokerResult(
-            True,
-            "fixture",
-            datetime(2026, 8, 3, 12, tzinfo=UTC),
-            {"status": ["x"] * 65, "events": []},
+            allowed=True,
+            reason_code="fixture",
+            fixture_timestamp=datetime(2026, 8, 3, 12, tzinfo=UTC),
+            scenario_id="healthy",
+            scenario_sha256="a" * 64,
+            data={"status": ["x"] * 65, "events": []},
         )
 
 
@@ -36,7 +38,6 @@ def _components() -> tuple[FixtureInternetBroker, FixtureCollectorContext]:
     return FixtureInternetBroker(pack), FixtureCollectorContext(
         scope_reference="scope-example-test",
         scenario_id=scenario.id,
-        scenario_sha256=scenario.digest,
     )
 
 
@@ -44,11 +45,11 @@ def test_rdap_collector_normalizes_status_events_and_only_entity_roles() -> None
     broker, context = _components()
     observation = RDAPCollector(broker).collect(context, "example.test")
     assert observation.outcome is ObservationOutcome.PASS
-    assert observation.payload["status"] == ["active"]
-    assert observation.payload["events"] == [
-        {"action": "registration", "date": "2020-01-01T00:00:00Z"}
-    ]
-    assert observation.payload["entity_roles"] == ["registrar"]
+    assert observation.payload["status"] == ("active",)
+    assert observation.payload["events"] == (
+        {"action": "registration", "date": "2020-01-01T00:00:00Z"},
+    )
+    assert observation.payload["entity_roles"] == ("registrar",)
     assert "entities" not in observation.payload
     assert "name" not in str(observation.payload)
 

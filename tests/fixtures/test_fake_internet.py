@@ -37,6 +37,31 @@ def test_scenario_pack_validates_manifest_and_has_stable_digest(tmp_path: Path) 
     assert first.scenario("healthy").timestamp.isoformat() == "2026-08-03T12:00:00+00:00"
 
 
+def test_validated_scenario_tree_is_deeply_immutable(tmp_path: Path) -> None:
+    root = write_pack(
+        tmp_path,
+        {
+            "healthy": {
+                "id": "healthy",
+                "timestamp": "2026-08-03T12:00:00Z",
+                "dns": {"example.test": {"A": ["93.184.216.34"]}},
+            }
+        },
+    )
+    scenario = FixtureScenarioPack.load(root).scenario("healthy")
+    with pytest.raises(TypeError):
+        scenario.data["dns"]["example.test"]["A"] += ("127.0.0.1",)
+
+
+def test_scenario_timestamp_must_be_timezone_aware(tmp_path: Path) -> None:
+    root = write_pack(
+        tmp_path,
+        {"naive": {"id": "naive", "timestamp": "2026-08-03T12:00:00"}},
+    )
+    with pytest.raises(FixtureIntegrityError, match="invalid_fixture_scenario"):
+        FixtureScenarioPack.load(root)
+
+
 def test_scenario_pack_rejects_tampering_and_unknown_scenarios(tmp_path: Path) -> None:
     root = write_pack(
         tmp_path,

@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path, PurePosixPath
-from types import MappingProxyType
 from typing import Any, cast
+
+from siembiot_worker.collection.immutability import deep_freeze
 
 
 class FixtureIntegrityError(ValueError):
@@ -18,7 +20,7 @@ class FixtureScenario:
     id: str
     timestamp: datetime
     digest: str
-    data: MappingProxyType[str, Any]
+    data: Mapping[str, Any]
 
 
 @dataclass(frozen=True)
@@ -66,12 +68,14 @@ class FixtureScenarioPack:
                 raise FixtureIntegrityError("invalid_fixture_scenario") from exc
             if not isinstance(scenario_id, str) or not scenario_id:
                 raise FixtureIntegrityError("invalid_fixture_scenario")
+            if timestamp.utcoffset() is None:
+                raise FixtureIntegrityError("invalid_fixture_scenario")
             scenarios.append(
                 FixtureScenario(
                     scenario_id,
                     timestamp,
                     actual_digest,
-                    MappingProxyType(payload),
+                    deep_freeze(payload),
                 )
             )
         if len({item.id for item in scenarios}) != len(scenarios):

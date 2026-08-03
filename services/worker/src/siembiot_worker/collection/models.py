@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping
 from datetime import datetime
 from enum import StrEnum
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from siembiot_worker.collection.immutability import deep_freeze, json_compatible
 
 
 class ExecutionMode(StrEnum):
@@ -47,33 +50,56 @@ class CollectionObservation(StrictModel):
     collector: ComponentIdentity
     adapter: ComponentIdentity
     collected_at: datetime
-    execution_mode: ExecutionMode
-    scenario: FixtureScenario | None = None
+    execution_mode: Literal[ExecutionMode.FIXTURE]
+    scenario: FixtureScenario
     classification: Literal["public_metadata", "private_metadata", "sensitive"]
     outcome: ObservationOutcome
     confidence: float = Field(ge=0, le=1)
     freshness_seconds: int = Field(ge=0)
     publishable: bool
     real_world: bool
-    payload: dict[str, Any]
+    payload: Mapping[str, Any]
 
     @model_validator(mode="after")
     def enforce_fixture_boundary(self) -> CollectionObservation:
-        if self.execution_mode is ExecutionMode.FIXTURE:
-            if self.scenario is None or self.publishable or self.real_world:
-                raise ValueError("fixture_observation_boundary")
-        elif self.scenario is not None:
-            raise ValueError("fixture_provenance_cannot_be_relabelled")
+        if self.publishable or self.real_world:
+            raise ValueError("fixture_observation_boundary")
+        if self.collected_at.utcoffset() is None:
+            raise ValueError("timezone_aware_timestamp_required")
+        expected = _evidence_id(_identity_from_observation(self))
+        if self.evidence_id != expected:
+            raise ValueError("evidence_id_mismatch")
+        object.__setattr__(self, "payload", deep_freeze(self.payload))
         return self
 
 
-def _canonical_json(value: dict[str, Any]) -> bytes:
+def _canonical_json(value: Mapping[str, Any]) -> bytes:
     return json.dumps(
-        value,
+        json_compatible(value),
         ensure_ascii=False,
         separators=(",", ":"),
         sort_keys=True,
     ).encode("utf-8")
+
+
+def _evidence_id(identity: Mapping[str, Any]) -> str:
+    return "sha256:" + hashlib.sha256(_canonical_json(identity)).hexdigest()
+
+
+def _identity_from_observation(observation: CollectionObservation) -> dict[str, Any]:
+    return {
+        "scope_reference": observation.scope_reference,
+        "collector": observation.collector.model_dump(mode="json"),
+        "adapter": observation.adapter.model_dump(mode="json"),
+        "collected_at": observation.collected_at.isoformat(),
+        "execution_mode": observation.execution_mode.value,
+        "scenario": observation.scenario.model_dump(mode="json"),
+        "classification": observation.classification,
+        "outcome": observation.outcome.value,
+        "confidence": observation.confidence,
+        "freshness_seconds": observation.freshness_seconds,
+        "payload": json_compatible(observation.payload),
+    }
 
 
 def build_fixture_observation(
@@ -105,7 +131,7 @@ def build_fixture_observation(
         "freshness_seconds": freshness_seconds,
         "payload": payload,
     }
-    evidence_id = "sha256:" + hashlib.sha256(_canonical_json(identity)).hexdigest()
+    evidence_id = _evidence_id(identity)
     return CollectionObservation(
         evidence_id=evidence_id,
         scope_reference=scope_reference,

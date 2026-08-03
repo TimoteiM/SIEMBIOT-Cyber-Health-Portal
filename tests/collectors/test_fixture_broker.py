@@ -39,6 +39,10 @@ def test_http_result_is_deterministic_and_uses_fixture_timestamp(
     assert first == second
     assert first.allowed
     assert first.fixture_timestamp.isoformat() == "2026-08-03T12:00:00+00:00"
+    assert first.scenario_id == "healthy"
+    assert (
+        first.scenario_sha256 == FixtureScenarioPack.load(FIXTURE_ROOT).scenario("healthy").digest
+    )
 
 
 @pytest.mark.parametrize(

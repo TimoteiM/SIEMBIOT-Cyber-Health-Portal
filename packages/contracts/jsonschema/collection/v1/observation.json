@@ -11,7 +11,7 @@
     "collector": {"$ref": "#/$defs/component"},
     "adapter": {"$ref": "#/$defs/component"},
     "collected_at": {"type": "string", "format": "date-time"},
-    "execution_mode": {"enum": ["fixture", "unavailable", "disabled_by_policy", "live"]},
+    "execution_mode": {"const": "fixture"},
     "scenario": {"$ref": "#/$defs/scenario"},
     "classification": {"enum": ["public_metadata", "private_metadata", "sensitive"]},
     "outcome": {"enum": ["pass", "fail", "warning", "unknown", "error", "unavailable", "disabled_by_policy"]},

@@ -22,7 +22,6 @@ def _runner(scenario_id: str = "healthy") -> tuple[FixtureSuiteRunner, FixtureRu
         context=FixtureCollectorContext(
             scope_reference="scope-example-test",
             scenario_id=scenario.id,
-            scenario_sha256=scenario.digest,
         ),
         domain="example.test",
         web_host="portal.example.test",
@@ -92,7 +91,6 @@ def test_cancellation_retains_completed_work_and_stops_new_steps() -> None:
     context = FixtureCollectorContext(
         scope_reference=run_input.context.scope_reference,
         scenario_id=run_input.context.scenario_id,
-        scenario_sha256=run_input.context.scenario_sha256,
         cancelled=cancelled,
     )
     result = runner.run(

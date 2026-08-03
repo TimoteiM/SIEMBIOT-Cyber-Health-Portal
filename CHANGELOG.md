@@ -42,7 +42,7 @@ All notable changes are documented here. The project has no supported release ye
 - Ownership and assessment authority are distinct: challenges never grant assessment scope and parent domains never grant child domains.
 - Emergency controls are checked authoritatively during in-flight reads; global controls require phishing-resistant platform administration.
 - Adapter/collector architecture tests reject direct network/process capabilities, and a runtime socket/DNS trap proves the full fixture suite opens no connection.
-- Fixture provenance cannot be relabeled as live, published, converted into real-world findings, or scored.
+- Fixture provenance is broker-bound, hash-verified, recursively immutable, timezone-aware, and cannot be relabeled as live, published, converted into real-world findings, or scored.
 
 ### Verification
 
@@ -50,7 +50,7 @@ All notable changes are documented here. The project has no supported release ye
 - Verified the merged `main` state with `python scripts/bootstrap.py` (exit 0), `python scripts/verify_repo.py` (14/14 gates), `python -m uv run --frozen pytest -q` (13 passed), and `git show --check --oneline --stat HEAD` (exit 0).
 - On 2026-08-03, GitHub PR #1 passed remote `phase0` run `30804463289` and `ci` run `30804461427`, then merged Milestone 1 into `main` as merge commit `683fcfe03dbc97e89e5eda77ec2dcacc5098dcb1` without squashing its verified checkpoints.
 - Verified the merged Milestone 1 `main` state with `python scripts/bootstrap.py` (exit 0), `python scripts/verify_repo.py` (14/14 gates; 44 Python and 3 web tests), an independent empty-database migration test (1 passed), `python -m uv run --frozen pytest -q` (44 passed), `corepack pnpm --filter @siembiot/web build` (exit 0), and `git show --check --stat --oneline 683fcfe03dbc97e89e5eda77ec2dcacc5098dcb1` (exit 0).
-- On 2026-08-03, verified Milestone 3 fixture-only collection with `python scripts/bootstrap.py` (exit 0), `python scripts/verify_repo.py` (15/15 gates; 232 Python and 7 web tests; production web build passed), `python -m uv run --frozen pytest -q` (232 passed), contract drift and migration-head checks, and the runtime broker-bypass/network trap (3 passed). GNU Make was unavailable on the Windows host, so the `fixture-stack`, `test-adapters`, and `test-collectors` target bodies were run directly (manifest verified; 14 adapter and 46 collector/security tests passed); CI retains the Make target invocation.
+- On 2026-08-03, verified Milestone 3 fixture-only collection with `python scripts/bootstrap.py` (exit 0), `python scripts/verify_repo.py` (15/15 gates; 241 Python and 7 web tests; production web build passed), `python -m uv run --frozen pytest -q` (241 passed), contract drift and migration-head checks, and the runtime broker-bypass/network trap. GNU Make was unavailable on the Windows host, so the `fixture-stack`, `test-adapters`, and `test-collectors` target bodies were run directly; CI retains the Make target invocation.
 
 ### Known limitations
 

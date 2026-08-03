@@ -8,7 +8,11 @@ from siembiot_worker.collection.models import (
     ObservationOutcome,
     build_fixture_observation,
 )
-from siembiot_worker.collectors.common import CTBroker, FixtureCollectorContext
+from siembiot_worker.collectors.common import (
+    CTBroker,
+    FixtureCollectorContext,
+    broker_provenance,
+)
 
 
 class CTCollector:
@@ -30,11 +34,13 @@ class CTCollector:
                 payload["reason_code"] = "malformed_fixture_data"
                 outcome = ObservationOutcome.ERROR
             else:
-                normalized_certificates = cast(list[Mapping[str, Any]], certificates)
+                normalized_certificates = cast(
+                    tuple[Mapping[str, Any], ...] | list[Mapping[str, Any]], certificates
+                )
                 asserted: set[str] = set()
                 ignored = 0
                 for certificate in normalized_certificates:
-                    for name in cast(list[str], certificate["names"]):
+                    for name in cast(tuple[str, ...] | list[str], certificate["names"]):
                         if self._related(name, domain):
                             asserted.add(name)
                         else:
@@ -46,6 +52,7 @@ class CTCollector:
             outcome = ObservationOutcome.UNAVAILABLE
         else:
             outcome = ObservationOutcome.ERROR
+        scenario_id, scenario_sha256 = broker_provenance(context, result)
         return build_fixture_observation(
             scope_reference=context.scope_reference,
             collector_id="ct",
@@ -53,8 +60,8 @@ class CTCollector:
             adapter_id="fixture-internet",
             adapter_version="1.0.0",
             collected_at=result.fixture_timestamp,
-            scenario_id=context.scenario_id,
-            scenario_sha256=context.scenario_sha256,
+            scenario_id=scenario_id,
+            scenario_sha256=scenario_sha256,
             outcome=outcome,
             payload=payload,
         )
@@ -66,7 +73,7 @@ class CTCollector:
 
     @staticmethod
     def _valid_certificates(value: object) -> bool:
-        if not isinstance(value, list) or len(value) > 100:
+        if not isinstance(value, list | tuple) or len(value) > 100:
             return False
         for certificate in value:
             if not isinstance(certificate, Mapping):
@@ -76,7 +83,7 @@ class CTCollector:
                 set(certificate) != {"issuer", "names", "not_after"}
                 or not isinstance(certificate.get("issuer"), str)
                 or not isinstance(certificate.get("not_after"), str)
-                or not isinstance(names, list)
+                or not isinstance(names, list | tuple)
                 or len(names) > 100
                 or any(not isinstance(name, str) or len(name) > 253 for name in names)
             ):
