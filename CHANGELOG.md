@@ -28,6 +28,10 @@ All notable changes are documented here. The project has no supported release ye
 - Fixture-only DNS, e-mail DNS, HTTP, TLS, RDAP, and CT collectors with deterministic partial completion and reporting.
 - Typed adapter registry/runtime with zero-secret fixture policy, budgets, cancellation, circuit breaking, and retained disagreement.
 - Typed capability-status API and persistent Romanian fixture-only UI/report warnings; no collection execution endpoint.
+- Milestone 4 canonical evidence contracts, six-pillar policy catalog, deterministic normalizers, evaluation, scoring, and immutable finding history.
+- Append-only tenant evidence migration with forced RLS, fixture lineage constraints, restricted grants, and database mutation guards.
+- Typed findings, history, and snapshot API with audited suppression, accepted-risk, reopening, and remediation-verification events.
+- Published fixture-only methodology 1.0 and deterministic reproduction command.
 
 ### Security
 
@@ -43,6 +47,7 @@ All notable changes are documented here. The project has no supported release ye
 - Emergency controls are checked authoritatively during in-flight reads; global controls require phishing-resistant platform administration.
 - Adapter/collector architecture tests reject direct network/process capabilities, and a runtime socket/DNS trap proves the full fixture suite opens no connection.
 - Fixture provenance is broker-bound, hash-verified, recursively immutable, timezone-aware, and cannot be relabeled as live, published, converted into real-world findings, or scored.
+- Fixture mode now propagates structurally through normalized evidence, evaluations, findings, snapshots, API responses, and methodology output; fixture critical caps and publication are rejected.
 
 ### Verification
 
@@ -54,6 +59,6 @@ All notable changes are documented here. The project has no supported release ye
 
 ### Known limitations
 
-- Live assessment execution, live providers, durable queues/workers, production evidence persistence, scoring, Tyche/agents, public projection, restricted-egress deployment, and production operational hardening are not implemented yet.
+- Live assessment execution, live providers, durable queues/workers, Tyche/agents, public projection, restricted-egress deployment, and production operational hardening are not implemented yet. Milestone 4 persistence and scoring remain fixture-only and are not validated for live assessments.
 - Milestone 3 validates collection behavior only against local fixtures. Live activation requires all eight controls in `docs/plans/live-execution-activation-dependency.md` and explicit approval.
 - The upstream Tyche credential exposure remains a production launch blocker outside this repository's authority.

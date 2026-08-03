@@ -1,6 +1,6 @@
 # Methodology Specification v0.1-draft
 
-**Status:** original design for implementation/testing; not yet validated against real assessments
+**Status:** implemented as fixture-only methodology 1.0; not validated against real assessments
 **Review date:** 2026-08-03
 
 ## Principles
@@ -65,3 +65,7 @@ Checks are classified `public_aggregate`, `public_profile`, or `private_only`. D
 - fairness/public-interest/counsel review;
 - Romanian/English comprehension and accessibility testing;
 - signed methodology artifact, canonical source register, changelog, and reproducibility command.
+
+## Milestone 4 implementation note
+
+The executable v1 catalog and reproducibility command implement deterministic fixture processing only. The validation items above remain launch requirements for any real-world use. Fixture-derived evaluations, findings, snapshots, reports, and exports remain structurally non-publishable and cannot trigger critical caps.

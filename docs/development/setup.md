@@ -105,7 +105,18 @@ Validate and test the fixture boundary with:
 make fixture-stack test-adapters test-collectors
 ```
 
-`fixture-stack` validates the local scenario manifest and starts no process or service. The UI/API/report status is **fixture-only**. Results are synthetic, non-publishable, unscored, and must never be represented as live assessment findings. Provider credentials are neither configured nor required.
+`fixture-stack` validates the local scenario manifest and starts no process or service. The UI/API/report status is **fixture-only**. Collector results are synthetic and non-publishable. Milestone 4 may deterministically transform them into visibly classified demo evaluations, findings, and scores, but none may be represented as a live assessment or real-world finding. Provider credentials are neither configured nor required.
+
+Validate and reproduce the fixture-only methodology with:
+
+```powershell
+python -m uv run --frozen python scripts/validate_policy.py
+python -m uv run --frozen pytest tests/normalization -q
+python -m uv run --frozen pytest tests/evaluation tests/scoring tests/findings -q
+python -m uv run --frozen python scripts/reproduce_methodology.py
+```
+
+The reproduction output is always classified `DEMO/FIXTURE`; it is not a live assessment or publishable real-world score.
 
 The Docker-backed tests use only fixed test placeholders and reserved domains. They do not access assessment targets or Tyche.
 

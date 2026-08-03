@@ -44,6 +44,7 @@ class FoundationCommandContractTests(unittest.TestCase):
                 "lint",
                 "locks",
                 "migrations",
+                "methodology",
                 "phase0",
                 "policy",
                 "repository",

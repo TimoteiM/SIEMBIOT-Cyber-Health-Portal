@@ -188,3 +188,9 @@ flowchart LR
 Collectors cannot construct the fixture broker, import transports, or make generic requests. The runner has stable step ordering, content-addressed evidence, cancellation, and independent partial completion. The API exposes capability status only; there is no execution endpoint. The UI and report surface a persistent non-live warning.
 
 The earlier production diagram remains the target architecture, not current capability. Before its collector-to-egress arrow can exist, all controls in the live-activation dependency must be delivered together and explicitly approved.
+
+## Milestone 4 deterministic evidence boundary
+
+Milestone 4 adds canonical evidence identities, allowlisted normalizers, a reviewed policy catalog, pure evaluation/scoring, and immutable finding history. PostgreSQL migration `0006_evidence_scoring` forces tenant RLS, composite tenant/mode references, fixture publication constraints, restricted grants, and update/delete rejection for evidence lineage. Content hashes are tenant-scoped identifiers, never authorization credentials or global search keys.
+
+The implementation branch is stacked on exact Milestone 3 commit `8a50687bb8cd10fe5dc18712d1672aed3dfa147c`. It cannot merge before Milestone 3, and final ancestry reconciliation requires all baseline and Milestone 4 gates.

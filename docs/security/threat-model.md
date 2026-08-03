@@ -113,6 +113,12 @@ TM-08, TM-10 through TM-12, and TM-25 gain fixture-level executable controls, no
 
 Fixture observations carry complete provenance and cannot be relabeled, published, treated as real-world evidence, converted to findings, or scored. CT names never authorize or create assets; RDAP entity details are reduced to roles. Residual risk remains unchanged for actual deployment egress, worker isolation, pre-connection scope reauthorization, provider-secret custody, operational kill switches, and production security testing. All are conjunctive prerequisites for explicit live activation.
 
+## Milestone 4 evidence and scoring controls
+
+Canonical identity poisoning is constrained by a single versioned serializer, explicit identity projections, bounded typed input, golden vectors, and rejection of ambiguous timestamps/non-finite values. Policy substitution is constrained by schema validation, stable IDs, cross-reference validation, and the exact policy content hash on evaluations and snapshots.
+
+Fixture laundering is blocked through immutable mode fields, database checks, composite mode foreign keys, application validation, non-publishable `DEMO/FIXTURE` responses, and publication rejection. Cross-tenant hash enumeration is blocked by forced RLS and tenant-scoped uniqueness. Evidence/finding history is append-only through restricted application grants and database triggers. Remaining risks include database-owner compromise, methodology expert validation, production key custody, background-worker role design, and independent penetration testing.
+
 ## Open risks requiring accountable acceptance before launch
 
 - legal basis and fairness of public-interest scoring of Romanian institutions;
