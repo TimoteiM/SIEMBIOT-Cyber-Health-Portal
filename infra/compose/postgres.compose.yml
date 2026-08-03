@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres@sha256:f3bd19c606e442c3d7bdfa8002e03fe260a1023351e0ea4598032022b68dd6e3
+    environment:
+      POSTGRES_DB: ${SIEMBIOT_POSTGRES_DB:-siembiot}
+      POSTGRES_USER: siembiot_owner
+      POSTGRES_PASSWORD: ${SIEMBIOT_POSTGRES_OWNER_PASSWORD:?set in local .env}
+      SIEMBIOT_POSTGRES_APP_PASSWORD: ${SIEMBIOT_POSTGRES_APP_PASSWORD:?set in local .env}
+    ports:
+      - "127.0.0.1:${SIEMBIOT_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U siembiot_owner -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+volumes:
+  postgres-data:

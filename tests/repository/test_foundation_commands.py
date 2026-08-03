@@ -102,6 +102,12 @@ class FoundationCommandContractTests(unittest.TestCase):
             safe.write_text("DATABASE_PASSWORD=CHANGEME_LOCAL_ONLY\n", encoding="utf-8")
             self.assertEqual([], verifier.find_secret_candidates([safe]))
 
+            reference = root / "compose.yml"
+            reference.write_text(
+                "POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?set in .env}\n", encoding="utf-8"
+            )
+            self.assertEqual([], verifier.find_secret_candidates([reference]))
+
             prose = root / "README.md"
             prose.write_text(
                 "Report a possible secret: follow the incident runbook.\n", encoding="utf-8"

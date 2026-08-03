@@ -62,7 +62,10 @@ def find_secret_candidates(files: list[Path]) -> list[Path]:
             continue
         unsafe = PRIVATE_KEY.search(text) is not None
         for match in ASSIGNMENT.finditer(text):
-            value = match.group(1).strip("<>{}[]()\"'").lower()
+            raw_value = match.group(1)
+            if raw_value.startswith(("${", "$env:", "%")):
+                continue
+            value = raw_value.strip("<>{}[]()\"'").lower()
             if value not in PLACEHOLDERS and not value.startswith(
                 ("changeme", "example", "placeholder")
             ):

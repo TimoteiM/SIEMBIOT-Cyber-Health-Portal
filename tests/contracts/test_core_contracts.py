@@ -127,7 +127,7 @@ def test_contracts_reject_unknown_fields_and_non_utc_timestamps() -> None:
         "name": "Exemplu SRL",
         "slug": "exemplu-srl",
         "created_at": "2026-08-03T16:45:00+03:00",
-        "tenant_secret": "must-not-exist",
+        "tenant_internal": "must-not-exist",
     }
     with pytest.raises(Exception):
         validate("organization", organization)
