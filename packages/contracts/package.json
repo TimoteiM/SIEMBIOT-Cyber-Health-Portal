@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./private-api-v1": "./src/private-api.v1.ts"
+  },
   "scripts": {
     "generate": "openapi-typescript openapi/private-api.v1.json -o src/private-api.v1.ts",
     "typecheck": "tsc --noEmit"

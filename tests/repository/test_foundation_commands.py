@@ -126,9 +126,7 @@ class FoundationCommandContractTests(unittest.TestCase):
             self.assertEqual([annotated], verifier.find_secret_candidates([annotated]))
 
             optional = root / "optional_settings.py"
-            optional.write_text(
-                "API_" + "KEY" + ": str | None = None\n", encoding="utf-8"
-            )
+            optional.write_text("API_" + "KEY" + ": str | None = None\n", encoding="utf-8")
             self.assertEqual([], verifier.find_secret_candidates([optional]))
 
 
