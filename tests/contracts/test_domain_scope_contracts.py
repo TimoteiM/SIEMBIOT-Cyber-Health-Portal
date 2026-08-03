@@ -11,6 +11,9 @@ from siembiot.contracts import DomainCreate, DomainResponse
 
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_ROOT = ROOT / "packages" / "contracts" / "jsonschema" / "v1"
+SCOPE_SCHEMA = (
+    ROOT / "packages" / "contracts" / "jsonschema" / "scope" / "v1" / "scope-manifest.json"
+)
 
 
 def validate(name: str, payload: dict[str, Any]) -> None:
@@ -135,3 +138,35 @@ def test_domain_api_models_are_typed_and_reject_unknown_fields() -> None:
                 "token_digest": "not-public",
             }
         )
+
+
+def test_canonical_scope_payload_has_a_separate_versioned_schema() -> None:
+    schema = json.loads(SCOPE_SCHEMA.read_text(encoding="utf-8"))
+    payload = {
+        "manifest_version": "v1",
+        "authorization_id": "018f5f80-8a4b-7c1b-b55e-ea65c9126204",
+        "organization_id": "018f5f80-8a4b-7c1b-b55e-ea65c9126202",
+        "actor": {
+            "type": "user",
+            "id": "018f5f80-8a4b-7c1b-b55e-ea65c9126207",
+        },
+        "targets": [
+            {
+                "domain_id": "018f5f80-8a4b-7c1b-b55e-ea65c9126201",
+                "canonical_host": "example.com",
+                "operation_class": "https_verification",
+            }
+        ],
+        "policy_version": "policy-v1",
+        "consent": {
+            "version": "consent-ro-v1",
+            "text": "Autorizez explicit operațiunile declarate pentru acest domeniu.",
+            "sha256": "a" * 64,
+        },
+        "valid_from": "2026-08-03T12:00:00Z",
+        "valid_until": "2026-09-03T12:00:00Z",
+        "issued_at": "2026-08-03T12:00:00Z",
+    }
+    Draft202012Validator(schema, format_checker=FormatChecker()).validate(payload)
+    with pytest.raises(Exception):
+        Draft202012Validator(schema).validate({**payload, "wildcard": "*.example.com"})

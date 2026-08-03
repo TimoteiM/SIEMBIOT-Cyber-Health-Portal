@@ -1,6 +1,141 @@
 {
   "components": {
     "schemas": {
+      "AssessmentAuthorizationCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "consent_text": {
+            "maxLength": 10000,
+            "minLength": 20,
+            "title": "Consent Text",
+            "type": "string"
+          },
+          "consent_version": {
+            "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$",
+            "title": "Consent Version",
+            "type": "string"
+          },
+          "domain_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Domain Ids",
+            "type": "array"
+          },
+          "operation_classes": {
+            "items": {
+              "enum": [
+                "dns_verification",
+                "https_verification",
+                "passive_assessment",
+                "active_assessment"
+              ],
+              "type": "string"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "Operation Classes",
+            "type": "array"
+          },
+          "policy_version": {
+            "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$",
+            "title": "Policy Version",
+            "type": "string"
+          },
+          "valid_from": {
+            "format": "date-time",
+            "title": "Valid From",
+            "type": "string"
+          },
+          "valid_until": {
+            "format": "date-time",
+            "title": "Valid Until",
+            "type": "string"
+          }
+        },
+        "required": [
+          "domain_ids",
+          "operation_classes",
+          "policy_version",
+          "consent_version",
+          "consent_text",
+          "valid_from",
+          "valid_until"
+        ],
+        "title": "AssessmentAuthorizationCreate",
+        "type": "object"
+      },
+      "AssessmentAuthorizationResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "consent_version": {
+            "title": "Consent Version",
+            "type": "string"
+          },
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "operation_classes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Operation Classes",
+            "type": "array"
+          },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "policy_version": {
+            "title": "Policy Version",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "draft",
+              "active",
+              "expired",
+              "revoked"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "valid_from": {
+            "format": "date-time",
+            "title": "Valid From",
+            "type": "string"
+          },
+          "valid_until": {
+            "format": "date-time",
+            "title": "Valid Until",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "state",
+          "policy_version",
+          "consent_version",
+          "valid_from",
+          "valid_until",
+          "operation_classes"
+        ],
+        "title": "AssessmentAuthorizationResponse",
+        "type": "object"
+      },
       "AuditEventResponse": {
         "additionalProperties": false,
         "properties": {
@@ -81,6 +216,22 @@
           "context"
         ],
         "title": "AuditEventResponse",
+        "type": "object"
+      },
+      "AuthorizationRevoke": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "minLength": 10,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "AuthorizationRevoke",
         "type": "object"
       },
       "DomainChallengeCreate": {
@@ -606,6 +757,62 @@
           "created_at"
         ],
         "title": "OrganizationResponse",
+        "type": "object"
+      },
+      "ScopeManifestResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "algorithm": {
+            "const": "EdDSA",
+            "default": "EdDSA",
+            "title": "Algorithm",
+            "type": "string"
+          },
+          "authorization_id": {
+            "format": "uuid",
+            "title": "Authorization Id",
+            "type": "string"
+          },
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "key_id": {
+            "title": "Key Id",
+            "type": "string"
+          },
+          "manifest_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Manifest Version",
+            "type": "string"
+          },
+          "payload_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Payload Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "authorization_id",
+          "payload_sha256",
+          "key_id",
+          "created_at"
+        ],
+        "title": "ScopeManifestResponse",
         "type": "object"
       },
       "SessionResponse": {
@@ -1170,6 +1377,284 @@
         "summary": "List Audit Events",
         "tags": [
           "organizations"
+        ]
+      }
+    },
+    "/api/v1/organizations/{organization_id}/authorizations": {
+      "get": {
+        "operationId": "list_authorizations_api_v1_organizations__organization_id__authorizations_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "__Host-siembiot_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "  Host-Siembiot Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AssessmentAuthorizationResponse"
+                  },
+                  "title": "Response List Authorizations Api V1 Organizations  Organization Id  Authorizations Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Authorizations",
+        "tags": [
+          "authorizations"
+        ]
+      },
+      "post": {
+        "operationId": "create_authorization_api_v1_organizations__organization_id__authorizations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "__Host-siembiot_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "  Host-Siembiot Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssessmentAuthorizationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssessmentAuthorizationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Authorization",
+        "tags": [
+          "authorizations"
+        ]
+      }
+    },
+    "/api/v1/organizations/{organization_id}/authorizations/{authorization_id}/accept": {
+      "post": {
+        "operationId": "accept_authorization_api_v1_organizations__organization_id__authorizations__authorization_id__accept_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "authorization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Authorization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "__Host-siembiot_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "  Host-Siembiot Session"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScopeManifestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Accept Authorization",
+        "tags": [
+          "authorizations"
+        ]
+      }
+    },
+    "/api/v1/organizations/{organization_id}/authorizations/{authorization_id}/revoke": {
+      "post": {
+        "operationId": "revoke_authorization_api_v1_organizations__organization_id__authorizations__authorization_id__revoke_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "authorization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Authorization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "__Host-siembiot_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "  Host-Siembiot Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthorizationRevoke"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssessmentAuthorizationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Authorization",
+        "tags": [
+          "authorizations"
         ]
       }
     },

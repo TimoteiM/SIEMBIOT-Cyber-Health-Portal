@@ -188,6 +188,11 @@ class AssessmentAuthorizationResponse(ContractModel):
     operation_classes: list[str]
 
 
+class AuthorizationRevoke(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    reason: str = Field(min_length=10, max_length=500)
+
+
 class ScopeManifestResponse(ContractModel):
     id: UUID
     authorization_id: UUID

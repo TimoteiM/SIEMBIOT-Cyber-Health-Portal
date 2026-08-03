@@ -137,3 +137,35 @@ def test_verification_events_and_manifests_are_immutable_for_application_role(
                     (record_id,),
                 )
             app.rollback()
+
+
+def test_accepted_authorization_consent_is_captured_and_immutable(
+    postgres_database: dict[str, str],
+) -> None:
+    organization_id, user_id = seed_tenant(postgres_database["owner_url"])
+    consent = "Autorizez explicit testarea conform domeniului și operațiunilor declarate."
+    with psycopg.connect(postgres_database["owner_url"]) as owner:
+        authorization_row = owner.execute(
+            "INSERT INTO assessment_authorizations "
+            "(organization_id, authorized_by_user_id, state, policy_version, consent_version, "
+            "consent_text, consent_text_digest, valid_from, valid_until, activated_at) "
+            "VALUES (%s, %s, 'active', 'policy-v1', 'consent-v1', %s, %s, now(), "
+            "now() + interval '1 day', now()) RETURNING id::text",
+            (organization_id, user_id, consent, bytes(32)),
+        ).fetchone()
+        assert authorization_row is not None
+        authorization_id = authorization_row[0]
+
+    with psycopg.connect(postgres_database["app_url"]) as app:
+        app.execute("SELECT set_config('app.user_id', %s, false)", (user_id,))
+        app.execute("SELECT set_config('app.organization_id', %s, false)", (organization_id,))
+        assert app.execute(
+            "SELECT consent_text FROM assessment_authorizations WHERE id = %s",
+            (authorization_id,),
+        ).fetchone() == (consent,)
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
+            app.execute(
+                "UPDATE assessment_authorizations SET consent_text = 'Changed consent text' "
+                "WHERE id = %s",
+                (authorization_id,),
+            )

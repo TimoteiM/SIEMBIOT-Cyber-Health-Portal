@@ -141,6 +141,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/organizations/{organization_id}/authorizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Authorizations */
+        get: operations["list_authorizations_api_v1_organizations__organization_id__authorizations_get"];
+        put?: never;
+        /** Create Authorization */
+        post: operations["create_authorization_api_v1_organizations__organization_id__authorizations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/authorizations/{authorization_id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Accept Authorization */
+        post: operations["accept_authorization_api_v1_organizations__organization_id__authorizations__authorization_id__accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/authorizations/{authorization_id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke Authorization */
+        post: operations["revoke_authorization_api_v1_organizations__organization_id__authorizations__authorization_id__revoke_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/organizations/{organization_id}/domains": {
         parameters: {
             query?: never;
@@ -300,6 +352,69 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AssessmentAuthorizationCreate */
+        AssessmentAuthorizationCreate: {
+            /** Consent Text */
+            consent_text: string;
+            /** Consent Version */
+            consent_version: string;
+            /** Domain Ids */
+            domain_ids: string[];
+            /** Operation Classes */
+            operation_classes: ("dns_verification" | "https_verification" | "passive_assessment" | "active_assessment")[];
+            /** Policy Version */
+            policy_version: string;
+            /**
+             * Valid From
+             * Format: date-time
+             */
+            valid_from: string;
+            /**
+             * Valid Until
+             * Format: date-time
+             */
+            valid_until: string;
+        };
+        /** AssessmentAuthorizationResponse */
+        AssessmentAuthorizationResponse: {
+            /** Consent Version */
+            consent_version: string;
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Operation Classes */
+            operation_classes: string[];
+            /**
+             * Organization Id
+             * Format: uuid
+             */
+            organization_id: string;
+            /** Policy Version */
+            policy_version: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "draft" | "active" | "expired" | "revoked";
+            /**
+             * Valid From
+             * Format: date-time
+             */
+            valid_from: string;
+            /**
+             * Valid Until
+             * Format: date-time
+             */
+            valid_until: string;
+        };
         /** AuditEventResponse */
         AuditEventResponse: {
             /** Action */
@@ -340,6 +455,11 @@ export interface components {
             resource: {
                 [key: string]: string;
             };
+        };
+        /** AuthorizationRevoke */
+        AuthorizationRevoke: {
+            /** Reason */
+            reason: string;
         };
         /** DomainChallengeCreate */
         DomainChallengeCreate: {
@@ -619,6 +739,46 @@ export interface components {
             name: string;
             /** Slug */
             slug: string;
+        };
+        /** ScopeManifestResponse */
+        ScopeManifestResponse: {
+            /**
+             * Algorithm
+             * @default EdDSA
+             * @constant
+             */
+            algorithm: "EdDSA";
+            /**
+             * Authorization Id
+             * Format: uuid
+             */
+            authorization_id: string;
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Key Id */
+            key_id: string;
+            /**
+             * Manifest Version
+             * @default v1
+             * @constant
+             */
+            manifest_version: "v1";
+            /** Payload Sha256 */
+            payload_sha256: string;
         };
         /** SessionResponse */
         SessionResponse: {
@@ -943,6 +1103,148 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuditEventResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_authorizations_api_v1_organizations__organization_id__authorizations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: {
+                "__Host-siembiot_session"?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssessmentAuthorizationResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_authorization_api_v1_organizations__organization_id__authorizations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: {
+                "__Host-siembiot_session"?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssessmentAuthorizationCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssessmentAuthorizationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accept_authorization_api_v1_organizations__organization_id__authorizations__authorization_id__accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                authorization_id: string;
+            };
+            cookie?: {
+                "__Host-siembiot_session"?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScopeManifestResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_authorization_api_v1_organizations__organization_id__authorizations__authorization_id__revoke_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                authorization_id: string;
+            };
+            cookie?: {
+                "__Host-siembiot_session"?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthorizationRevoke"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssessmentAuthorizationResponse"];
                 };
             };
             /** @description Validation Error */
