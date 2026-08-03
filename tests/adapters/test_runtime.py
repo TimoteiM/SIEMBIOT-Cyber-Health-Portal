@@ -29,9 +29,7 @@ def test_request_cost_and_concurrency_budgets_are_deterministic() -> None:
     assert ledger.cost_units_used == 3
     assert ledger.reserve(cost_units=0).reason_code == "request_budget_exhausted"
 
-    cost_limited = BudgetLedger(
-        BudgetLimits(max_requests=2, max_cost_units=1, max_concurrency=1)
-    )
+    cost_limited = BudgetLedger(BudgetLimits(max_requests=2, max_cost_units=1, max_concurrency=1))
     assert cost_limited.reserve(cost_units=2).reason_code == "cost_budget_exhausted"
 
 

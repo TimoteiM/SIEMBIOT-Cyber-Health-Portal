@@ -48,9 +48,7 @@ class HTTPCollector:
                 payload["reason_code"] = "malformed_fixture_data"
             else:
                 headers_source = cast(Mapping[object, object], raw_headers)
-                headers = {
-                    str(key).lower(): str(value) for key, value in headers_source.items()
-                }
+                headers = {str(key).lower(): str(value) for key, value in headers_source.items()}
                 outcome = (
                     ObservationOutcome.PASS if 200 <= status < 400 else ObservationOutcome.WARNING
                 )

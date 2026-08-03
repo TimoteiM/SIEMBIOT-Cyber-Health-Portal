@@ -39,6 +39,7 @@ class FoundationCommandContractTests(unittest.TestCase):
                 "diff",
                 "docs",
                 "format",
+                "fixture-boundary",
                 "images",
                 "lint",
                 "locks",

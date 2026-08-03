@@ -93,18 +93,10 @@ class FixtureSuiteRunner:
                         dkim_selectors=value.dkim_selectors,
                     ),
                 ),
-                CollectionStep(
-                    "http", lambda value: http.collect(value.context, value.web_host)
-                ),
-                CollectionStep(
-                    "tls", lambda value: (tls.collect(value.context, value.web_host),)
-                ),
-                CollectionStep(
-                    "rdap", lambda value: (rdap.collect(value.context, value.domain),)
-                ),
-                CollectionStep(
-                    "ct", lambda value: (ct.collect(value.context, value.domain),)
-                ),
+                CollectionStep("http", lambda value: http.collect(value.context, value.web_host)),
+                CollectionStep("tls", lambda value: (tls.collect(value.context, value.web_host),)),
+                CollectionStep("rdap", lambda value: (rdap.collect(value.context, value.domain),)),
+                CollectionStep("ct", lambda value: (ct.collect(value.context, value.domain),)),
             )
         )
 
@@ -145,9 +137,7 @@ class FixtureSuiteRunner:
             coverage.append(StepCoverage(step.step_id, "completed", len(produced), "fixture"))
 
         if cancelled:
-            status: Literal["completed", "partially_completed", "cancelled", "failed"] = (
-                "cancelled"
-            )
+            status: Literal["completed", "partially_completed", "cancelled", "failed"] = "cancelled"
         elif all(item.status == "failed" for item in coverage):
             status = "failed"
         elif any(item.status == "failed" for item in coverage) or any(

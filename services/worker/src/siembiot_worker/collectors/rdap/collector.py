@@ -16,9 +16,7 @@ class RDAPCollector:
         self._broker = broker
 
     def collect(self, context: FixtureCollectorContext, domain: str) -> CollectionObservation:
-        result = self._broker.query_rdap(
-            context.scenario_id, domain, cancelled=context.cancelled
-        )
+        result = self._broker.query_rdap(context.scenario_id, domain, cancelled=context.cancelled)
         payload: dict[str, Any] = {
             "fixture_only": True,
             "domain": domain,

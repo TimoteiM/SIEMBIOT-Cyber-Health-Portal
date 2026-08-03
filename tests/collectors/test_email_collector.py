@@ -26,9 +26,7 @@ class RecordingBroker:
         cancelled: Callable[[], bool] | None = None,
     ) -> FixtureBrokerResult:
         self.dns_requests.append((host, record_type))
-        return self.delegate.resolve_dns(
-            scenario_id, host, record_type, cancelled=cancelled
-        )
+        return self.delegate.resolve_dns(scenario_id, host, record_type, cancelled=cancelled)
 
 
 def _components() -> tuple[FixtureScenarioPack, FixtureCollectorContext]:

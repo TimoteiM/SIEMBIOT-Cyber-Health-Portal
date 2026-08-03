@@ -56,9 +56,10 @@ def canonical_dns_name(name: str) -> str:
             if label.startswith("_"):
                 if SERVICE_LABEL.fullmatch(label) is None:
                     raise DestinationPolicyError("noncanonical_dns_name")
-            elif idna.encode(
-                label, uts46=True, std3_rules=True, transitional=False
-            ).decode("ascii") != label:
+            elif (
+                idna.encode(label, uts46=True, std3_rules=True, transitional=False).decode("ascii")
+                != label
+            ):
                 raise DestinationPolicyError("noncanonical_dns_name")
     except idna.IDNAError as exc:
         raise DestinationPolicyError("noncanonical_dns_name") from exc

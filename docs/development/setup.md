@@ -1,6 +1,6 @@
 # Local Development Setup
 
-Milestone 2 adds domain normalization, DNS/HTTPS ownership verification, explicit signed authorization manifests, centralized network safety, emergency controls, and the Romanian domain workflow. Tyche, model providers, collectors, scoring, queues, public scans, and assessment execution remain intentionally absent.
+Milestone 3 adds fixture-only DNS, e-mail DNS, HTTP, TLS, RDAP, and CT collector validation. These collectors use deterministic local scenario data only. Live targets/providers, scoring, queues, public scans, Tyche, model providers, and assessment execution remain intentionally absent.
 
 ## Prerequisites
 
@@ -98,6 +98,14 @@ corepack pnpm --filter @siembiot/web test
 corepack pnpm --filter @siembiot/web typecheck
 corepack pnpm --filter @siembiot/web build
 ```
+
+Validate and test the fixture boundary with:
+
+```powershell
+make fixture-stack test-adapters test-collectors
+```
+
+`fixture-stack` validates the local scenario manifest and starts no process or service. The UI/API/report status is **fixture-only**. Results are synthetic, non-publishable, unscored, and must never be represented as live assessment findings. Provider credentials are neither configured nor required.
 
 The Docker-backed tests use only fixed test placeholders and reserved domains. They do not access assessment targets or Tyche.
 

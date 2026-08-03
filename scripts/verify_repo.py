@@ -105,6 +105,21 @@ def build_checks(root: Path | None = None) -> tuple[Check, ...]:
                 (corepack, "pnpm", "--filter", "@siembiot/web", "build"),
             ),
         ),
+        Check(
+            "fixture-boundary",
+            (
+                uv + ("run", "--frozen", "python", "scripts/validate_fixture_pack.py"),
+                uv
+                + (
+                    "run",
+                    "--frozen",
+                    "pytest",
+                    "tests/security/test_collector_network_architecture.py",
+                    "tests/security/test_no_external_fixture_network.py",
+                    "-q",
+                ),
+            ),
+        ),
         Check("contracts", (uv + ("run", "--frozen", "python", "scripts/check_contracts.py"),)),
         Check(
             "migrations",
@@ -202,7 +217,8 @@ def main() -> int:
             if completed.returncode != 0:
                 print(f"[check] failed: {check.name}", file=sys.stderr)
                 return completed.returncode
-    print("Repository verification passed: 14/14 gates")
+    gate_count = len(build_checks(root))
+    print(f"Repository verification passed: {gate_count}/{gate_count} gates")
     return 0
 
 

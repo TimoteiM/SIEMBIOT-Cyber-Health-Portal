@@ -167,4 +167,24 @@ The private API now owns canonical domain registration, digest-only DNS/HTTPS ch
 
 HTTPS ownership checks cross one purpose-specific broker boundary. The API supplies only tenant/domain/challenge identifiers and the stored canonical host. A database policy adapter re-reads the pending challenge and global, organization, domain, and operation-class emergency controls at every cooperative checkpoint. The broker resolves all addresses, rejects unsafe or mixed results, pins the validated address while preserving TLS identity, accepts only the fixed well-known path, re-resolves redirects, and applies strict time, concurrency, redirect, header, and body budgets. Network decision records exclude IP addresses, response bodies, and challenge values.
 
-This milestone deliberately keeps the broker in process because no durable worker exists yet. Direct network imports are confined by an architecture test. The durable queue/worker milestone will move the same typed broker behind a restricted-egress deployment boundary before collectors are introduced. No assessment collector, scoring engine, public scan, Tyche integration, or model provider exists in this milestone.
+Milestone 2 deliberately kept the ownership-verification broker in process because no durable worker existed. Direct network imports were confined by an architecture test. A later durable queue/worker milestone must move the typed network boundary behind restricted egress before any live collector is introduced. Milestone 2 contained no assessment collector, scoring engine, public scan, Tyche integration, or model provider.
+
+## Milestone 3 fixture-only collection boundary
+
+Milestone 3 introduces typed collectors only for deterministic local validation. It does not add a live collector worker or target/provider access.
+
+```mermaid
+flowchart LR
+    Input[Scope reference and fictional target] --> Runner[Deterministic fixture runner]
+    Runner --> Collectors[DNS / e-mail / HTTP / TLS / RDAP / CT]
+    Collectors --> Contract[Narrow broker protocols]
+    Contract --> Fake[Integrity-checked in-memory fake internet]
+    Fake --> Pack[(Versioned local scenario pack)]
+    Collectors --> Obs[Non-publishable fixture observations]
+    Obs --> Report[Fixture-only, unscored report]
+    Contract -. no implementation .-> Live[Live execution reserved and rejected]
+```
+
+Collectors cannot construct the fixture broker, import transports, or make generic requests. The runner has stable step ordering, content-addressed evidence, cancellation, and independent partial completion. The API exposes capability status only; there is no execution endpoint. The UI and report surface a persistent non-live warning.
+
+The earlier production diagram remains the target architecture, not current capability. Before its collector-to-egress arrow can exist, all controls in the live-activation dependency must be delivered together and explicitly approved.

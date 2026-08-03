@@ -78,7 +78,7 @@ A formal DPIA, records of processing, controller/processor analysis, subprocesso
 
 ## Abuse-resistant network policy
 
-Allowed collection modes are `passive_public`, `verified_safe_active`, and `local_fixture`. Each tool declares one mode. Public observatory jobs cannot transition to an active tool. Verified active mode requires tenant authorization, current verification, allowed target/port/protocol, valid time window, and no suspension. The egress gate records decision inputs/outcome but never secret tokens or full sensitive payloads.
+The target design recognizes `passive_public`, `verified_safe_active`, and `local_fixture`, but Milestone 3 implements only `local_fixture`. Public and verified-active modes are not executable and cannot be enabled by configuration. Each future tool must declare one mode. Public observatory jobs cannot transition to an active tool. Verified active mode will require tenant authorization, current verification, allowed target/port/protocol, valid time window, and no suspension. The future egress gate must record decision inputs/outcome but never secret tokens or full sensitive payloads.
 
 Emergency controls: global active-check kill switch, provider kill switch, organization suspension, domain revocation, per-run cancellation, and public-profile suppression. Their activation is strongly authorized, audited, alerting, and exercised in staging.
 
@@ -106,6 +106,12 @@ TM-01 through TM-05 and the audit-integrity portion of TM-17 now have executable
 TM-06, the ownership-verification portion of TM-08, and the application-level controls for TM-07/TM-09/TM-11 now have executable foundations. Tests cover UTS 46/STD3 normalization, the complete pinned PSL including wildcard/exception rules, public-suffix rejection, exact parent/child separation, digest-only challenges, expiry/replay/attempt budgets, canonical signed manifests, key rotation and tamper rejection, tenant RLS, all emergency-control scopes, phishing-resistant global administration, and immediate safe recovery.
 
 Adversarial network tests cover alternate numeric IP encodings, IPv4-mapped IPv6, private/loopback/link-local/multicast/reserved/metadata ranges, mixed DNS answers, DNS rebinding, exact redirect authorization, TLS downgrade, forbidden paths/ports/query/credentials/fragments, address pinning with Host/SNI preservation, malformed framing, response size, time, redirect, concurrency, and cooperative policy cancellation. The architecture test rejects direct network imports outside the centralized module. Residual launch work includes restricted-egress deployment, OS/network-policy enforcement, production signing-key custody, alert delivery, staging kill-switch drills, penetration testing, and collectors requiring valid manifests.
+
+## Milestone 3 validation status
+
+TM-08, TM-10 through TM-12, and TM-25 gain fixture-level executable controls, not live-network assurance. Tests cover broker-only collector access, private/mixed-address denial, redirect reauthorization, simulated DNS rebinding, timeouts, cooperative cancellation, response limits, malformed/hostile data, provider unavailability/disagreement, circuit breaking, partial completion, exact reruns, and a network trap around the full suite.
+
+Fixture observations carry complete provenance and cannot be relabeled, published, treated as real-world evidence, converted to findings, or scored. CT names never authorize or create assets; RDAP entity details are reduced to roles. Residual risk remains unchanged for actual deployment egress, worker isolation, pre-connection scope reauthorization, provider-secret custody, operational kill switches, and production security testing. All are conjunctive prerequisites for explicit live activation.
 
 ## Open risks requiring accountable acceptance before launch
 

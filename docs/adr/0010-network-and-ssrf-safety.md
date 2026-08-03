@@ -10,4 +10,10 @@ Ownership verification is the prerequisite for, not evidence of, assessment auth
 
 ## Consequences
 
-The current in-process typed broker is the only permitted network boundary for HTTPS ownership verification. Moving it behind a separately deployed restricted-egress service remains part of the durable worker/collector milestone and does not change its contracts. Direct sockets/HTTP clients outside this module fail architecture tests. IPv4/IPv6 encoding, redirect, rebinding, proxy, response-framing, budget, and parser bypasses require adversarial tests.
+The current in-process typed broker is the only permitted network boundary for HTTPS ownership verification. Moving it behind a separately deployed restricted-egress service remains part of a later durable worker milestone and does not change its contracts. Direct sockets/HTTP clients outside this module fail architecture tests. IPv4/IPv6 encoding, redirect, rebinding, proxy, response-framing, budget, and parser bypasses require adversarial tests.
+
+## Milestone 3 fixture boundary
+
+Milestone 3 collectors receive only narrow broker protocols. Their sole implementation is an in-memory, integrity-checked fake internet with no resolver, socket, HTTP client, subprocess, or browser capability. The fake broker still applies centralized canonical-name, address, redirect, rebinding, cancellation, header, body, and redirect-budget policy so collector behavior is exercised deterministically.
+
+Architecture tests reject direct network/process imports and calls in adapters and collectors. A runtime network trap disables socket creation, DNS resolution, and connection APIs while the complete fixture suite runs. This validates policy behavior but is not evidence of a production restricted-egress boundary; live execution remains blocked by the [activation dependency](../plans/live-execution-activation-dependency.md).
