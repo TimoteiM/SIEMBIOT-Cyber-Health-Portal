@@ -85,9 +85,7 @@ class BoundedHTTPTransport:
             )
             status, headers = self._parse_headers(head)
             checkpoint(BrokerCheckpoint.AFTER_HEADERS)
-            body = self._read_body(
-                stream, headers, initial_body, budget, checkpoint, deadline
-            )
+            body = self._read_body(stream, headers, initial_body, budget, checkpoint, deadline)
             return TransportResponse(status, headers, body)
         except NetworkTransportError:
             raise
@@ -97,9 +95,7 @@ class BoundedHTTPTransport:
             if stream is not None:
                 stream.close()
 
-    def _set_read_timeout(
-        self, stream: Stream, budget: NetworkBudget, deadline: float
-    ) -> None:
+    def _set_read_timeout(self, stream: Stream, budget: NetworkBudget, deadline: float) -> None:
         remaining = deadline - self._clock()
         if remaining <= 0:
             raise NetworkTransportError("timeout")
