@@ -60,6 +60,8 @@
 
 ## Milestone 3: Provider framework and deterministic collectors
 
+**Execution boundary:** fixture-only collection behavior validation. Live target/provider execution is unavailable and cannot be enabled through ordinary configuration. See `docs/plans/live-execution-activation-dependency.md`.
+
 **Create:** `services/worker/src/siembiot_worker/adapters/`, `collectors/{dns,email,tls,http,rdap,ct}/`, `tests/fixtures/{dns,http,tls,providers}/`, `docs/providers/matrix.md`.
 
 1. Test the adapter capability/terms/classification/secret/health/timeout/rate/cost/cache/fixture contract.
@@ -97,6 +99,8 @@
 6. Run queue-burst and failure-injection tests.
 
 **Acceptance:** duplicate/out-of-order delivery cannot duplicate evidence or corrupt state; partial completion survives worker/provider failure.
+
+This milestone may implement the restricted-egress broker and isolated worker portions of the live-execution dependency, but live activation remains prohibited until the complete dependency and Milestone 10 deployment/security proof are accepted.
 
 ## Milestone 6: Tyche gateway and grounded analysis
 
@@ -162,6 +166,8 @@
 6. Complete staging, security, privacy/legal, and go-live checklists; obtain independent penetration test and remediate critical/high findings.
 
 **Acceptance:** measured SLO/load targets, verified restore, signed release artifacts, zero known critical/high defects, and zero release-invariant failures.
+
+Live collector activation is a separate explicit approval after every requirement in `docs/plans/live-execution-activation-dependency.md` passes; deployment alone does not enable it.
 
 ## Milestone 11: Demo, release candidate, and handoff
 
