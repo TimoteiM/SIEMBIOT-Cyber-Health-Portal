@@ -120,6 +120,7 @@ def build_checks(root: Path | None = None) -> tuple[Check, ...]:
                 ),
             ),
         ),
+        Check("policy", (uv + ("run", "--frozen", "python", "scripts/validate_policy.py"),)),
         Check("contracts", (uv + ("run", "--frozen", "python", "scripts/check_contracts.py"),)),
         Check(
             "migrations",

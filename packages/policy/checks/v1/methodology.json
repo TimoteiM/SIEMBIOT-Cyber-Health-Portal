@@ -1,0 +1,8 @@
+{
+  "schema_version": "v1", "methodology_version": "1.0.0", "scoring_behavior_version": "1.0.0", "minimum_coverage": 60,
+  "pillars": [
+    {"id": "domain_dns", "weight": 0.20}, {"id": "email_trust", "weight": 0.20},
+    {"id": "web_tls", "weight": 0.25}, {"id": "public_surface", "weight": 0.15},
+    {"id": "reputation", "weight": 0.10}, {"id": "exposure_hygiene", "weight": 0.10}
+  ]
+}

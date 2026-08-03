@@ -45,6 +45,7 @@ class FoundationCommandContractTests(unittest.TestCase):
                 "locks",
                 "migrations",
                 "phase0",
+                "policy",
                 "repository",
                 "sbom",
                 "secrets",

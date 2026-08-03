@@ -1,4 +1,4 @@
-.PHONY: bootstrap check contracts-check api-test web-test e2e-auth fixture-stack test-adapters test-collectors db-up db-down migrate
+.PHONY: bootstrap check contracts-check api-test web-test e2e-auth fixture-stack test-adapters test-collectors policy-validate db-up db-down migrate
 
 bootstrap:
 	python scripts/bootstrap.py
@@ -27,6 +27,9 @@ test-adapters:
 
 test-collectors:
 	python -m uv run --frozen pytest tests/collectors tests/fixtures/test_fake_internet.py tests/security/test_collector_network_architecture.py tests/security/test_no_external_fixture_network.py -q
+
+policy-validate:
+	python -m uv run --frozen python scripts/validate_policy.py
 
 db-up:
 	docker compose --env-file .env -f infra/compose/postgres.compose.yml up -d --wait
