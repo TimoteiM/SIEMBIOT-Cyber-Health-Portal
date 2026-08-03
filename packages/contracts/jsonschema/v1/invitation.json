@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.siembiot.example/v1/invitation.json",
+  "title": "InvitationV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "id", "organization_id", "email", "role", "status", "expires_at", "created_at"],
+  "properties": {
+    "contract_version": { "const": "v1" },
+    "id": { "type": "string", "format": "uuid" },
+    "organization_id": { "type": "string", "format": "uuid" },
+    "email": { "type": "string", "format": "email", "maxLength": 320 },
+    "role": { "enum": ["organization_owner", "security_admin", "analyst", "viewer_auditor", "maturity_contributor"] },
+    "status": { "enum": ["pending", "accepted", "revoked", "expired"] },
+    "expires_at": { "type": "string", "format": "date-time", "pattern": "Z$" },
+    "created_at": { "type": "string", "format": "date-time", "pattern": "Z$" }
+  }
+}

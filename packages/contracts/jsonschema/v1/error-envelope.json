@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.siembiot.example/v1/error-envelope.json",
+  "title": "ErrorEnvelopeV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "error"],
+  "properties": {
+    "contract_version": { "const": "v1" },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message", "request_id"],
+      "properties": {
+        "code": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,63}$" },
+        "message": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "request_id": { "type": "string", "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$" }
+      }
+    }
+  }
+}

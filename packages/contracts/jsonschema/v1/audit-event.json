@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.siembiot.example/v1/audit-event.json",
+  "title": "AuditEventV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "id", "organization_id", "actor", "action", "resource", "request_id", "correlation_id", "occurred_at", "outcome", "context"],
+  "properties": {
+    "contract_version": { "const": "v1" },
+    "id": { "type": "string", "format": "uuid" },
+    "organization_id": { "type": ["string", "null"], "format": "uuid" },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id"],
+      "properties": {
+        "type": { "enum": ["user", "system"] },
+        "id": { "type": "string", "minLength": 1, "maxLength": 200 }
+      }
+    },
+    "action": { "type": "string", "pattern": "^[a-z][a-z0-9_.]{2,127}$" },
+    "resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id"],
+      "properties": {
+        "type": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,63}$" },
+        "id": { "type": "string", "minLength": 1, "maxLength": 200 }
+      }
+    },
+    "request_id": { "type": "string", "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$" },
+    "correlation_id": { "type": "string", "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$" },
+    "occurred_at": { "type": "string", "format": "date-time", "pattern": "Z$" },
+    "outcome": { "enum": ["success", "denied", "failure"] },
+    "context": { "type": "object", "maxProperties": 32 }
+  }
+}

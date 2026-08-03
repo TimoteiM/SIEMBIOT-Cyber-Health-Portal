@@ -4,11 +4,24 @@ version = "0.0.0"
 description = "Security-first community cyber health assessment platform"
 requires-python = "==3.13.*"
 license = "MIT"
+dependencies = [
+    "alembic==1.16.5",
+    "email-validator==2.2.0",
+    "fastapi==0.116.1",
+    "httpx==0.28.1",
+    "psycopg[binary]==3.2.9",
+    "pydantic-settings==2.10.1",
+    "pyjwt[crypto]==2.10.1",
+    "sqlalchemy==2.0.43",
+    "uvicorn==0.35.0",
+]
 
 [dependency-groups]
 dev = [
+    "jsonschema==4.25.1",
     "mypy==1.17.1",
     "pytest==8.4.1",
+    "pytest-postgresql==7.0.2",
     "ruff==0.12.8",
 ]
 
@@ -22,6 +35,9 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "S", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101"]
 
 [tool.mypy]
 python_version = "3.13"

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.siembiot.example/v1/membership.json",
+  "title": "MembershipV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "id", "organization_id", "user_id", "role", "status", "created_at"],
+  "properties": {
+    "contract_version": { "const": "v1" },
+    "id": { "type": "string", "format": "uuid" },
+    "organization_id": { "type": "string", "format": "uuid" },
+    "user_id": { "type": "string", "format": "uuid" },
+    "role": { "enum": ["organization_owner", "security_admin", "analyst", "viewer_auditor", "maturity_contributor"] },
+    "status": { "enum": ["active", "revoked"] },
+    "created_at": { "type": "string", "format": "date-time", "pattern": "Z$" }
+  }
+}

@@ -10,6 +10,8 @@
     "pnpm": "10.34.5"
   },
   "scripts": {
-    "check": "python scripts/verify_repo.py"
+    "check": "python scripts/verify_repo.py",
+    "contracts:generate": "python scripts/generate_openapi.py && pnpm --filter @siembiot/contracts generate",
+    "contracts:check": "python scripts/check_contracts.py"
   }
 }
