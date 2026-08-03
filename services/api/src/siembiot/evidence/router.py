@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from typing import cast
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import text
 
 from siembiot.audit import append_audit_event
@@ -34,7 +34,11 @@ def build_evidence_router() -> APIRouter:
 
     @router.get("/findings", response_model=list[FindingResponse])
     def list_findings(
-        organization_id: UUID, request: Request, principal: Principal = Depends(current_principal)
+        organization_id: UUID,
+        request: Request,
+        principal: Principal = Depends(current_principal),
+        limit: int = Query(default=50, ge=1, le=200),
+        offset: int = Query(default=0, ge=0, le=10000),
     ) -> list[FindingResponse]:
         with _database(request).tenant_connection(principal.user_id, organization_id) as connection:
             authorize(connection, request, principal, organization_id, Action.EVIDENCE_READ)
@@ -42,8 +46,10 @@ def build_evidence_router() -> APIRouter:
                 connection.execute(
                     text(
                         "SELECT id, asset_id, check_id, evidence_mode, severity, first_seen_at, "
-                        "publishable, classification FROM findings ORDER BY first_seen_at, id"
-                    )
+                        "publishable, classification FROM findings ORDER BY first_seen_at, id "
+                        "LIMIT :limit OFFSET :offset"
+                    ),
+                    {"limit": limit, "offset": offset},
                 )
                 .mappings()
                 .all()
@@ -52,7 +58,11 @@ def build_evidence_router() -> APIRouter:
 
     @router.get("/snapshots", response_model=list[ScoreSnapshotResponse])
     def list_snapshots(
-        organization_id: UUID, request: Request, principal: Principal = Depends(current_principal)
+        organization_id: UUID,
+        request: Request,
+        principal: Principal = Depends(current_principal),
+        limit: int = Query(default=50, ge=1, le=200),
+        offset: int = Query(default=0, ge=0, le=10000),
     ) -> list[ScoreSnapshotResponse]:
         with _database(request).tenant_connection(principal.user_id, organization_id) as connection:
             authorize(connection, request, principal, organization_id, Action.EVIDENCE_READ)
@@ -62,8 +72,10 @@ def build_evidence_router() -> APIRouter:
                         "SELECT id, asset_id, evidence_mode, methodology_version, "
                         "technical_posture, "
                         "coverage, evidence_confidence, attribution_confidence, publishable, "
-                        "classification, created_at FROM score_snapshots ORDER BY created_at, id"
-                    )
+                        "classification, created_at FROM score_snapshots ORDER BY created_at, id "
+                        "LIMIT :limit OFFSET :offset"
+                    ),
+                    {"limit": limit, "offset": offset},
                 )
                 .mappings()
                 .all()
@@ -72,7 +84,11 @@ def build_evidence_router() -> APIRouter:
 
     @router.get("/evaluations", response_model=list[CheckEvaluationResponse])
     def list_evaluations(
-        organization_id: UUID, request: Request, principal: Principal = Depends(current_principal)
+        organization_id: UUID,
+        request: Request,
+        principal: Principal = Depends(current_principal),
+        limit: int = Query(default=50, ge=1, le=200),
+        offset: int = Query(default=0, ge=0, le=10000),
     ) -> list[CheckEvaluationResponse]:
         with _database(request).tenant_connection(principal.user_id, organization_id) as connection:
             authorize(connection, request, principal, organization_id, Action.EVIDENCE_READ)
@@ -81,8 +97,9 @@ def build_evidence_router() -> APIRouter:
                     text(
                         "SELECT id,asset_id,check_id,evidence_mode,methodology_version,"
                         "scoring_behavior_version,outcome,reason_code,evaluated_at,publishable "
-                        "FROM check_evaluations ORDER BY evaluated_at,id LIMIT 200"
-                    )
+                        "FROM check_evaluations ORDER BY evaluated_at,id LIMIT :limit OFFSET :offset"
+                    ),
+                    {"limit": limit, "offset": offset},
                 )
                 .mappings()
                 .all()
@@ -123,6 +140,8 @@ def build_evidence_router() -> APIRouter:
         finding_id: UUID,
         request: Request,
         principal: Principal = Depends(current_principal),
+        limit: int = Query(default=50, ge=1, le=200),
+        offset: int = Query(default=0, ge=0, le=10000),
     ) -> list[FindingEventResponse]:
         with _database(request).tenant_connection(principal.user_id, organization_id) as connection:
             authorize(connection, request, principal, organization_id, Action.EVIDENCE_READ)
@@ -136,9 +155,9 @@ def build_evidence_router() -> APIRouter:
                     text(
                         "SELECT id, finding_id, event_type, actor_id, reason, scope_reference, "
                         "occurred_at, review_at, request_id, correlation_id FROM finding_events "
-                        "WHERE finding_id=:id ORDER BY occurred_at, id"
+                        "WHERE finding_id=:id ORDER BY occurred_at, id LIMIT :limit OFFSET :offset"
                     ),
-                    {"id": finding_id},
+                    {"id": finding_id, "limit": limit, "offset": offset},
                 )
                 .mappings()
                 .all()

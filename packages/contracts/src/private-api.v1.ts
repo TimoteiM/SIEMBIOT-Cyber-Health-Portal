@@ -2185,7 +2185,10 @@ export interface operations {
     };
     list_evaluations_api_v1_organizations__organization_id__evidence_evaluations_get: {
         parameters: {
-            query?: never;
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
             header?: never;
             path: {
                 organization_id: string;
@@ -2218,7 +2221,10 @@ export interface operations {
     };
     list_findings_api_v1_organizations__organization_id__evidence_findings_get: {
         parameters: {
-            query?: never;
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
             header?: never;
             path: {
                 organization_id: string;
@@ -2289,7 +2295,10 @@ export interface operations {
     };
     finding_history_api_v1_organizations__organization_id__evidence_findings__finding_id__history_get: {
         parameters: {
-            query?: never;
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
             header?: never;
             path: {
                 organization_id: string;
@@ -2356,7 +2365,10 @@ export interface operations {
     };
     list_snapshots_api_v1_organizations__organization_id__evidence_snapshots_get: {
         parameters: {
-            query?: never;
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
             header?: never;
             path: {
                 organization_id: string;

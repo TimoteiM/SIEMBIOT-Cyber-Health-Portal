@@ -94,6 +94,10 @@ def test_fixture_finding_is_visibly_classified_and_decisions_append_events(
         assert listed.status_code == 200
         assert listed.json()[0]["classification"] == "DEMO/FIXTURE"
         assert listed.json()[0]["publishable"] is False
+        assert (
+            client.get(f"/api/v1/organizations/{org}/evidence/findings?limit=1&offset=1").json()
+            == []
+        )
         decision = client.post(
             f"/api/v1/organizations/{org}/evidence/findings/{finding}/events",
             json={
