@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://siembiot.example/contracts/evidence/v1/common.json",
+  "$defs": {
+    "mode": {"enum": ["fixture", "live"]},
+    "hash": {"type": "string", "pattern": "^sha256-v1:[a-f0-9]{64}$"},
+    "uuid": {"type": "string", "format": "uuid"},
+    "outcome": {"enum": ["pass", "fail", "warning", "unknown", "error", "not_applicable", "suppressed", "accepted_risk"]}
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "https://siembiot.example/contracts/evidence/v1/finding-event.json",
+  "type": "object", "additionalProperties": false,
+  "required": ["contract_version", "event_id", "finding_id", "organization_id", "event_type", "actor_id", "reason", "occurred_at", "request_id", "correlation_id"],
+  "properties": {
+    "contract_version": {"const": "v1"}, "event_id": {"type": "string", "pattern": "^sha256-v1:[a-f0-9]{64}$"},
+    "finding_id": {"type": "string"}, "organization_id": {"type": "string", "format": "uuid"},
+    "event_type": {"enum": ["observed", "suppressed", "accepted_risk", "reopened", "expired_review", "remediation_verified"]},
+    "actor_id": {"type": "string", "format": "uuid"}, "reason": {"type": "string", "minLength": 10, "maxLength": 1000},
+    "occurred_at": {"type": "string", "format": "date-time"}, "request_id": {"type": "string"}, "correlation_id": {"type": "string"}
+  }
+}

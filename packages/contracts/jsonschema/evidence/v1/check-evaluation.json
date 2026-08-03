@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://siembiot.example/contracts/evidence/v1/check-evaluation.json",
+  "type": "object", "additionalProperties": false,
+  "required": ["contract_version", "evaluation_id", "organization_id", "asset_id", "check_id", "policy_hash", "methodology_version", "mode", "outcome", "evidence_ids", "evaluated_at", "publishable"],
+  "properties": {
+    "contract_version": {"const": "v1"}, "evaluation_id": {"type": "string", "pattern": "^sha256-v1:[a-f0-9]{64}$"},
+    "organization_id": {"type": "string", "format": "uuid"}, "asset_id": {"type": "string", "format": "uuid"},
+    "check_id": {"type": "string", "pattern": "^[a-z][a-z0-9._-]{2,127}$"}, "policy_hash": {"type": "string", "pattern": "^sha256-v1:[a-f0-9]{64}$"},
+    "methodology_version": {"type": "string"}, "mode": {"enum": ["fixture", "live"]},
+    "outcome": {"enum": ["pass", "fail", "warning", "unknown", "error", "not_applicable", "suppressed", "accepted_risk"]},
+    "evidence_ids": {"type": "array", "items": {"type": "string", "pattern": "^sha256-v1:[a-f0-9]{64}$"}, "uniqueItems": true},
+    "evaluated_at": {"type": "string", "format": "date-time"}, "publishable": {"type": "boolean"}
+  }
+}

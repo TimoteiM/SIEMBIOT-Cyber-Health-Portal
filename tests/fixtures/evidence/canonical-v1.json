@@ -1,0 +1,5 @@
+{
+  "canonicalization_version": "canonical-json-v1",
+  "hash_version": "sha256-v1",
+  "input": {"a": "România", "z": [1, true, null]}
+}

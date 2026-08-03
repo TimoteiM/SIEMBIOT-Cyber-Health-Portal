@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "https://siembiot.example/contracts/evidence/v1/score-snapshot.json",
+  "type": "object", "additionalProperties": false,
+  "required": ["contract_version", "snapshot_id", "organization_id", "asset_id", "policy_hash", "methodology_version", "mode", "technical_posture", "coverage", "evidence_confidence", "attribution_confidence", "created_at", "publishable"],
+  "properties": {
+    "contract_version": {"const": "v1"}, "snapshot_id": {"type": "string", "pattern": "^sha256-v1:[a-f0-9]{64}$"},
+    "organization_id": {"type": "string", "format": "uuid"}, "asset_id": {"type": "string", "format": "uuid"},
+    "policy_hash": {"type": "string"}, "methodology_version": {"type": "string"}, "mode": {"enum": ["fixture", "live"]},
+    "technical_posture": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+    "coverage": {"type": "number", "minimum": 0, "maximum": 100}, "evidence_confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "attribution_confidence": {"type": "number", "minimum": 0, "maximum": 1}, "created_at": {"type": "string", "format": "date-time"},
+    "publishable": {"type": "boolean"}
+  }
+}
