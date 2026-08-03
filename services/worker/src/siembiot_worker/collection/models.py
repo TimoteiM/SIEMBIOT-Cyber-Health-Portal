@@ -62,6 +62,8 @@ class CollectionObservation(StrictModel):
         if self.execution_mode is ExecutionMode.FIXTURE:
             if self.scenario is None or self.publishable or self.real_world:
                 raise ValueError("fixture_observation_boundary")
+        elif self.scenario is not None:
+            raise ValueError("fixture_provenance_cannot_be_relabelled")
         return self
 
 

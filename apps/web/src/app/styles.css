@@ -6,6 +6,9 @@ a { color: var(--cyan); }
 .skip-link:focus { top: 1rem; }
 :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
 .site-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem clamp(1rem, 4vw, 4rem); border-bottom: 1px solid var(--line); }
+.fixture-banner { position: sticky; top: 0; z-index: 20; display: grid; gap: .1rem; padding: .7rem clamp(1rem, 4vw, 4rem); border-bottom: 2px solid #ffd166; background: #4a3107; color: #fff6d8; box-shadow: 0 .25rem 1rem #0008; }
+.fixture-banner strong { letter-spacing: .04em; }
+.fixture-banner span { font-size: .9rem; }
 .brand { color: var(--text); font-weight: 800; text-decoration: none; letter-spacing: .08em; }
 .brand span { display: inline-grid; place-items: center; width: 2rem; height: 2rem; border-radius: .5rem; background: var(--cyan); color: #06101d; }
 .environment, .hint, .status { color: var(--muted); }

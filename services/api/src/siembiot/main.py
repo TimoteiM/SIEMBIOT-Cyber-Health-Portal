@@ -10,7 +10,12 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from siembiot.auth import build_auth_router
 from siembiot.config import Settings
-from siembiot.contracts import ErrorBody, ErrorEnvelope, HealthResponse
+from siembiot.contracts import (
+    CollectionCapabilityResponse,
+    ErrorBody,
+    ErrorEnvelope,
+    HealthResponse,
+)
 from siembiot.db import Database
 from siembiot.domains.authorization_router import build_authorization_router
 from siembiot.domains.dns_verification import BoundedTXTResolver, TXTResolver
@@ -95,6 +100,14 @@ def create_app(
     @app.get("/api/v1/health", response_model=HealthResponse, tags=["system"])
     def health() -> HealthResponse:
         return HealthResponse()
+
+    @app.get(
+        "/api/v1/collection/capabilities",
+        response_model=CollectionCapabilityResponse,
+        tags=["system"],
+    )
+    def collection_capabilities() -> CollectionCapabilityResponse:
+        return CollectionCapabilityResponse()
 
     app.include_router(build_auth_router())
     app.include_router(build_organization_router())

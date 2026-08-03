@@ -55,6 +55,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/collection/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Collection Capabilities */
+        get: operations["collection_capabilities_api_v1_collection_capabilities_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/emergency-controls": {
         parameters: {
             query?: never;
@@ -529,6 +546,79 @@ export interface components {
         AuthorizationRevoke: {
             /** Reason */
             reason: string;
+        };
+        /** CollectionCapabilityResponse */
+        CollectionCapabilityResponse: {
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            execution_modes?: components["schemas"]["CollectionExecutionModes"];
+            /**
+             * Fixture Only
+             * @default true
+             * @constant
+             */
+            fixture_only: true;
+            /**
+             * Live Execution
+             * @default false
+             * @constant
+             */
+            live_execution: false;
+            /**
+             * Milestone Status
+             * @default fixture_validation_only
+             * @constant
+             */
+            milestone_status: "fixture_validation_only";
+            /**
+             * Publishable
+             * @default false
+             * @constant
+             */
+            publishable: false;
+            /**
+             * Report Banner
+             * @default FIXTURE DATA — NOT A LIVE ASSESSMENT
+             * @constant
+             */
+            report_banner: "FIXTURE DATA — NOT A LIVE ASSESSMENT";
+            /**
+             * Restricted Egress Boundary
+             * @default required_before_live_activation
+             * @constant
+             */
+            restricted_egress_boundary: "required_before_live_activation";
+        };
+        /** CollectionExecutionModes */
+        CollectionExecutionModes: {
+            /**
+             * Disabled By Policy
+             * @default structured_result_state
+             * @constant
+             */
+            disabled_by_policy: "structured_result_state";
+            /**
+             * Fixture
+             * @default available
+             * @constant
+             */
+            fixture: "available";
+            /**
+             * Live
+             * @default future_requires_explicit_activation
+             * @constant
+             */
+            live: "future_requires_explicit_activation";
+            /**
+             * Unavailable
+             * @default structured_result_state
+             * @constant
+             */
+            unavailable: "structured_result_state";
         };
         /** DomainChallengeCreate */
         DomainChallengeCreate: {
@@ -1049,6 +1139,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    collection_capabilities_api_v1_collection_capabilities_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectionCapabilityResponse"];
                 };
             };
         };

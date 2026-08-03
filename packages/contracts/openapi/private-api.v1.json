@@ -234,6 +234,89 @@
         "title": "AuthorizationRevoke",
         "type": "object"
       },
+      "CollectionCapabilityResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "execution_modes": {
+            "$ref": "#/components/schemas/CollectionExecutionModes"
+          },
+          "fixture_only": {
+            "const": true,
+            "default": true,
+            "title": "Fixture Only",
+            "type": "boolean"
+          },
+          "live_execution": {
+            "const": false,
+            "default": false,
+            "title": "Live Execution",
+            "type": "boolean"
+          },
+          "milestone_status": {
+            "const": "fixture_validation_only",
+            "default": "fixture_validation_only",
+            "title": "Milestone Status",
+            "type": "string"
+          },
+          "publishable": {
+            "const": false,
+            "default": false,
+            "title": "Publishable",
+            "type": "boolean"
+          },
+          "report_banner": {
+            "const": "FIXTURE DATA \u2014 NOT A LIVE ASSESSMENT",
+            "default": "FIXTURE DATA \u2014 NOT A LIVE ASSESSMENT",
+            "title": "Report Banner",
+            "type": "string"
+          },
+          "restricted_egress_boundary": {
+            "const": "required_before_live_activation",
+            "default": "required_before_live_activation",
+            "title": "Restricted Egress Boundary",
+            "type": "string"
+          }
+        },
+        "title": "CollectionCapabilityResponse",
+        "type": "object"
+      },
+      "CollectionExecutionModes": {
+        "additionalProperties": false,
+        "properties": {
+          "disabled_by_policy": {
+            "const": "structured_result_state",
+            "default": "structured_result_state",
+            "title": "Disabled By Policy",
+            "type": "string"
+          },
+          "fixture": {
+            "const": "available",
+            "default": "available",
+            "title": "Fixture",
+            "type": "string"
+          },
+          "live": {
+            "const": "future_requires_explicit_activation",
+            "default": "future_requires_explicit_activation",
+            "title": "Live",
+            "type": "string"
+          },
+          "unavailable": {
+            "const": "structured_result_state",
+            "default": "structured_result_state",
+            "title": "Unavailable",
+            "type": "string"
+          }
+        },
+        "title": "CollectionExecutionModes",
+        "type": "object"
+      },
       "DomainChallengeCreate": {
         "additionalProperties": false,
         "properties": {
@@ -1234,6 +1317,27 @@
         "summary": "Logout",
         "tags": [
           "authentication"
+        ]
+      }
+    },
+    "/api/v1/collection/capabilities": {
+      "get": {
+        "operationId": "collection_capabilities_api_v1_collection_capabilities_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionCapabilityResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Collection Capabilities",
+        "tags": [
+          "system"
         ]
       }
     },

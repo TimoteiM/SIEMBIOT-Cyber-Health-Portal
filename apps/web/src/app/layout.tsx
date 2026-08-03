@@ -13,11 +13,22 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
     <html lang="ro">
       <body>
         <a className="skip-link" href="#main">Sari la conținut</a>
+        <div
+          className="fixture-banner"
+          role="status"
+          aria-label="Mod de validare cu date fixture"
+        >
+          <strong>MOD FIXTURE — NU ESTE O EVALUARE LIVE</strong>
+          <span>
+            Rezultatele folosesc exclusiv date locale sintetice și nu pot fi publicate ca
+            rezultate reale.
+          </span>
+        </div>
         <header className="site-header">
           <a href="/" className="brand" aria-label="SIEMBIOT, pagina principală">
             <span aria-hidden="true">S</span> SIEMBIOT
           </a>
-          <span className="environment">Portal privat</span>
+          <span className="environment">Validare locală cu date fixture</span>
         </header>
         <main id="main">{children}</main>
       </body>

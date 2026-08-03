@@ -16,6 +16,28 @@ class HealthResponse(ContractModel):
     status: Literal["ok"] = "ok"
 
 
+class CollectionExecutionModes(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    fixture: Literal["available"] = "available"
+    unavailable: Literal["structured_result_state"] = "structured_result_state"
+    disabled_by_policy: Literal["structured_result_state"] = "structured_result_state"
+    live: Literal["future_requires_explicit_activation"] = "future_requires_explicit_activation"
+
+
+class CollectionCapabilityResponse(ContractModel):
+    milestone_status: Literal["fixture_validation_only"] = "fixture_validation_only"
+    fixture_only: Literal[True] = True
+    live_execution: Literal[False] = False
+    publishable: Literal[False] = False
+    execution_modes: CollectionExecutionModes = Field(default_factory=CollectionExecutionModes)
+    restricted_egress_boundary: Literal["required_before_live_activation"] = (
+        "required_before_live_activation"
+    )
+    report_banner: Literal["FIXTURE DATA — NOT A LIVE ASSESSMENT"] = (
+        "FIXTURE DATA — NOT A LIVE ASSESSMENT"
+    )
+
+
 class ErrorBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
     code: str
