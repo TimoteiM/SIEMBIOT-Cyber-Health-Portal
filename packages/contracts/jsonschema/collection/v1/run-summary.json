@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://siembiot.example/contracts/collection/v1/run-summary.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "run_id", "execution_mode", "status", "fixture_only", "publishable", "observation_ids", "banner"],
+  "properties": {
+    "contract_version": {"const": "v1"},
+    "run_id": {"type": "string", "format": "uuid"},
+    "execution_mode": {"const": "fixture"},
+    "status": {"enum": ["completed", "partially_completed", "cancelled", "failed"]},
+    "fixture_only": {"const": true},
+    "publishable": {"const": false},
+    "observation_ids": {"type": "array", "items": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"}, "uniqueItems": true},
+    "banner": {"const": "FIXTURE DATA — NOT A LIVE ASSESSMENT"}
+  }
+}

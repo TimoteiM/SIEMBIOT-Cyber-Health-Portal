@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://siembiot.example/contracts/collection/v1/adapter-manifest.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "adapter_id", "adapter_version", "capabilities", "terms_note", "input_classification", "output_classification", "required_secret_names", "health_semantics", "timeout_seconds", "rate_unit", "cost_unit", "cache_ttl_seconds", "fixture_support", "output_schema"],
+  "properties": {
+    "contract_version": {"const": "v1"},
+    "adapter_id": {"type": "string", "pattern": "^[a-z][a-z0-9._-]{1,63}$"},
+    "adapter_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "capabilities": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z][a-z0-9._-]{1,63}$"}},
+    "terms_note": {"type": "string", "minLength": 5, "maxLength": 500},
+    "input_classification": {"enum": ["public_metadata", "private_metadata", "sensitive"]},
+    "output_classification": {"enum": ["public_metadata", "private_metadata", "sensitive"]},
+    "required_secret_names": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+    "health_semantics": {"type": "string", "minLength": 3, "maxLength": 100},
+    "timeout_seconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 30},
+    "rate_unit": {"type": "string", "minLength": 1, "maxLength": 50},
+    "cost_unit": {"type": "string", "minLength": 1, "maxLength": 50},
+    "cache_ttl_seconds": {"type": "integer", "minimum": 0, "maximum": 86400},
+    "fixture_support": {"const": true},
+    "output_schema": {"const": "collection.observation.v1"}
+  }
+}
