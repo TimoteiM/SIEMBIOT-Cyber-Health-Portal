@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import pytest
 from siembiot_worker.adapters.runtime import (
     AdapterInvocation,
@@ -9,8 +11,34 @@ from siembiot_worker.adapters.runtime import (
     CircuitBreaker,
     retain_provider_disagreement,
 )
+from siembiot_worker.collection.broker import FixtureBrokerResult
 
 from .test_contract import descriptor
+
+
+def broker_result(
+    *,
+    allowed: bool = True,
+    reason_code: str = "fixture",
+    data: dict[str, object] | None = None,
+) -> FixtureBrokerResult:
+    return FixtureBrokerResult(
+        allowed=allowed,
+        reason_code=reason_code,
+        fixture_timestamp=datetime(2026, 8, 3, 12, tzinfo=UTC),
+        scenario_id="healthy",
+        scenario_sha256="a" * 64,
+        data=data or {},
+    )
+
+
+def invocation(capability: str = "dns.lookup", **changes: object) -> AdapterInvocation:
+    values: dict[str, object] = {
+        "capability": capability,
+        "broker_result": broker_result(),
+    }
+    values.update(changes)
+    return AdapterInvocation(**values)  # type: ignore[arg-type]
 
 
 def test_request_cost_and_concurrency_budgets_are_deterministic() -> None:
@@ -33,15 +61,9 @@ def test_request_cost_and_concurrency_budgets_are_deterministic() -> None:
 
 def test_runtime_denies_capability_mismatch_retry_and_cancellation() -> None:
     runtime = AdapterRuntime(BudgetLedger(BudgetLimits()))
-    mismatch = runtime.execute(descriptor(), AdapterInvocation("http.head", "success", "fixture"))
-    retry = runtime.execute(
-        descriptor(), AdapterInvocation("dns.lookup", "success", "fixture", retry_count=1)
-    )
-    cancelled = runtime.execute(
-        descriptor(),
-        AdapterInvocation("dns.lookup", "success", "fixture"),
-        cancelled=lambda: True,
-    )
+    mismatch = runtime.execute(descriptor(), invocation("http.head"))
+    retry = runtime.execute(descriptor(), invocation(retry_count=1))
+    cancelled = runtime.execute(descriptor(), invocation(), cancelled=lambda: True)
     assert mismatch.reason_code == "capability_not_declared"
     assert retry.reason_code == "retry_not_declared"
     assert cancelled.reason_code == "cancelled"
@@ -50,17 +72,18 @@ def test_runtime_denies_capability_mismatch_retry_and_cancellation() -> None:
 def test_provider_unavailability_is_structured_and_opens_circuit() -> None:
     breaker = CircuitBreaker(failure_threshold=2, recovery_after_steps=2)
     runtime = AdapterRuntime(BudgetLedger(BudgetLimits(max_requests=10)), breaker=breaker)
-    unavailable = AdapterInvocation("dns.lookup", "unavailable", "fixture_provider_unavailable")
+    unavailable = invocation(
+        broker_result=broker_result(allowed=False, reason_code="provider_unavailable")
+    )
     first = runtime.execute(descriptor(), unavailable)
     second = runtime.execute(descriptor(), unavailable)
-    opened = runtime.execute(descriptor(), AdapterInvocation("dns.lookup", "success", "fixture"))
+    opened = runtime.execute(descriptor(), invocation())
     assert first.status == second.status == "unavailable"
     assert opened.reason_code == "circuit_open"
 
     breaker.advance(steps=2)
     recovered = runtime.execute(
-        descriptor(),
-        AdapterInvocation("dns.lookup", "success", "fixture", {"ok": True}),
+        descriptor(), invocation(broker_result=broker_result(data={"ok": True}))
     )
     assert recovered.status == "success"
     assert breaker.state == "closed"
@@ -69,23 +92,23 @@ def test_provider_unavailability_is_structured_and_opens_circuit() -> None:
 def test_runtime_accepts_no_executable_callback_or_unsafe_error_text() -> None:
     runtime = AdapterRuntime(BudgetLedger(BudgetLimits()))
     outcome = runtime.execute(
-        descriptor(), AdapterInvocation("dns.lookup", "error", "adapter_error")
+        descriptor(), invocation(broker_result=broker_result(allowed=False, reason_code="timeout"))
     )
     assert outcome.status == "error"
     assert outcome.reason_code == "adapter_error"
-    with pytest.raises(ValueError, match="invalid_adapter_reason_code"):
-        AdapterInvocation("dns.lookup", "error", "secret value must never escape")
+    with pytest.raises(ValueError, match="invalid_broker_reason_code"):
+        broker_result(allowed=False, reason_code="secret value must never escape")
 
 
 def test_provider_disagreement_and_confidence_are_retained() -> None:
     runtime = AdapterRuntime(BudgetLedger(BudgetLimits(max_requests=4)))
     first = runtime.execute(
         descriptor(adapter_id="fixture-dns-a"),
-        AdapterInvocation("dns.lookup", "success", "fixture", {"secure": True}, confidence=0.9),
+        invocation(broker_result=broker_result(data={"secure": True}), confidence=0.9),
     )
     second = runtime.execute(
         descriptor(adapter_id="fixture-dns-b"),
-        AdapterInvocation("dns.lookup", "success", "fixture", {"secure": False}, confidence=0.8),
+        invocation(broker_result=broker_result(data={"secure": False}), confidence=0.8),
     )
     aggregate = retain_provider_disagreement((first, second))
     assert aggregate.disagreement

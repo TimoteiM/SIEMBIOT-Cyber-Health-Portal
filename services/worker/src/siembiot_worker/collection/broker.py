@@ -70,6 +70,16 @@ class FixtureBrokerResult:
     def __post_init__(self) -> None:
         if self.fixture_timestamp.utcoffset() is None or not self.scenario_id:
             raise ValueError("invalid_broker_provenance")
+        if (
+            not self.reason_code
+            or len(self.reason_code) > 64
+            or not self.reason_code[0].isalpha()
+            or any(
+                character not in "abcdefghijklmnopqrstuvwxyz0123456789_"
+                for character in self.reason_code
+            )
+        ):
+            raise ValueError("invalid_broker_reason_code")
         if self.scenario_sha256 is None:
             if self.reason_code != "scenario_not_found":
                 raise ValueError("missing_broker_scenario_digest")

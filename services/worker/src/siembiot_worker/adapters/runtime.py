@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import json
-import re
 import threading
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
 from siembiot_worker.adapters.contracts import AdapterDescriptor
+from siembiot_worker.collection.broker import FixtureBrokerResult
 from siembiot_worker.collection.immutability import deep_freeze, json_compatible
 
 
@@ -129,27 +129,21 @@ class CircuitBreaker:
 
 
 AdapterStatus = Literal["success", "unavailable", "denied", "cancelled", "error"]
-InvocationStatus = Literal["success", "unavailable", "error"]
 
 
 @dataclass(frozen=True)
 class AdapterInvocation:
-    """Structured output from a previously allowlisted broker operation."""
+    """Typed result from an allowlisted broker operation plus accounting metadata."""
 
     capability: str
-    status: InvocationStatus
-    reason_code: str
-    data: Mapping[str, Any] = field(default_factory=dict)
+    broker_result: FixtureBrokerResult
     cost_units: int = 0
     confidence: float = 1.0
     retry_count: int = 0
 
     def __post_init__(self) -> None:
-        if re.fullmatch(r"[a-z][a-z0-9_]{1,63}", self.reason_code) is None:
-            raise ValueError("invalid_adapter_reason_code")
         if self.cost_units < 0 or not 0 <= self.confidence <= 1 or self.retry_count < 0:
             raise ValueError("invalid_adapter_invocation")
-        object.__setattr__(self, "data", deep_freeze(self.data))
 
 
 @dataclass(frozen=True)
@@ -206,10 +200,14 @@ class AdapterRuntime:
         try:
             if cancelled is not None and cancelled():
                 return self._outcome(descriptor, "cancelled", "cancelled")
-            if invocation.status == "unavailable":
+            result = invocation.broker_result
+            if not result.allowed and result.reason_code in {
+                "fixture_unavailable",
+                "provider_unavailable",
+            }:
                 self._breaker.failure()
-                return self._outcome(descriptor, "unavailable", invocation.reason_code)
-            if invocation.status == "error":
+                return self._outcome(descriptor, "unavailable", result.reason_code)
+            if not result.allowed:
                 self._breaker.failure()
                 return self._outcome(descriptor, "error", "adapter_error")
             self._breaker.success()
@@ -218,7 +216,7 @@ class AdapterRuntime:
                 "success",
                 "fixture",
                 confidence=invocation.confidence,
-                data=invocation.data,
+                data=result.data,
             )
         finally:
             lease.release()
