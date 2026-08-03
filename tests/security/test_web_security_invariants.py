@@ -28,3 +28,20 @@ def test_web_uses_same_origin_cookie_transport_and_memory_csrf() -> None:
     assert 'cache: "no-store"' in client
     assert 'headers.set("X-CSRF-Token", csrfToken)' in client
     assert "let csrfToken" in client
+
+
+def test_domain_ui_does_not_persist_tokens_or_make_authorization_decisions() -> None:
+    sources = source_text()
+    assert "localStorage" not in sources
+    assert "sessionStorage" not in sources
+    assert "crypto.subtle.sign" not in sources
+    assert "BEGIN PRIVATE KEY" not in sources
+
+
+def test_domain_ui_uses_only_typed_same_origin_client_for_api_access() -> None:
+    domain_sources = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (WEB_SOURCE / "app" / "organizations").rglob("*domain*.tsx")
+    )
+    assert "apiRequest" in domain_sources
+    assert "fetch(" not in domain_sources

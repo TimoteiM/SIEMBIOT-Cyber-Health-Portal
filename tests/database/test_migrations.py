@@ -12,12 +12,20 @@ import pytest
 EXPECTED_TABLES = {
     "alembic_version",
     "audit_events",
+    "assessment_authorizations",
+    "authorization_targets",
+    "domain_challenges",
+    "domain_verification_events",
+    "domains",
+    "emergency_controls",
     "invitations",
     "memberships",
+    "network_operations",
     "oidc_login_transactions",
     "organizations",
     "sessions",
     "support_access_grants",
+    "scope_manifests",
     "users",
 }
 ROOT = Path(__file__).resolve().parents[2]

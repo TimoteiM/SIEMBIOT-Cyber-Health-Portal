@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     session_encryption_key: str | None = None
     session_ttl_seconds: int = Field(default=28800, ge=300, le=86400)
     oidc_transaction_ttl_seconds: int = Field(default=600, ge=60, le=900)
+    domain_challenge_ttl_seconds: int = Field(default=900, ge=60, le=3600)
+    domain_challenge_create_limit_per_hour: int = Field(default=3, ge=1, le=20)
+    domain_reverification_days: int = Field(default=30, ge=1, le=365)
 
     @property
     def callback_url(self) -> str:

@@ -12,6 +12,19 @@ from siembiot.auth import build_auth_router
 from siembiot.config import Settings
 from siembiot.contracts import ErrorBody, ErrorEnvelope, HealthResponse
 from siembiot.db import Database
+from siembiot.domains.authorization_router import build_authorization_router
+from siembiot.domains.dns_verification import BoundedTXTResolver, TXTResolver
+from siembiot.domains.emergency import build_emergency_router, build_global_emergency_router
+from siembiot.domains.network_adapter import (
+    NetworkBrokerFactory,
+    default_network_broker_factory,
+)
+from siembiot.domains.router import build_domain_router
+from siembiot.domains.signing import (
+    Ed25519ManifestSigner,
+    ManifestSigner,
+    ensure_signer_allowed,
+)
 from siembiot.errors import AppError
 from siembiot.oidc import OIDCClient, StandardOIDCClient
 from siembiot.organizations import build_invitation_router, build_organization_router
@@ -32,9 +45,16 @@ def _error(request: Request, status_code: int, code: str, message: str) -> JSONR
 def create_app(
     settings: Settings | None = None,
     oidc_client: OIDCClient | None = None,
+    txt_resolver: TXTResolver | None = None,
+    manifest_signer: ManifestSigner | None = None,
+    network_broker_factory: NetworkBrokerFactory | None = None,
 ) -> FastAPI:
     resolved_settings = settings or Settings()
     database = Database(resolved_settings.database_url)
+    resolved_signer = manifest_signer or Ed25519ManifestSigner.generate(
+        "dev-ephemeral", development_only=True
+    )
+    ensure_signer_allowed(resolved_settings.environment, resolved_signer)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -45,6 +65,9 @@ def create_app(
     app.state.settings = resolved_settings
     app.state.database = database
     app.state.oidc_client = oidc_client or StandardOIDCClient(resolved_settings)
+    app.state.txt_resolver = txt_resolver or BoundedTXTResolver()
+    app.state.manifest_signer = resolved_signer
+    app.state.network_broker_factory = network_broker_factory or default_network_broker_factory
     app.add_middleware(RequestContextMiddleware)
 
     @app.exception_handler(AppError)
@@ -76,6 +99,10 @@ def create_app(
     app.include_router(build_auth_router())
     app.include_router(build_organization_router())
     app.include_router(build_invitation_router())
+    app.include_router(build_domain_router())
+    app.include_router(build_authorization_router())
+    app.include_router(build_emergency_router())
+    app.include_router(build_global_emergency_router())
 
     return app
 

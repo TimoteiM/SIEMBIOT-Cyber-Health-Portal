@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://siembiot.example/contracts/v1/scope-manifest.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "id", "authorization_id", "manifest_version", "payload_sha256", "key_id", "algorithm", "created_at"],
+  "properties": {
+    "contract_version": {"const": "v1"},
+    "id": {"type": "string", "format": "uuid"},
+    "authorization_id": {"type": "string", "format": "uuid"},
+    "manifest_version": {"const": "v1"},
+    "payload_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "key_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$"},
+    "algorithm": {"const": "EdDSA"},
+    "created_at": {"type": "string", "format": "date-time"}
+  }
+}

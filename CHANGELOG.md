@@ -17,6 +17,12 @@ All notable changes are documented here. The project has no supported release ye
 - Actor-isolated global audit-event reads in addition to tenant-scoped audit RLS.
 - Provider-neutral OIDC discovery, state/nonce/PKCE callback, opaque session, CSRF, logout, organization, membership, invitation, RBAC, and audit APIs.
 - Romanian-first accessible login, onboarding, team, and audit web shells with HTTPS local development.
+- Milestone 2 canonical IDN/domain registration backed by a pinned, provenance-recorded Public Suffix List.
+- Digest-only DNS TXT and fixed-path HTTPS ownership challenges with expiry, attempt, replay, and rate budgets.
+- Explicit consent capture, exact domain targets, canonical immutable Ed25519 scope manifests, and key rotation support.
+- Purpose-specific address-pinned network broker with DNS rebinding, redirect, SSRF, framing, concurrency, time, and size defenses.
+- Global, organization, domain, and operation-class emergency controls with audited activation/deactivation.
+- Romanian-first domain verification and authorization workflow with one-time in-memory challenge display.
 
 ### Security
 
@@ -27,6 +33,9 @@ All notable changes are documented here. The project has no supported release ye
 - Append-only structured audit events protected by application-role grants, RLS, and an immutability trigger.
 - Negative tests for unauthenticated, cross-tenant, IDOR/BOLA, forged tenant, role escalation, revoked membership, expired session, OIDC replay/nonce, CSRF origin, and support-access assurance cases.
 - Browser security invariant prohibits access/refresh token storage and keeps CSRF state in memory.
+- Network imports are confined to the centralized safety module; every resolution and redirect fails closed on any unsafe answer.
+- Ownership and assessment authority are distinct: challenges never grant assessment scope and parent domains never grant child domains.
+- Emergency controls are checked authoritatively during in-flight reads; global controls require phishing-resistant platform administration.
 
 ### Verification
 
@@ -37,5 +46,5 @@ All notable changes are documented here. The project has no supported release ye
 
 ### Known limitations
 
-- Tyche/agents, assessments, domain verification, collectors, providers, queues, evidence, scoring, reports, public projection, production deployment, and operational hardening are not implemented yet.
+- Tyche/agents, assessment execution, collectors, providers, queues, evidence, scoring, reports, public projection, restricted-egress deployment, and production operational hardening are not implemented yet.
 - The upstream Tyche credential exposure remains a production launch blocker outside this repository's authority.
