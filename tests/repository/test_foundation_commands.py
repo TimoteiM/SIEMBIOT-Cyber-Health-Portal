@@ -118,6 +118,19 @@ class FoundationCommandContractTests(unittest.TestCase):
             unsafe.write_text("API_" + 'KEY="live-super-secret-value"\n', encoding="utf-8")
             self.assertEqual([unsafe], verifier.find_secret_candidates([unsafe]))
 
+            annotated = root / "annotated_settings.py"
+            annotated.write_text(
+                "API_" + "KEY" + ': str | None = "live-super-secret-value"\n',
+                encoding="utf-8",
+            )
+            self.assertEqual([annotated], verifier.find_secret_candidates([annotated]))
+
+            optional = root / "optional_settings.py"
+            optional.write_text(
+                "API_" + "KEY" + ": str | None = None\n", encoding="utf-8"
+            )
+            self.assertEqual([], verifier.find_secret_candidates([optional]))
+
 
 if __name__ == "__main__":
     unittest.main()

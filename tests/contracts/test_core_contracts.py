@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from jsonschema import Draft202012Validator, FormatChecker
@@ -12,7 +12,10 @@ SCHEMA_ROOT = ROOT / "packages" / "contracts" / "jsonschema" / "v1"
 
 
 def load_schema(name: str) -> dict[str, Any]:
-    return json.loads((SCHEMA_ROOT / f"{name}.json").read_text(encoding="utf-8"))
+    return cast(
+        dict[str, Any],
+        json.loads((SCHEMA_ROOT / f"{name}.json").read_text(encoding="utf-8")),
+    )
 
 
 def validate(name: str, value: dict[str, Any]) -> None:

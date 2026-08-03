@@ -6,7 +6,6 @@ requires-python = "==3.13.*"
 license = "MIT"
 dependencies = [
     "alembic==1.16.5",
-    "email-validator==2.2.0",
     "fastapi==0.116.1",
     "httpx==0.28.1",
     "psycopg[binary]==3.2.9",
@@ -23,6 +22,7 @@ dev = [
     "pytest==8.4.1",
     "pytest-postgresql==7.0.2",
     "ruff==0.12.8",
+    "types-jsonschema==4.25.1.20251009",
 ]
 
 [tool.pytest.ini_options]

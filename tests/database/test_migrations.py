@@ -110,6 +110,39 @@ def test_application_role_cannot_mutate_audit(postgres_database: dict[str, str])
             app.execute("DELETE FROM audit_events WHERE id = %s", (event_id,))
 
 
+def test_platform_admin_requires_explicit_grant_and_phishing_resistant_mfa(
+    postgres_database: dict[str, str],
+) -> None:
+    organization_id, approver_id = seed_tenant(postgres_database["owner_url"])
+    platform_user_id = str(uuid4())
+    with psycopg.connect(postgres_database["owner_url"]) as owner:
+        owner.execute(
+            "INSERT INTO users (id, oidc_issuer, oidc_subject, email, display_name, platform_role) "
+            "VALUES (%s, 'https://idp.example.test', %s, %s, 'Support', 'platform_admin')",
+            (platform_user_id, platform_user_id, f"{platform_user_id}@example.test"),
+        )
+        owner.execute(
+            "INSERT INTO support_access_grants "
+            "(organization_id, platform_user_id, reason, approved_by_user_id, expires_at) "
+            "VALUES (%s, %s, 'Investigate customer-requested incident', %s, "
+            "now() + interval '1 hour')",
+            (organization_id, platform_user_id, approver_id),
+        )
+    with psycopg.connect(postgres_database["app_url"]) as app:
+        app.execute("SELECT set_config('app.organization_id', %s, false)", (organization_id,))
+        app.execute("SELECT set_config('app.user_id', %s, false)", (platform_user_id,))
+        assert app.execute("SELECT id FROM organizations").fetchall() == []
+    with psycopg.connect(postgres_database["owner_url"]) as owner:
+        owner.execute(
+            "UPDATE users SET mfa_assurance = 'phishing_resistant' WHERE id = %s",
+            (platform_user_id,),
+        )
+    with psycopg.connect(postgres_database["app_url"]) as app:
+        app.execute("SELECT set_config('app.organization_id', %s, false)", (organization_id,))
+        app.execute("SELECT set_config('app.user_id', %s, false)", (platform_user_id,))
+        assert app.execute("SELECT id::text FROM organizations").fetchall() == [(organization_id,)]
+
+
 def test_development_downgrade_and_reupgrade(postgres_database: dict[str, str]) -> None:
     environment = os.environ.copy()
     environment["SIEMBIOT_DATABASE_URL"] = (

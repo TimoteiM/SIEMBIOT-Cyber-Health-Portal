@@ -22,6 +22,16 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         request.state.request_id = request_id
         request.state.correlation_id = request_id
         response = await call_next(request)
+        if getattr(request.state, "clear_session_cookie", False):
+            response.delete_cookie(
+                "__Host-siembiot_session",
+                path="/",
+                secure=True,
+                httponly=True,
+                samesite="lax",
+            )
         response.headers["X-Request-ID"] = request_id
         response.headers["Cache-Control"] = "no-store"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "no-referrer"
         return response

@@ -11,7 +11,7 @@
   },
   "scripts": {
     "check": "python scripts/verify_repo.py",
-    "contracts:generate": "python scripts/generate_openapi.py && pnpm --filter @siembiot/contracts generate",
-    "contracts:check": "python scripts/check_contracts.py"
+    "contracts:generate": "python -m uv run --frozen python scripts/generate_openapi.py && pnpm --filter @siembiot/contracts generate",
+    "contracts:check": "python -m uv run --frozen python scripts/check_contracts.py"
   }
 }

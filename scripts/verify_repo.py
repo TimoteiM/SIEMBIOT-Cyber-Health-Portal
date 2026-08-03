@@ -10,10 +10,19 @@ from pathlib import Path
 from shutil import which
 
 TEXT_SUFFIXES = {"", ".json", ".md", ".py", ".toml", ".yaml", ".yml"}
-PLACEHOLDERS = {"", "changeme", "changeme_local_only", "disabled", "example", "placeholder"}
+PLACEHOLDERS = {
+    "",
+    "changeme",
+    "changeme_local_only",
+    "disabled",
+    "example",
+    "none",
+    "null",
+    "placeholder",
+}
 ASSIGNMENT = re.compile(
     r"(?im)^\s*['\"]?[a-z0-9_.-]*(?:password|passwd|secret|api[_-]?key|access[_-]?token)"
-    r"[a-z0-9_.-]*['\"]?\s*[:=]\s*['\"]?([^\s'\"]+)"
+    r"[a-z0-9_.-]*['\"]?\s*([:=])\s*['\"]?([^\s'\"]+)"
 )
 PRIVATE_KEY = re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----")
 
@@ -62,10 +71,22 @@ def find_secret_candidates(files: list[Path]) -> list[Path]:
             continue
         unsafe = PRIVATE_KEY.search(text) is not None
         for match in ASSIGNMENT.finditer(text):
-            raw_value = match.group(1)
+            separator, raw_value = match.group(1), match.group(2)
+            assignment_name = match.group(0).split(separator, maxsplit=1)[0].lower()
+            if "hash" in assignment_name:
+                continue
             if raw_value.startswith(("${", "$env:", "%")):
                 continue
-            value = raw_value.strip("<>{}[]()\"'").lower()
+            if path.suffix.lower() == ".py" and separator == ":":
+                line_end = text.find("\n", match.end())
+                remainder = text[match.end() : line_end if line_end >= 0 else len(text)]
+                annotated_value = re.search(r"=\s*['\"]?([^\s'\"]+)", remainder)
+                if annotated_value is None:
+                    continue
+                raw_value = annotated_value.group(1)
+            if path.suffix.lower() == ".py" and "(" in raw_value:
+                continue
+            value = raw_value.strip("<>{}[]()\"',").lower()
             if value not in PLACEHOLDERS and not value.startswith(
                 ("changeme", "example", "placeholder")
             ):
