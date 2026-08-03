@@ -45,8 +45,12 @@ def build_evidence_router() -> APIRouter:
             rows = (
                 connection.execute(
                     text(
-                        "SELECT id, asset_id, check_id, evidence_mode, severity, first_seen_at, "
-                        "publishable, classification FROM findings ORDER BY first_seen_at, id "
+                        "SELECT f.id, f.asset_id, f.check_id, f.evidence_mode, f.severity, "
+                        "f.first_seen_at, "
+                        "f.publishable, f.classification, s.state, "
+                        "coalesce(s.review_due,false) AS review_due FROM findings f "
+                        "LEFT JOIN current_finding_states s ON s.organization_id=f.organization_id "
+                        "AND s.finding_id=f.id ORDER BY f.first_seen_at, f.id "
                         "LIMIT :limit OFFSET :offset"
                     ),
                     {"limit": limit, "offset": offset},
@@ -189,6 +193,25 @@ def build_evidence_router() -> APIRouter:
             )
             if finding is None:
                 raise AppError(404, "not_found", "The requested resource was not found.")
+            previous = connection.execute(
+                text(
+                    "SELECT event_type FROM finding_events WHERE finding_id=:id "
+                    "ORDER BY occurred_at DESC,id DESC LIMIT 1"
+                ),
+                {"id": finding_id},
+            ).scalar_one_or_none()
+            allowed_from = {
+                "suppressed": {"observed", "reopened", "expired_review"},
+                "accepted_risk": {"observed", "reopened", "expired_review"},
+                "remediation_verified": {"observed", "reopened", "expired_review"},
+                "reopened": {"suppressed", "accepted_risk"},
+            }
+            if previous not in allowed_from[body.event_type]:
+                raise AppError(
+                    409,
+                    "invalid_finding_transition",
+                    "The requested finding transition is not allowed.",
+                )
             audit_id = append_audit_event(
                 connection,
                 organization_id=organization_id,

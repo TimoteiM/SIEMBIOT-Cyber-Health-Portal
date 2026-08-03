@@ -94,6 +94,8 @@ def test_fixture_finding_is_visibly_classified_and_decisions_append_events(
         assert listed.status_code == 200
         assert listed.json()[0]["classification"] == "DEMO/FIXTURE"
         assert listed.json()[0]["publishable"] is False
+        assert listed.json()[0]["state"] == "observed"
+        assert listed.json()[0]["review_due"] is False
         assert (
             client.get(f"/api/v1/organizations/{org}/evidence/findings?limit=1&offset=1").json()
             == []
@@ -107,6 +109,15 @@ def test_fixture_finding_is_visibly_classified_and_decisions_append_events(
             },
         )
         assert decision.status_code == 201
+        invalid = client.post(
+            f"/api/v1/organizations/{org}/evidence/findings/{finding}/events",
+            json={
+                "event_type": "suppressed",
+                "reason": "A duplicate suppression transition is invalid",
+                "review_at": (datetime.now(UTC) + timedelta(days=30)).isoformat(),
+            },
+        )
+        assert invalid.status_code == 409
         history = client.get(f"/api/v1/organizations/{org}/evidence/findings/{finding}/history")
         assert history.status_code == 200
         assert [item["event_type"] for item in history.json()] == ["observed", "suppressed"]

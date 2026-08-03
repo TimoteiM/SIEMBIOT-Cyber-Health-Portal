@@ -1020,11 +1020,15 @@ export interface components {
             id: string;
             /** Publishable */
             publishable: boolean;
+            /** Review Due */
+            review_due: boolean;
             /**
              * Severity
              * @enum {string}
              */
             severity: "info" | "low" | "medium" | "high" | "critical";
+            /** State */
+            state: string | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {

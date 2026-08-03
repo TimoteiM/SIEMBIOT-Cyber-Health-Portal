@@ -949,6 +949,10 @@
             "title": "Publishable",
             "type": "boolean"
           },
+          "review_due": {
+            "title": "Review Due",
+            "type": "boolean"
+          },
           "severity": {
             "enum": [
               "info",
@@ -959,6 +963,17 @@
             ],
             "title": "Severity",
             "type": "string"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
           }
         },
         "required": [
@@ -969,7 +984,9 @@
           "severity",
           "first_seen_at",
           "publishable",
-          "classification"
+          "classification",
+          "state",
+          "review_due"
         ],
         "title": "FindingResponse",
         "type": "object"

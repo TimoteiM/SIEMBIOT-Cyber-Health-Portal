@@ -20,6 +20,8 @@ class FindingResponse(StrictModel):
     first_seen_at: datetime
     publishable: bool
     classification: Literal["DEMO/FIXTURE", "PRIVATE"]
+    state: str | None
+    review_due: bool
 
 
 class FindingEventCreate(StrictModel):
