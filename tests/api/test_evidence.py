@@ -8,6 +8,8 @@ from fastapi.testclient import TestClient
 from siembiot.auth import Principal, current_principal, require_csrf
 from siembiot.config import Settings
 from siembiot.main import create_app
+from siembiot_worker.evidence.models import EvidenceMode
+from siembiot_worker.findings.fingerprint import finding_fingerprint
 
 
 def seed_finding(
@@ -43,9 +45,20 @@ def seed_finding(
         ).fetchone()
         assert manifest_row is not None
         manifest = manifest_row[0]
+        policy_hash = "sha256-v1:" + "03" * 32
+        fingerprint = finding_fingerprint(
+            organization_id=str(org),
+            asset_id=str(domain),
+            check_id="dns.dnssec",
+            policy_hash=policy_hash,
+            mode=EvidenceMode.FIXTURE,
+            material_evidence_key="dnssec-fixture",
+            attribution_state="direct",
+        )
+        fingerprint_bytes = bytes.fromhex(fingerprint.removeprefix("sha256-v1:"))
         finding_row = owner.execute(
-            "INSERT INTO findings(organization_id,asset_id,scope_manifest_id,evidence_mode,fingerprint,fingerprint_version,identity_digest,check_id,policy_hash,attribution_state,severity,first_seen_at,publishable,classification) VALUES(%s,%s,%s,'fixture',%s,'fingerprint-v1',%s,'dns.dnssec',%s,'direct','high',now(),false,'DEMO/FIXTURE') RETURNING id",
-            (org, domain, manifest, bytes([1]) * 32, bytes([2]) * 32, bytes([3]) * 32),
+            "INSERT INTO findings(organization_id,asset_id,scope_manifest_id,evidence_mode,fingerprint,fingerprint_version,identity_digest,material_evidence_key,check_id,policy_hash,attribution_state,severity,first_seen_at,publishable,classification) VALUES(%s,%s,%s,'fixture',%s,'fingerprint-v1',%s,'dnssec-fixture','dns.dnssec',%s,'direct','high',now(),false,'DEMO/FIXTURE') RETURNING id",
+            (org, domain, manifest, fingerprint_bytes, fingerprint_bytes, bytes.fromhex("03" * 32)),
         ).fetchone()
         assert finding_row is not None
         finding = finding_row[0]

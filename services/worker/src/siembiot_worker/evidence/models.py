@@ -115,6 +115,7 @@ class CheckEvaluation(StrictModel):
     mode: EvidenceMode
     outcome: EvaluationOutcome
     evidence_ids: tuple[str, ...]
+    evidence_types: tuple[str, ...]
     reason_code: str = Field(pattern=r"^[a-z][a-z0-9_]{1,63}$")
     evaluated_at: datetime
     source_confidence: float = Field(ge=0, le=1)
@@ -122,6 +123,7 @@ class CheckEvaluation(StrictModel):
     fresh: bool
     directly_attributable: bool
     provider_disagreement: bool
+    asset_authorized: bool
     publishable: bool
 
     def identity(self) -> dict[str, Any]:
@@ -154,6 +156,7 @@ class ScoreSnapshot(StrictModel):
     scoring_behavior_version: str
     mode: EvidenceMode
     evaluation_ids: tuple[str, ...]
+    applicable_check_ids: tuple[str, ...]
     pillar_scores: Mapping[str, float | None]
     technical_posture: float | None = Field(default=None, ge=0, le=100)
     coverage: float = Field(ge=0, le=100)
@@ -231,6 +234,7 @@ class Finding(StrictModel):
     mode: EvidenceMode
     severity: Literal["info", "low", "medium", "high", "critical"]
     attribution_state: Literal["direct", "shared_hosting", "uncertain"]
+    material_evidence_key: str = Field(pattern=r"^[a-z0-9][a-z0-9._:-]{0,127}$")
     first_seen_at: datetime
     publishable: bool
     classification: Literal["DEMO/FIXTURE", "PRIVATE"]
@@ -243,4 +247,17 @@ class Finding(StrictModel):
             self.publishable or self.classification != "DEMO/FIXTURE"
         ):
             raise ValueError("fixture_finding_boundary")
+        from siembiot_worker.findings.fingerprint import finding_fingerprint
+
+        expected = finding_fingerprint(
+            organization_id=self.organization_id,
+            asset_id=self.asset_id,
+            check_id=self.check_id,
+            policy_hash=self.policy_hash,
+            mode=self.mode,
+            material_evidence_key=self.material_evidence_key,
+            attribution_state=self.attribution_state,
+        )
+        if self.finding_id != expected:
+            raise ValueError("finding_id_mismatch")
         return self

@@ -35,6 +35,7 @@ All notable changes are documented here. The project has no supported release ye
 - Review-hardened policy evaluation with closed rule semantics, stable check-ID history, stale/future evidence rejection, source-adapter provenance, methodology-driven coverage, required-evidence caps, and typed score-change attribution.
 - Dedicated tenant-scoped evidence-writer database role; interactive application identities can read evidence but cannot forge generated observations, evaluations, scores, findings, or occurrences.
 - Tenant/scope/actor-bound finding events with database-enforced lifecycle transitions, composite audit linkage, collision diagnostics, fixture export labeling, and typed evaluation reads.
+- Immutable duplicate-safe policy loading, rule-bound stable IDs, authoritative cap evidence requirements, full scoring-input persistence, applicability attribution, database-verified finding fingerprints, and serialized decision transitions.
 
 ### Security
 
@@ -60,7 +61,7 @@ All notable changes are documented here. The project has no supported release ye
 - On 2026-08-03, GitHub PR #1 passed remote `phase0` run `30804463289` and `ci` run `30804461427`, then merged Milestone 1 into `main` as merge commit `683fcfe03dbc97e89e5eda77ec2dcacc5098dcb1` without squashing its verified checkpoints.
 - Verified the merged Milestone 1 `main` state with `python scripts/bootstrap.py` (exit 0), `python scripts/verify_repo.py` (14/14 gates; 44 Python and 3 web tests), an independent empty-database migration test (1 passed), `python -m uv run --frozen pytest -q` (44 passed), `corepack pnpm --filter @siembiot/web build` (exit 0), and `git show --check --stat --oneline 683fcfe03dbc97e89e5eda77ec2dcacc5098dcb1` (exit 0).
 - On 2026-08-03, verified Milestone 3 fixture-only collection with `python scripts/bootstrap.py` (exit 0), `python scripts/verify_repo.py` (15/15 gates; 241 Python and 7 web tests; production web build passed), `python -m uv run --frozen pytest -q` (241 passed), contract drift and migration-head checks, and the runtime broker-bypass/network trap. GNU Make was unavailable on the Windows host, so the `fixture-stack`, `test-adapters`, and `test-collectors` target bodies were run directly; CI retains the Make target invocation.
-- On 2026-08-03, review-hardened Milestone 4 passed `python scripts/bootstrap.py` (exit 0) and `python scripts/verify_repo.py` (17/17 gates; 323 Python and 7 web tests; empty-database migration, policy, methodology, contract drift, and production web build passed).
+- On 2026-08-03, review-hardened Milestone 4 passed `python scripts/bootstrap.py` (exit 0) and `python scripts/verify_repo.py` (17/17 gates; 330 Python and 7 web tests; empty-database migration, policy, methodology, contract drift, and production web build passed).
 
 ### Known limitations
 

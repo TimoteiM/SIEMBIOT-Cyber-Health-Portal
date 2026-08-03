@@ -30,6 +30,7 @@ def _snapshot(outcome: EvaluationOutcome) -> ScoreSnapshot:
             mode=EvidenceMode.FIXTURE,
             outcome=outcome,
             evidence_ids=("sha256-v1:" + check.check_id.encode().hex().ljust(64, "0")[:64],),
+            evidence_types=(check.observation_type,),
             reason_code="rule_result",
             evaluated_at=NOW,
             source_confidence=1,
@@ -37,6 +38,7 @@ def _snapshot(outcome: EvaluationOutcome) -> ScoreSnapshot:
             fresh=True,
             directly_attributable=True,
             provider_disagreement=False,
+            asset_authorized=True,
             publishable=False,
         )
         for check in CATALOG.checks

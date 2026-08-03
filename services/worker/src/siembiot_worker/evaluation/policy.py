@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-import json
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from siembiot_worker.evidence.canonical import canonical_hash
+from siembiot_worker.evidence.canonical import CanonicalizationError, canonical_hash, parse_json
 
 
 class PolicyValidationError(ValueError):
@@ -46,6 +47,8 @@ class CheckDefinition(_Strict):
     ]
     critical_cap: int | None = None
     required_cap_evidence: int | None = Field(default=None, ge=1, le=10)
+    required_cap_observation_type: str | None = None
+    cap_requires_authorized_asset: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -53,15 +56,15 @@ class PolicyCatalog:
     methodology_version: str
     scoring_behavior_version: str
     minimum_coverage: float
-    pillars: dict[str, Pillar]
+    pillars: Mapping[str, Pillar]
     checks: tuple[CheckDefinition, ...]
     policy_hash: str
 
 
 def _read(path: Path) -> Any:
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+        return parse_json(path.read_text(encoding="utf-8"))
+    except (OSError, CanonicalizationError) as exc:
         raise PolicyValidationError("invalid_policy_json") from exc
 
 
@@ -112,7 +115,18 @@ def load_policy_catalog(path: Path) -> PolicyCatalog:
             raise PolicyValidationError("duplicate_check_id")
         if check.pillar not in pillar_map:
             raise PolicyValidationError("invalid_check_pillar")
-        if (check.critical_cap is None) != (check.required_cap_evidence is None):
+        cap_fields = (
+            check.required_cap_evidence,
+            check.required_cap_observation_type,
+            check.cap_requires_authorized_asset,
+        )
+        if check.critical_cap is None and any(item is not None for item in cap_fields):
+            raise PolicyValidationError("invalid_cap_evidence_requirement")
+        if check.critical_cap is not None and (
+            check.required_cap_evidence is None
+            or check.required_cap_observation_type != check.observation_type
+            or check.cap_requires_authorized_asset is not True
+        ):
             raise PolicyValidationError("invalid_cap_evidence_requirement")
         identifiers.add(check.check_id)
         stable = stable_ids.get("checks", {}).get(check.check_id)
@@ -120,6 +134,7 @@ def load_policy_catalog(path: Path) -> PolicyCatalog:
             stable is None
             or stable.get("observation_type") != check.observation_type
             or stable.get("pillar") != check.pillar
+            or stable.get("result_rule") != check.result_rule
         ):
             raise PolicyValidationError("stable_check_id_repurposed")
         checks.append(check)
@@ -137,7 +152,7 @@ def load_policy_catalog(path: Path) -> PolicyCatalog:
         methodology["methodology_version"],
         methodology["scoring_behavior_version"],
         float(methodology["minimum_coverage"]),
-        pillar_map,
+        MappingProxyType(pillar_map),
         tuple(sorted(checks, key=lambda item: item.check_id)),
         canonical_hash(identity),
     )

@@ -18,6 +18,20 @@ def test_catalog_is_versioned_complete_and_content_addressed() -> None:
     assert len(catalog.pillars) == 6
     assert {check.pillar for check in catalog.checks} == set(catalog.pillars)
     assert all(check.remediation and check.references for check in catalog.checks)
+    with pytest.raises(TypeError):
+        catalog.pillars["domain_dns"] = catalog.pillars["email_trust"]  # type: ignore[index]
+
+
+def test_duplicate_policy_json_keys_are_rejected(tmp_path: Path) -> None:
+    target = mutated_catalog(tmp_path)
+    file = target / "domain-dns.json"
+    content = file.read_text(encoding="utf-8").replace(
+        '"check_id":"dns.dnssec"',
+        '"check_id":"other","check_id":"dns.dnssec"',
+    )
+    file.write_text(content, encoding="utf-8")
+    with pytest.raises(PolicyValidationError, match="invalid_policy_json"):
+        load_policy_catalog(target)
 
 
 def mutated_catalog(tmp_path: Path) -> Path:

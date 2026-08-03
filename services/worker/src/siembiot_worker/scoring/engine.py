@@ -41,6 +41,10 @@ def _eligible_cap(check: CheckDefinition, evaluation: CheckEvaluation) -> bool:
         and evaluation.mode is EvidenceMode.LIVE
         and check.required_cap_evidence is not None
         and len(evaluation.evidence_ids) >= check.required_cap_evidence
+        and check.required_cap_observation_type is not None
+        and evaluation.evidence_types == (check.required_cap_observation_type,)
+        and check.cap_requires_authorized_asset is True
+        and evaluation.asset_authorized
         and evaluation.fresh
         and evaluation.directly_attributable
         and evaluation.source_confidence >= 0.8
@@ -139,6 +143,7 @@ def score_evaluations(
         scoring_behavior_version=catalog.scoring_behavior_version,
         mode=first.mode,
         evaluation_ids=tuple(sorted(item.evaluation_id for item in ordered)),
+        applicable_check_ids=tuple(sorted(check.check_id for check in applicable)),
         pillar_scores=pillar_scores,
         technical_posture=posture,
         coverage=_round(coverage),

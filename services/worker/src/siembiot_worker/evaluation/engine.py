@@ -75,6 +75,7 @@ def evaluate_check(
         }
         outcome, reason = min(results, key=lambda result: priority[result[0]])
         evidence_ids = tuple(sorted(item.normalized_id for item in matches))
+        evidence_types = tuple(sorted({item.observation_type for item in matches}))
         source_confidence = min(item.source_confidence for item in matches)
         attribution_confidence = min(item.attribution_confidence for item in matches)
         ages = tuple((context.evaluated_at - item.observed_at).total_seconds() for item in matches)
@@ -87,13 +88,18 @@ def evaluate_check(
         disagreement = len({result[0] for result in results}) > 1 or any(
             item.payload.get("provider_disagreement") is True for item in matches
         )
+        asset_authorized = all(
+            item.payload.get("asset_authorized") is not False for item in matches
+        )
     else:
         if organization_id is None or asset_id is None or mode is None:
             raise ValueError("missing_evaluation_identity")
         evidence_mode = EvidenceMode(mode)
         outcome, reason, evidence_ids = EvaluationOutcome.UNKNOWN, "missing_evidence", ()
+        evidence_types = ()
         source_confidence = attribution_confidence = 0
         fresh = disagreement = False
+        asset_authorized = False
     return CheckEvaluation.build(
         organization_id=organization_id,
         asset_id=asset_id,
@@ -104,6 +110,7 @@ def evaluate_check(
         mode=evidence_mode,
         outcome=outcome,
         evidence_ids=evidence_ids,
+        evidence_types=evidence_types,
         reason_code=reason,
         evaluated_at=context.evaluated_at,
         source_confidence=source_confidence,
@@ -111,5 +118,6 @@ def evaluate_check(
         fresh=fresh,
         directly_attributable=attribution_confidence >= 0.8,
         provider_disagreement=disagreement,
+        asset_authorized=asset_authorized,
         publishable=evidence_mode is EvidenceMode.LIVE,
     )

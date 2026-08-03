@@ -36,6 +36,7 @@ def upgrade() -> None:
       normalized_hash bytea NOT NULL CHECK(octet_length(normalized_hash)=32), hash_version text NOT NULL CHECK(hash_version='sha256-v1'),
       schema_version text NOT NULL CHECK(schema_version='v1'), observation_type text NOT NULL CHECK(observation_type ~ '^[a-z][a-z0-9._-]{1,127}$'),
       source_evidence_id text NOT NULL CHECK(source_evidence_id ~ '^sha256:[a-f0-9]{64}$'), payload jsonb NOT NULL CHECK(jsonb_typeof(payload)='object'),
+      provenance jsonb NOT NULL CHECK(jsonb_typeof(provenance)='object'), freshness_seconds integer NOT NULL CHECK(freshness_seconds>=0),
       observed_at timestamptz NOT NULL, source_confidence numeric(7,6) NOT NULL CHECK(source_confidence BETWEEN 0 AND 1),
       attribution_confidence numeric(7,6) NOT NULL CHECK(attribution_confidence BETWEEN 0 AND 1),
       publishable boolean NOT NULL DEFAULT false, real_world boolean NOT NULL DEFAULT false, created_at timestamptz NOT NULL DEFAULT now(),
@@ -51,6 +52,9 @@ def upgrade() -> None:
       evaluation_hash bytea NOT NULL CHECK(octet_length(evaluation_hash)=32), policy_hash bytea NOT NULL CHECK(octet_length(policy_hash)=32),
       check_id text NOT NULL CHECK(check_id ~ '^[a-z][a-z0-9._-]{2,127}$'), methodology_version text NOT NULL,
       scoring_behavior_version text NOT NULL, outcome evaluation_outcome NOT NULL, reason_code text NOT NULL CHECK(reason_code ~ '^[a-z][a-z0-9_]{1,63}$'),
+      evidence_ids text[] NOT NULL DEFAULT '{}', evidence_types text[] NOT NULL DEFAULT '{}',
+      source_confidence numeric(7,6) NOT NULL CHECK(source_confidence BETWEEN 0 AND 1), attribution_confidence numeric(7,6) NOT NULL CHECK(attribution_confidence BETWEEN 0 AND 1),
+      fresh boolean NOT NULL, directly_attributable boolean NOT NULL, provider_disagreement boolean NOT NULL, asset_authorized boolean NOT NULL,
       evaluated_at timestamptz NOT NULL, publishable boolean NOT NULL DEFAULT false, created_at timestamptz NOT NULL DEFAULT now(),
       FOREIGN KEY(organization_id,asset_id) REFERENCES domains(organization_id,id) ON DELETE RESTRICT,
       FOREIGN KEY(organization_id,scope_manifest_id) REFERENCES scope_manifests(organization_id,id) ON DELETE RESTRICT,
@@ -67,6 +71,7 @@ def upgrade() -> None:
       asset_id uuid NOT NULL, scope_manifest_id uuid NOT NULL, evidence_mode evidence_mode NOT NULL,
       snapshot_hash bytea NOT NULL CHECK(octet_length(snapshot_hash)=32), policy_hash bytea NOT NULL CHECK(octet_length(policy_hash)=32),
       methodology_version text NOT NULL, scoring_behavior_version text NOT NULL, technical_posture numeric(9,6) NULL CHECK(technical_posture BETWEEN 0 AND 100),
+      evaluation_ids text[] NOT NULL, applicable_check_ids text[] NOT NULL, pillar_scores jsonb NOT NULL CHECK(jsonb_typeof(pillar_scores)='object'), caps_applied text[] NOT NULL DEFAULT '{}',
       coverage numeric(9,6) NOT NULL CHECK(coverage BETWEEN 0 AND 100), evidence_confidence numeric(7,6) NOT NULL CHECK(evidence_confidence BETWEEN 0 AND 1),
       attribution_confidence numeric(7,6) NOT NULL CHECK(attribution_confidence BETWEEN 0 AND 1),
       publishable boolean NOT NULL DEFAULT false, classification text NOT NULL CHECK(classification IN ('DEMO/FIXTURE','PRIVATE')),
@@ -84,16 +89,21 @@ def upgrade() -> None:
     );
     CREATE TABLE score_attributions (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
-      snapshot_id uuid NOT NULL, evidence_mode evidence_mode NOT NULL, attribution_type text NOT NULL CHECK(attribution_type IN ('evidence','methodology','applicability','coverage','confidence')),
-      reason_code text NOT NULL CHECK(reason_code ~ '^[a-z][a-z0-9_]{1,63}$'), details jsonb NOT NULL DEFAULT '{}' CHECK(jsonb_typeof(details)='object'), created_at timestamptz NOT NULL DEFAULT now(),
+      snapshot_id uuid NOT NULL, previous_snapshot_id uuid NULL, asset_id uuid NOT NULL, evidence_mode evidence_mode NOT NULL,
+      attribution_hash bytea NOT NULL CHECK(octet_length(attribution_hash)=32), hash_version text NOT NULL CHECK(hash_version='sha256-v1'),
+      attribution_type text NOT NULL CHECK(attribution_type IN ('evidence','methodology','applicability','coverage','confidence')),
+      reason_code text NOT NULL CHECK(reason_code ~ '^[a-z][a-z0-9_]{1,63}$'), delta numeric(12,6) NOT NULL,
+      details jsonb NOT NULL DEFAULT '{}' CHECK(jsonb_typeof(details)='object'), created_at timestamptz NOT NULL DEFAULT now(),
       FOREIGN KEY(organization_id,snapshot_id,evidence_mode) REFERENCES score_snapshots(organization_id,id,evidence_mode) ON DELETE RESTRICT,
+      FOREIGN KEY(organization_id,previous_snapshot_id,evidence_mode) REFERENCES score_snapshots(organization_id,id,evidence_mode) ON DELETE RESTRICT,
+      FOREIGN KEY(organization_id,asset_id) REFERENCES domains(organization_id,id) ON DELETE RESTRICT,
       UNIQUE(organization_id,id,evidence_mode)
     );
     CREATE TABLE findings (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
       asset_id uuid NOT NULL, scope_manifest_id uuid NOT NULL, evidence_mode evidence_mode NOT NULL,
       fingerprint bytea NOT NULL CHECK(octet_length(fingerprint)=32), fingerprint_version text NOT NULL CHECK(fingerprint_version='fingerprint-v1'),
-      identity_digest bytea NOT NULL CHECK(octet_length(identity_digest)=32), check_id text NOT NULL, policy_hash bytea NOT NULL CHECK(octet_length(policy_hash)=32),
+      identity_digest bytea NOT NULL CHECK(octet_length(identity_digest)=32), material_evidence_key text NOT NULL CHECK(material_evidence_key ~ '^[a-z0-9][a-z0-9._:-]{0,127}$'), check_id text NOT NULL, policy_hash bytea NOT NULL CHECK(octet_length(policy_hash)=32),
       attribution_state text NOT NULL CHECK(attribution_state IN ('direct','shared_hosting','uncertain')),
       severity text NOT NULL CHECK(severity IN ('info','low','medium','high','critical')), first_seen_at timestamptz NOT NULL,
       publishable boolean NOT NULL DEFAULT false, classification text NOT NULL CHECK(classification IN ('DEMO/FIXTURE','PRIVATE')), created_at timestamptz NOT NULL DEFAULT now(),
@@ -130,6 +140,7 @@ def upgrade() -> None:
     CREATE FUNCTION validate_finding_event() RETURNS trigger LANGUAGE plpgsql AS $$
     DECLARE prior_state text; expected_scope text; member_role text;
     BEGIN
+      PERFORM pg_advisory_xact_lock(hashtextextended(NEW.organization_id::text || ':' || NEW.finding_id::text, 0));
       SELECT scope_manifest_id::text INTO expected_scope FROM findings
         WHERE organization_id=NEW.organization_id AND id=NEW.finding_id;
       IF NEW.scope_reference <> expected_scope THEN
@@ -138,6 +149,10 @@ def upgrade() -> None:
       SELECT event_type INTO prior_state FROM finding_events
         WHERE organization_id=NEW.organization_id AND finding_id=NEW.finding_id
         ORDER BY occurred_at DESC,id DESC LIMIT 1;
+      IF EXISTS(SELECT 1 FROM finding_events WHERE organization_id=NEW.organization_id
+        AND finding_id=NEW.finding_id AND occurred_at>NEW.occurred_at) THEN
+        RAISE EXCEPTION 'finding event chronology violation' USING ERRCODE='23514';
+      END IF;
       IF prior_state IS NULL AND NEW.event_type <> 'observed' THEN
         RAISE EXCEPTION 'first finding event must be observed' USING ERRCODE='23514';
       END IF;
@@ -163,8 +178,13 @@ def upgrade() -> None:
     CREATE TRIGGER finding_events_validate BEFORE INSERT ON finding_events
       FOR EACH ROW EXECUTE FUNCTION validate_finding_event();
     CREATE FUNCTION reject_finding_fingerprint_collision() RETURNS trigger LANGUAGE plpgsql AS $$
-    DECLARE existing_digest bytea;
+    DECLARE existing_digest bytea; expected bytea; canonical_identity text;
     BEGIN
+      canonical_identity := format('{"asset_id":"%s","attribution_state":"%s","check_id":"%s","fingerprint_version":"fingerprint-v1","material_evidence_key":"%s","mode":"%s","organization_id":"%s","policy_hash":"sha256-v1:%s"}', NEW.asset_id,NEW.attribution_state,NEW.check_id,NEW.material_evidence_key,NEW.evidence_mode,NEW.organization_id,encode(NEW.policy_hash,'hex'));
+      expected := digest(convert_to(canonical_identity,'UTF8'),'sha256');
+      IF NEW.fingerprint<>expected OR NEW.identity_digest<>expected THEN
+        RAISE EXCEPTION 'invalid_finding_fingerprint' USING ERRCODE='23514';
+      END IF;
       SELECT identity_digest INTO existing_digest FROM findings
         WHERE organization_id=NEW.organization_id AND fingerprint=NEW.fingerprint;
       IF existing_digest IS NOT NULL AND existing_digest<>NEW.identity_digest THEN

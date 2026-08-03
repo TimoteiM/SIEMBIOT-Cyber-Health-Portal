@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from jsonschema import Draft202012Validator
+from jsonschema import ValidationError as SchemaValidationError
 from pydantic import ValidationError
 from siembiot_worker.evidence.models import (
     EvaluationOutcome,
@@ -13,6 +14,7 @@ from siembiot_worker.evidence.models import (
     NormalizedObservation,
     Provenance,
 )
+from siembiot_worker.scoring.reproduction import reproduce
 
 SCHEMAS = Path(__file__).resolve().parents[2] / "packages/contracts/jsonschema/evidence/v1"
 
@@ -95,3 +97,13 @@ def test_all_evaluation_outcomes_remain_distinct() -> None:
         "suppressed",
         "accepted_risk",
     }
+
+
+@pytest.mark.parametrize("name", ["check-evaluation", "score-snapshot"])
+def test_shared_contract_rejects_fixture_publication(name: str) -> None:
+    output = reproduce()
+    instance = output["evaluations"][0] if name == "check-evaluation" else output["snapshot"]
+    instance = {**instance, "publishable": True}
+    schema = json.loads((SCHEMAS / f"{name}.json").read_text(encoding="utf-8"))
+    with pytest.raises(SchemaValidationError):
+        Draft202012Validator(schema).validate(instance)

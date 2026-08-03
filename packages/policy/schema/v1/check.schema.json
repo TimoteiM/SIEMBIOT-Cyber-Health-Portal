@@ -10,7 +10,9 @@
     "remediation": {"type": "string", "minLength": 1}, "references": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
     "public_classification": {"enum": ["public_aggregate", "public_profile", "private_only"]}, "result_rule": {"enum": ["boolean_secure", "policy_strength", "header_present", "attribution_review", "provider_signal", "registration_freshness"]},
     "critical_cap": {"type": ["integer", "null"], "minimum": 0, "maximum": 100},
-    "required_cap_evidence": {"type": ["integer", "null"], "minimum": 1, "maximum": 10}
+    "required_cap_evidence": {"type": ["integer", "null"], "minimum": 1, "maximum": 10},
+    "required_cap_observation_type": {"type": ["string", "null"]},
+    "cap_requires_authorized_asset": {"type": ["boolean", "null"]}
   },
   "allOf": [{"if": {"properties": {"critical_cap": {"type": "integer"}}}, "then": {"properties": {"required_cap_evidence": {"type": "integer"}}}, "else": {"properties": {"required_cap_evidence": {"type": "null"}}}}]
 }

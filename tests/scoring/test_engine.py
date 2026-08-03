@@ -30,6 +30,7 @@ def evaluation(
         "mode": mode,
         "outcome": outcome,
         "evidence_ids": ("sha256-v1:" + "a" * 64,),
+        "evidence_types": (check.observation_type,),
         "reason_code": "source_outcome",
         "evaluated_at": NOW,
         "source_confidence": 1,
@@ -37,6 +38,7 @@ def evaluation(
         "fresh": True,
         "directly_attributable": True,
         "provider_disagreement": False,
+        "asset_authorized": True,
         "publishable": mode is EvidenceMode.LIVE,
     }
     values.update(changes)
@@ -97,7 +99,14 @@ def test_monotonicity_holds_under_fixed_assurance_and_applicability() -> None:
 
 
 def test_critical_caps_require_eligible_non_fixture_evidence() -> None:
-    capped = CATALOG.checks[0].model_copy(update={"critical_cap": 40, "required_cap_evidence": 1})
+    capped = CATALOG.checks[0].model_copy(
+        update={
+            "critical_cap": 40,
+            "required_cap_evidence": 1,
+            "required_cap_observation_type": CATALOG.checks[0].observation_type,
+            "cap_requires_authorized_asset": True,
+        }
+    )
     catalog = PolicyCatalog(
         CATALOG.methodology_version,
         CATALOG.scoring_behavior_version,
@@ -131,10 +140,19 @@ def test_critical_caps_require_eligible_non_fixture_evidence() -> None:
         {"directly_attributable": False},
         {"source_confidence": 0.5},
         {"provider_disagreement": True},
+        {"evidence_types": ("unrelated.signal",)},
+        {"asset_authorized": False},
     ],
 )
 def test_cap_is_denied_when_assurance_is_insufficient(changes: dict[str, object]) -> None:
-    capped = CATALOG.checks[0].model_copy(update={"critical_cap": 40, "required_cap_evidence": 1})
+    capped = CATALOG.checks[0].model_copy(
+        update={
+            "critical_cap": 40,
+            "required_cap_evidence": 1,
+            "required_cap_observation_type": CATALOG.checks[0].observation_type,
+            "cap_requires_authorized_asset": True,
+        }
+    )
     catalog = PolicyCatalog(
         CATALOG.methodology_version,
         CATALOG.scoring_behavior_version,
@@ -153,7 +171,14 @@ def test_cap_is_denied_when_assurance_is_insufficient(changes: dict[str, object]
 
 
 def test_cap_requires_actual_evidence_reference() -> None:
-    capped = CATALOG.checks[0].model_copy(update={"critical_cap": 40, "required_cap_evidence": 1})
+    capped = CATALOG.checks[0].model_copy(
+        update={
+            "critical_cap": 40,
+            "required_cap_evidence": 1,
+            "required_cap_observation_type": CATALOG.checks[0].observation_type,
+            "cap_requires_authorized_asset": True,
+        }
+    )
     catalog = PolicyCatalog(
         CATALOG.methodology_version,
         CATALOG.scoring_behavior_version,

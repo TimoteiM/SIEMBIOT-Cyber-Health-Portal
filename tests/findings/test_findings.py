@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from siembiot_worker.evidence.models import EvidenceMode
+from siembiot_worker.evidence.models import EvidenceMode, Finding
 from siembiot_worker.findings.events import FindingEvent, FindingEventType
 from siembiot_worker.findings.fingerprint import (
     FingerprintCollisionError,
@@ -76,6 +76,23 @@ def test_fingerprint_collision_fails_closed() -> None:
 def test_material_evidence_key_is_a_bounded_identifier(key: str) -> None:
     with pytest.raises(ValueError, match="unsafe_material_evidence_key"):
         finding_fingerprint(**identity(material_evidence_key=key))
+
+
+def test_runtime_finding_recomputes_fingerprint() -> None:
+    values = identity()
+    with pytest.raises(ValueError, match="finding_id_mismatch"):
+        Finding.model_validate(
+            {
+                **values,
+                "finding_id": "sha256-v1:" + "0" * 64,
+                "fingerprint_version": "fingerprint-v1",
+                "scope_reference": "scope-a",
+                "severity": "high",
+                "first_seen_at": NOW,
+                "publishable": False,
+                "classification": "DEMO/FIXTURE",
+            }
+        )
 
 
 def test_decision_events_require_authorization_reason_and_review_date() -> None:

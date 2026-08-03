@@ -48,7 +48,7 @@ def insert_observation(
     digest = bytes.fromhex("ab" * 32)
     with psycopg.connect(owner_url) as owner:
         row = owner.execute(
-            "INSERT INTO normalized_observations (organization_id,asset_id,scope_manifest_id,evidence_mode,normalized_hash,hash_version,schema_version,observation_type,source_evidence_id,payload,observed_at,source_confidence,attribution_confidence,publishable,real_world) VALUES (%s,%s,%s,%s,%s,'sha256-v1','v1','dns.dnssec',%s,'{}',now(),1,1,%s,%s) RETURNING id::text",
+            "INSERT INTO normalized_observations (organization_id,asset_id,scope_manifest_id,evidence_mode,normalized_hash,hash_version,schema_version,observation_type,source_evidence_id,payload,provenance,freshness_seconds,observed_at,source_confidence,attribution_confidence,publishable,real_world) VALUES (%s,%s,%s,%s,%s,'sha256-v1','v1','dns.dnssec',%s,'{}','{}',3600,now(),1,1,%s,%s) RETURNING id::text",
             (
                 org,
                 asset,
@@ -134,12 +134,12 @@ def test_database_rejects_fixture_relabel_and_mixed_mode_lineage(
     with psycopg.connect(postgres_database["owner_url"]) as owner:
         with pytest.raises(psycopg.errors.CheckViolation):
             owner.execute(
-                "INSERT INTO score_snapshots (organization_id,asset_id,scope_manifest_id,evidence_mode,snapshot_hash,policy_hash,methodology_version,scoring_behavior_version,coverage,evidence_confidence,attribution_confidence,publishable,classification) VALUES (%s,%s,%s,'fixture',%s,%s,'1.0.0','1.0.0',100,1,1,true,'PRIVATE')",
+                "INSERT INTO score_snapshots (organization_id,asset_id,scope_manifest_id,evidence_mode,snapshot_hash,policy_hash,methodology_version,scoring_behavior_version,evaluation_ids,applicable_check_ids,pillar_scores,caps_applied,coverage,evidence_confidence,attribution_confidence,publishable,classification) VALUES (%s,%s,%s,'fixture',%s,%s,'1.0.0','1.0.0','{}','{}','{}','{}',100,1,1,true,'PRIVATE')",
                 (org, asset, manifest, bytes(32), bytes([1]) * 32),
             )
         owner.rollback()
         evaluation_row = owner.execute(
-            "INSERT INTO check_evaluations (organization_id,asset_id,scope_manifest_id,evidence_mode,evaluation_hash,policy_hash,check_id,methodology_version,scoring_behavior_version,outcome,reason_code,evaluated_at,publishable) VALUES (%s,%s,%s,'live',%s,%s,'dns.dnssec','1.0.0','1.0.0','pass','source_outcome',now(),true) RETURNING id",
+            "INSERT INTO check_evaluations (organization_id,asset_id,scope_manifest_id,evidence_mode,evaluation_hash,policy_hash,check_id,methodology_version,scoring_behavior_version,outcome,reason_code,evidence_ids,evidence_types,source_confidence,attribution_confidence,fresh,directly_attributable,provider_disagreement,asset_authorized,evaluated_at,publishable) VALUES (%s,%s,%s,'live',%s,%s,'dns.dnssec','1.0.0','1.0.0','pass','source_outcome','{}',ARRAY['dns.dnssec'],1,1,true,true,false,true,now(),true) RETURNING id",
             (org, asset, manifest, bytes([2]) * 32, bytes([1]) * 32),
         ).fetchone()
         assert evaluation_row is not None
@@ -160,7 +160,7 @@ def test_interactive_app_cannot_forge_worker_evidence(
         app.execute("SELECT set_config('app.organization_id',%s,false)", (org,))
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             app.execute(
-                "INSERT INTO normalized_observations (organization_id,asset_id,scope_manifest_id,evidence_mode,normalized_hash,hash_version,schema_version,observation_type,source_evidence_id,payload,observed_at,source_confidence,attribution_confidence,publishable,real_world) VALUES (%s,%s,%s,'fixture',%s,'sha256-v1','v1','dns.dnssec',%s,'{}',now(),1,1,false,false)",
+                "INSERT INTO normalized_observations (organization_id,asset_id,scope_manifest_id,evidence_mode,normalized_hash,hash_version,schema_version,observation_type,source_evidence_id,payload,provenance,freshness_seconds,observed_at,source_confidence,attribution_confidence,publishable,real_world) VALUES (%s,%s,%s,'fixture',%s,'sha256-v1','v1','dns.dnssec',%s,'{}','{}',3600,now(),1,1,false,false)",
                 (org, asset, manifest, bytes.fromhex("cd" * 32), "sha256:" + "c" * 64),
             )
 
@@ -172,8 +172,20 @@ def test_worker_append_is_tenant_scoped_and_fixture_is_not_publishable(
     with psycopg.connect(postgres_database["worker_url"]) as worker:
         worker.execute("SELECT set_config('app.organization_id',%s,false)", (org,))
         worker.execute(
-            "INSERT INTO normalized_observations (organization_id,asset_id,scope_manifest_id,evidence_mode,normalized_hash,hash_version,schema_version,observation_type,source_evidence_id,payload,observed_at,source_confidence,attribution_confidence,publishable,real_world) VALUES (%s,%s,%s,'fixture',%s,'sha256-v1','v1','dns.dnssec',%s,'{}',now(),1,1,false,false)",
+            "INSERT INTO normalized_observations (organization_id,asset_id,scope_manifest_id,evidence_mode,normalized_hash,hash_version,schema_version,observation_type,source_evidence_id,payload,provenance,freshness_seconds,observed_at,source_confidence,attribution_confidence,publishable,real_world) VALUES (%s,%s,%s,'fixture',%s,'sha256-v1','v1','dns.dnssec',%s,'{}','{}',3600,now(),1,1,false,false)",
             (org, asset, manifest, bytes.fromhex("ef" * 32), "sha256:" + "e" * 64),
         )
         assert worker.execute("SELECT count(*) FROM normalized_observations").fetchone() == (1,)
         assert worker.execute("SELECT count(*) FROM publishable_score_snapshots").fetchone() == (0,)
+
+
+def test_database_rejects_unbound_finding_fingerprint(
+    postgres_database: dict[str, str],
+) -> None:
+    org, _, asset, manifest = seed_scope(postgres_database["owner_url"], "fingerprint")
+    with psycopg.connect(postgres_database["owner_url"]) as owner:
+        with pytest.raises(psycopg.errors.CheckViolation, match="invalid_finding_fingerprint"):
+            owner.execute(
+                "INSERT INTO findings(organization_id,asset_id,scope_manifest_id,evidence_mode,fingerprint,fingerprint_version,identity_digest,material_evidence_key,check_id,policy_hash,attribution_state,severity,first_seen_at,publishable,classification) VALUES(%s,%s,%s,'fixture',%s,'fingerprint-v1',%s,'dnssec-fixture','dns.dnssec',%s,'direct','high',now(),false,'DEMO/FIXTURE')",
+                (org, asset, manifest, bytes(32), bytes(32), bytes.fromhex("03" * 32)),
+            )

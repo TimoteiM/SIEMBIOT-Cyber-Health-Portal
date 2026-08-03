@@ -1,11 +1,11 @@
 {
   "schema_version": "v1",
   "checks": {
-    "dns.dnssec": {"observation_type": "dns.dnssec", "pillar": "domain_dns", "introduced_version": "1.0.0"},
-    "email.dmarc": {"observation_type": "email.dmarc", "pillar": "email_trust", "introduced_version": "1.0.0"},
-    "exposure.registration_freshness": {"observation_type": "rdap.registration", "pillar": "exposure_hygiene", "introduced_version": "1.0.0"},
-    "reputation.provider_signal": {"observation_type": "provider.reputation", "pillar": "reputation", "introduced_version": "1.0.0"},
-    "surface.ct_attribution": {"observation_type": "ct.names", "pillar": "public_surface", "introduced_version": "1.0.0"},
-    "web.hsts": {"observation_type": "http.security_headers", "pillar": "web_tls", "introduced_version": "1.0.0"}
+    "dns.dnssec": {"observation_type": "dns.dnssec", "pillar": "domain_dns", "result_rule": "boolean_secure", "introduced_version": "1.0.0"},
+    "email.dmarc": {"observation_type": "email.dmarc", "pillar": "email_trust", "result_rule": "policy_strength", "introduced_version": "1.0.0"},
+    "exposure.registration_freshness": {"observation_type": "rdap.registration", "pillar": "exposure_hygiene", "result_rule": "registration_freshness", "introduced_version": "1.0.0"},
+    "reputation.provider_signal": {"observation_type": "provider.reputation", "pillar": "reputation", "result_rule": "provider_signal", "introduced_version": "1.0.0"},
+    "surface.ct_attribution": {"observation_type": "ct.names", "pillar": "public_surface", "result_rule": "attribution_review", "introduced_version": "1.0.0"},
+    "web.hsts": {"observation_type": "http.security_headers", "pillar": "web_tls", "result_rule": "header_present", "introduced_version": "1.0.0"}
   }
 }

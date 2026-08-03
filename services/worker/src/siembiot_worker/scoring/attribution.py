@@ -37,6 +37,15 @@ def attribute_score_change(
                 {},
             )
         )
+    if previous is None or current.applicable_check_ids != previous.applicable_check_ids:
+        reasons.append(
+            (
+                "applicability",
+                "applicability_changed",
+                0,
+                {"applicable_check_ids": current.applicable_check_ids},
+            )
+        )
     if previous is None or (
         current.evidence_confidence != previous.evidence_confidence
         or current.attribution_confidence != previous.attribution_confidence

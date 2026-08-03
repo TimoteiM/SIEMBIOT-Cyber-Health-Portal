@@ -101,7 +101,8 @@ def build_evidence_router() -> APIRouter:
                     text(
                         "SELECT id,asset_id,check_id,evidence_mode,methodology_version,"
                         "scoring_behavior_version,outcome,reason_code,evaluated_at,publishable "
-                        "FROM check_evaluations ORDER BY evaluated_at,id LIMIT :limit OFFSET :offset"
+                        "FROM check_evaluations ORDER BY evaluated_at,id "
+                        "LIMIT :limit OFFSET :offset"
                     ),
                     {"limit": limit, "offset": offset},
                 )

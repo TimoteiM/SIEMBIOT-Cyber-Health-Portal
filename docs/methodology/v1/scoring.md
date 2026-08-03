@@ -6,4 +6,6 @@ Pillar scores are weighted means of completed applicable checks. Overall posture
 
 Technical posture, coverage, evidence confidence, and attribution confidence remain separate. Critical caps require an explicit policy cap plus current, required, high-confidence, directly attributable, non-fixture evidence without provider disagreement. A cap can only lower a score.
 
+Each cap declares the exact normalized observation type, minimum evidence count, and authorized-asset requirement. The evaluator derives those fields from normalized observations; caller-supplied opaque identifiers alone cannot trigger a cap. Snapshots retain the applicable-check set, and change attribution distinguishes evidence, methodology, applicability, coverage, and confidence changes.
+
 Monotonicity applies only under fixed methodology, applicability, coverage, confidence, and attribution. Other changes require explicit attribution.

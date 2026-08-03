@@ -1,12 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "https://siembiot.example/contracts/evidence/v1/finding.json",
   "type": "object", "additionalProperties": false,
-  "required": ["contract_version", "finding_id", "fingerprint_version", "organization_id", "asset_id", "scope_reference", "check_id", "policy_hash", "mode", "severity", "attribution_state", "first_seen_at", "publishable", "classification"],
+  "required": ["contract_version", "finding_id", "fingerprint_version", "organization_id", "asset_id", "scope_reference", "check_id", "policy_hash", "mode", "severity", "attribution_state", "material_evidence_key", "first_seen_at", "publishable", "classification"],
   "properties": {
     "contract_version": {"const": "v1"}, "finding_id": {"type": "string", "pattern": "^sha256-v1:[a-f0-9]{64}$"},
     "fingerprint_version": {"const": "fingerprint-v1"}, "organization_id": {"type": "string", "format": "uuid"},
     "asset_id": {"type": "string", "format": "uuid"}, "scope_reference": {"type": "string"}, "check_id": {"type": "string"}, "policy_hash": {"type": "string"},
     "mode": {"enum": ["fixture", "live"]}, "severity": {"enum": ["info", "low", "medium", "high", "critical"]},
-    "attribution_state": {"enum": ["direct", "shared_hosting", "uncertain"]}, "first_seen_at": {"type": "string", "format": "date-time"}, "publishable": {"type": "boolean"}, "classification": {"enum": ["DEMO/FIXTURE", "PRIVATE"]}
-  }
+    "attribution_state": {"enum": ["direct", "shared_hosting", "uncertain"]}, "material_evidence_key": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._:-]{0,127}$"}, "first_seen_at": {"type": "string", "format": "date-time"}, "publishable": {"type": "boolean"}, "classification": {"enum": ["DEMO/FIXTURE", "PRIVATE"]}
+  },
+  "allOf": [{"if": {"properties": {"mode": {"const": "fixture"}}}, "then": {"properties": {"publishable": {"const": false}, "classification": {"const": "DEMO/FIXTURE"}}}}]
 }
