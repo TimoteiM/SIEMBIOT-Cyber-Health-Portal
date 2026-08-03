@@ -1,6 +1,6 @@
 # Threat Model
 
-**Version:** 0.2
+**Version:** 0.3
 
 **Review date:** 2026-08-03
 
@@ -100,6 +100,12 @@ No chain-of-thought is stored. Audit retains run ID, tenant, model/provider/vers
 ## Milestone 1 validation status
 
 TM-01 through TM-05 and the audit-integrity portion of TM-17 now have executable foundations. Tests cover one-time OIDC state, nonce and PKCE, secure cookie flags, session expiry/revocation, exact-origin CSRF, unauthenticated access, cross-tenant/IDOR attempts, forged tenant headers, role escalation, revoked membership, duplicate invitations, tenant RLS, explicit support grants with phishing-resistant MFA, and database denial of audit update/delete. Remaining abuse-rate limits, independent identity-provider conformance, penetration testing, production key management, and operational alerting remain later hardening work and launch gates.
+
+## Milestone 2 validation status
+
+TM-06, the ownership-verification portion of TM-08, and the application-level controls for TM-07/TM-09/TM-11 now have executable foundations. Tests cover UTS 46/STD3 normalization, the complete pinned PSL including wildcard/exception rules, public-suffix rejection, exact parent/child separation, digest-only challenges, expiry/replay/attempt budgets, canonical signed manifests, key rotation and tamper rejection, tenant RLS, all emergency-control scopes, phishing-resistant global administration, and immediate safe recovery.
+
+Adversarial network tests cover alternate numeric IP encodings, IPv4-mapped IPv6, private/loopback/link-local/multicast/reserved/metadata ranges, mixed DNS answers, DNS rebinding, exact redirect authorization, TLS downgrade, forbidden paths/ports/query/credentials/fragments, address pinning with Host/SNI preservation, malformed framing, response size, time, redirect, concurrency, and cooperative policy cancellation. The architecture test rejects direct network imports outside the centralized module. Residual launch work includes restricted-egress deployment, OS/network-policy enforcement, production signing-key custody, alert delivery, staging kill-switch drills, penetration testing, and collectors requiring valid manifests.
 
 ## Open risks requiring accountable acceptance before launch
 

@@ -1,6 +1,6 @@
 # Local Development Setup
 
-Milestone 1 provides the private API, PostgreSQL authority, OIDC session lifecycle, tenancy/RBAC/audit APIs, and Romanian-first web shells. Tyche, model providers, collectors, scoring, queues, and assessments are intentionally absent.
+Milestone 2 adds domain normalization, DNS/HTTPS ownership verification, explicit signed authorization manifests, centralized network safety, emergency controls, and the Romanian domain workflow. Tyche, model providers, collectors, scoring, queues, public scans, and assessment execution remain intentionally absent.
 
 ## Prerequisites
 
@@ -46,6 +46,8 @@ An empty database upgrades through:
 1. `0001_identity_tenancy_audit`;
 2. `0002_invites_org_discovery`;
 3. `0003_global_audit_rls`.
+4. `0004_domain_scope_safety`;
+5. `0005_authorization_consent`.
 
 Production data rollback is not an Alembic downgrade. Production follows expand/backfill/verify/contract, then a forward fix or point-in-time restore. For disposable development databases only, rollback/re-upgrade is tested with:
 
@@ -90,6 +92,7 @@ Focused commands are:
 python -m uv run --frozen pytest tests/api tests/contracts -q
 python -m uv run --frozen pytest tests/database -q
 python -m uv run --frozen pytest tests/security/test_auth_tenant_authorization.py -q
+python -m uv run --frozen pytest tests/domain tests/network tests/security -q
 python -m uv run --frozen python scripts/check_contracts.py
 corepack pnpm --filter @siembiot/web test
 corepack pnpm --filter @siembiot/web typecheck
