@@ -39,6 +39,8 @@ def _eligible_cap(check: CheckDefinition, evaluation: CheckEvaluation) -> bool:
         check.critical_cap is not None
         and evaluation.outcome is EvaluationOutcome.FAIL
         and evaluation.mode is EvidenceMode.LIVE
+        and check.required_cap_evidence is not None
+        and len(evaluation.evidence_ids) >= check.required_cap_evidence
         and evaluation.fresh
         and evaluation.directly_attributable
         and evaluation.source_confidence >= 0.8
@@ -63,6 +65,7 @@ def score_evaluations(
         or item.mode is not first.mode
         or item.policy_hash != catalog.policy_hash
         or item.methodology_version != catalog.methodology_version
+        or item.scoring_behavior_version != catalog.scoring_behavior_version
         for item in ordered
     ):
         raise ValueError("mixed_score_inputs")
@@ -100,7 +103,7 @@ def score_evaluations(
             else None
         )
     posture: float | None = None
-    if coverage >= 60 and completed_weight:
+    if coverage >= catalog.minimum_coverage and completed_weight:
         posture = _round(
             100
             * sum(

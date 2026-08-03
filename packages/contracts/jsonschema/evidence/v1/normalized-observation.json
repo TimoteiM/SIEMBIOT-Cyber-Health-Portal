@@ -17,7 +17,10 @@
     "source_outcome": {"enum": ["pass", "fail", "warning", "unknown", "error", "unavailable", "disabled_by_policy"]},
     "observed_at": {"type": "string", "format": "date-time"},
     "mode": {"const": "fixture"},
-    "provenance": {"type": "object"},
+    "provenance": {"type": "object", "additionalProperties": false,
+      "required": ["collector_id", "collector_version", "adapter_id", "adapter_version", "normalizer_version", "scenario_id", "scenario_sha256"],
+      "properties": {"collector_id": {"type": "string"}, "collector_version": {"type": "string"}, "adapter_id": {"type": "string"}, "adapter_version": {"type": "string"}, "normalizer_version": {"type": "string"}, "scenario_id": {"type": ["string", "null"]}, "scenario_sha256": {"type": ["string", "null"]}}
+    },
     "payload": {"type": "object"},
     "source_confidence": {"type": "number", "minimum": 0, "maximum": 1},
     "attribution_confidence": {"type": "number", "minimum": 0, "maximum": 1},

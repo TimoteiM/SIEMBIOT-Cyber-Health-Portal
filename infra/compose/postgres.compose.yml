@@ -6,6 +6,7 @@ services:
       POSTGRES_USER: siembiot_owner
       POSTGRES_PASSWORD: ${SIEMBIOT_POSTGRES_OWNER_PASSWORD:?set in local .env}
       SIEMBIOT_POSTGRES_APP_PASSWORD: ${SIEMBIOT_POSTGRES_APP_PASSWORD:?set in local .env}
+      SIEMBIOT_POSTGRES_WORKER_PASSWORD: ${SIEMBIOT_POSTGRES_WORKER_PASSWORD:?set in local .env}
     ports:
       - "127.0.0.1:${SIEMBIOT_POSTGRES_PORT:-5432}:5432"
     volumes:

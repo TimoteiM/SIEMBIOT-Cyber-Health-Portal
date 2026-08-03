@@ -1,6 +1,6 @@
 # Local Development Setup
 
-Milestone 3 adds fixture-only DNS, e-mail DNS, HTTP, TLS, RDAP, and CT collector validation. These collectors use deterministic local scenario data only. Live targets/providers, scoring, queues, public scans, Tyche, model providers, and assessment execution remain intentionally absent.
+Milestones 3 and 4 provide fixture-only collection, normalization, evaluation, scoring, and evidence-history validation. These paths use deterministic local scenario data only. Live targets/providers, queues, public scans, Tyche, model providers, and assessment execution remain intentionally absent.
 
 ## Prerequisites
 

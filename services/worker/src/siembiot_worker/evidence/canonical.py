@@ -5,11 +5,21 @@ import json
 import math
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any
 
 
 class CanonicalizationError(ValueError):
     pass
+
+
+class CanonicalProjection(StrEnum):
+    CONTENT_IDENTITY_V1 = "content-identity-v1"
+
+
+_PROJECTION_FIELDS: dict[CanonicalProjection, tuple[str, ...]] = {
+    CanonicalProjection.CONTENT_IDENTITY_V1: ("tenant", "payload"),
+}
 
 
 def _normalize(value: Any) -> Any:
@@ -43,11 +53,29 @@ def canonical_json(value: Any) -> bytes:
     ).encode("utf-8")
 
 
-def canonical_hash(value: Mapping[str, Any], *, projection: tuple[str, ...] | None = None) -> str:
+def parse_json(value: str) -> Any:
+    def reject_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, item in pairs:
+            if key in result:
+                raise CanonicalizationError("duplicate_json_key")
+            result[key] = item
+        return result
+
+    try:
+        return json.loads(value, object_pairs_hook=reject_duplicates)
+    except json.JSONDecodeError as exc:
+        raise CanonicalizationError("invalid_json") from exc
+
+
+def canonical_hash(
+    value: Mapping[str, Any], *, projection: CanonicalProjection | None = None
+) -> str:
     identity: Mapping[str, Any] = value
     if projection is not None:
-        missing = set(projection) - value.keys()
+        fields = _PROJECTION_FIELDS[projection]
+        missing = set(fields) - value.keys()
         if missing:
             raise CanonicalizationError("unknown_projection_field")
-        identity = {field: value[field] for field in projection}
+        identity = {field: value[field] for field in fields}
     return "sha256-v1:" + hashlib.sha256(canonical_json(identity)).hexdigest()

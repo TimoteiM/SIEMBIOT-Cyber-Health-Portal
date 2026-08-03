@@ -29,7 +29,9 @@ def normalize_observation(
     if not isinstance(payload, Mapping):
         raise NormalizationError("payload_not_object")
     scenario = source.scenario
-    attribution = 0.5 if payload.get("provider_disagreement") is True else source.confidence
+    attribution = source.confidence
+    if payload.get("provider_disagreement") is True or payload.get("asset_authorized") is False:
+        attribution = min(attribution, 0.5)
     return NormalizedObservation.build(
         organization_id=organization_id,
         asset_id=asset_id,
@@ -42,6 +44,8 @@ def normalize_observation(
         provenance=Provenance(
             collector_id=source.collector.id,
             collector_version=source.collector.version,
+            adapter_id=source.adapter.id,
+            adapter_version=source.adapter.version,
             normalizer_version="1.0.0",
             scenario_id=scenario.id,
             scenario_sha256=scenario.sha256,

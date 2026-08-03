@@ -191,6 +191,6 @@ The earlier production diagram remains the target architecture, not current capa
 
 ## Milestone 4 deterministic evidence boundary
 
-Milestone 4 adds canonical evidence identities, allowlisted normalizers, a reviewed policy catalog, pure evaluation/scoring, and immutable finding history. PostgreSQL migration `0006_evidence_scoring` forces tenant RLS, composite tenant/mode references, fixture publication constraints, restricted grants, and update/delete rejection for evidence lineage. Content hashes are tenant-scoped identifiers, never authorization credentials or global search keys.
+Milestone 4 adds canonical evidence identities, allowlisted normalizers, a reviewed policy catalog, pure evaluation/scoring, and immutable finding history. PostgreSQL migration `0006_evidence_scoring` forces tenant RLS, composite tenant/mode/audit references, fixture publication constraints, and update/delete rejection for evidence lineage. The interactive API role is read-only for generated evidence; only the separately credentialed worker role may append evidence in an explicitly selected tenant. Finding decisions are restricted to owner/security-administrator roles and database-bound to the authenticated actor and finding scope. Content hashes are tenant-scoped identifiers, never authorization credentials or global search keys.
 
 The implementation branch is stacked on exact Milestone 3 commit `8a50687bb8cd10fe5dc18712d1672aed3dfa147c`. It cannot merge before Milestone 3, and final ancestry reconciliation requires all baseline and Milestone 4 gates.

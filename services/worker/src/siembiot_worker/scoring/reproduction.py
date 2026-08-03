@@ -8,6 +8,7 @@ from siembiot_worker.collection.models import ObservationOutcome, build_fixture_
 from siembiot_worker.evaluation.engine import EvaluationContext, evaluate_check
 from siembiot_worker.evaluation.policy import load_policy_catalog
 from siembiot_worker.normalization.registry import normalize_observation
+from siembiot_worker.scoring.attribution import attribute_score_change
 from siembiot_worker.scoring.engine import score_evaluations
 
 NOW = datetime(2026, 8, 3, 12, tzinfo=UTC)
@@ -54,6 +55,7 @@ def reproduce(root: Path | None = None) -> dict[str, Any]:
         for check in catalog.checks
     )
     snapshot = score_evaluations(evaluations, catalog, created_at=NOW)
+    attributions = attribute_score_change(snapshot, None, created_at=NOW)
     return {
         "methodology_version": catalog.methodology_version,
         "policy_hash": catalog.policy_hash,
@@ -63,4 +65,5 @@ def reproduce(root: Path | None = None) -> dict[str, Any]:
         ],
         "evaluations": [item.model_dump(mode="json") for item in evaluations],
         "snapshot": snapshot.model_dump(mode="json"),
+        "attributions": [item.model_dump(mode="json") for item in attributions],
     }

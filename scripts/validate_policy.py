@@ -22,7 +22,7 @@ def main() -> int:
         json.loads((catalog_path / "methodology.json").read_text(encoding="utf-8"))
     )
     for file in sorted(catalog_path.glob("*.json")):
-        if file.name in {"methodology.json", "references.json"}:
+        if file.name in {"methodology.json", "references.json", "stable-ids.json"}:
             continue
         document = json.loads(file.read_text(encoding="utf-8"))
         for check in document.get("checks", []):

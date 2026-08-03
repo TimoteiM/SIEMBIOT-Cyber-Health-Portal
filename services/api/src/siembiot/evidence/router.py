@@ -15,6 +15,8 @@ from siembiot.authorization import Action
 from siembiot.db import Database
 from siembiot.errors import AppError
 from siembiot.evidence.contracts import (
+    CheckEvaluationResponse,
+    EvidenceExportResponse,
     FindingEventCreate,
     FindingEventResponse,
     FindingResponse,
@@ -68,6 +70,53 @@ def build_evidence_router() -> APIRouter:
             )
         return [ScoreSnapshotResponse.model_validate(row) for row in rows]
 
+    @router.get("/evaluations", response_model=list[CheckEvaluationResponse])
+    def list_evaluations(
+        organization_id: UUID, request: Request, principal: Principal = Depends(current_principal)
+    ) -> list[CheckEvaluationResponse]:
+        with _database(request).tenant_connection(principal.user_id, organization_id) as connection:
+            authorize(connection, request, principal, organization_id, Action.EVIDENCE_READ)
+            rows = (
+                connection.execute(
+                    text(
+                        "SELECT id,asset_id,check_id,evidence_mode,methodology_version,"
+                        "scoring_behavior_version,outcome,reason_code,evaluated_at,publishable "
+                        "FROM check_evaluations ORDER BY evaluated_at,id LIMIT 200"
+                    )
+                )
+                .mappings()
+                .all()
+            )
+        return [CheckEvaluationResponse.model_validate(row) for row in rows]
+
+    @router.get("/fixture-export", response_model=EvidenceExportResponse)
+    def fixture_export(
+        organization_id: UUID, request: Request, principal: Principal = Depends(current_principal)
+    ) -> EvidenceExportResponse:
+        with _database(request).tenant_connection(principal.user_id, organization_id) as connection:
+            authorize(connection, request, principal, organization_id, Action.EVIDENCE_READ)
+            snapshots = connection.execute(
+                text(
+                    "SELECT count(*) FROM score_snapshots "
+                    "WHERE evidence_mode='fixture' AND NOT publishable"
+                )
+            ).scalar_one()
+            findings = connection.execute(
+                text(
+                    "SELECT count(*) FROM findings "
+                    "WHERE evidence_mode='fixture' AND NOT publishable"
+                )
+            ).scalar_one()
+        return EvidenceExportResponse(
+            organization_id=organization_id,
+            evidence_mode="fixture",
+            classification="DEMO/FIXTURE",
+            publishable=False,
+            disclaimer="Fixture-only demonstration; not a live internet assessment.",
+            snapshot_count=snapshots,
+            finding_count=findings,
+        )
+
     @router.get("/findings/{finding_id}/history", response_model=list[FindingEventResponse])
     def finding_history(
         organization_id: UUID,
@@ -113,7 +162,8 @@ def build_evidence_router() -> APIRouter:
             authorize(connection, request, principal, organization_id, Action.FINDING_MANAGE)
             finding = (
                 connection.execute(
-                    text("SELECT id,evidence_mode FROM findings WHERE id=:id"), {"id": finding_id}
+                    text("SELECT id,evidence_mode,scope_manifest_id FROM findings WHERE id=:id"),
+                    {"id": finding_id},
                 )
                 .mappings()
                 .one_or_none()
@@ -132,7 +182,7 @@ def build_evidence_router() -> APIRouter:
                 correlation_id=request.state.correlation_id,
                 outcome="success",
                 context={
-                    "scope_reference": body.scope_reference,
+                    "scope_reference": str(finding["scope_manifest_id"]),
                     "review_at": body.review_at.isoformat() if body.review_at else None,
                 },
             )
@@ -142,7 +192,7 @@ def build_evidence_router() -> APIRouter:
                 "event_type": body.event_type,
                 "actor_id": str(principal.user_id),
                 "reason": body.reason,
-                "scope_reference": body.scope_reference,
+                "scope_reference": str(finding["scope_manifest_id"]),
                 "occurred_at": occurred_at.isoformat(),
                 "review_at": body.review_at.isoformat() if body.review_at else None,
                 "request_id": request.state.request_id,
@@ -174,7 +224,7 @@ def build_evidence_router() -> APIRouter:
                         "event_type": body.event_type,
                         "actor_id": principal.user_id,
                         "reason": body.reason,
-                        "scope_reference": body.scope_reference,
+                        "scope_reference": str(finding["scope_manifest_id"]),
                         "occurred_at": occurred_at,
                         "review_at": body.review_at,
                         "request_id": request.state.request_id,

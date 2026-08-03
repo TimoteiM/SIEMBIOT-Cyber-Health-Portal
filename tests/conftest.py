@@ -19,6 +19,7 @@ PROJECT = "siembiot-m1-test"
 OWNER_URL = "postgresql://siembiot_owner:placeholder@127.0.0.1:55432/siembiot_test"
 OWNER_ALEMBIC_URL = "postgresql+psycopg://siembiot_owner:placeholder@127.0.0.1:55432/siembiot_test"
 APP_URL = "postgresql://siembiot_app:placeholder@127.0.0.1:55432/siembiot_test"
+WORKER_URL = "postgresql://siembiot_worker:worker-placeholder@127.0.0.1:55432/siembiot_test"
 
 
 def run(command: list[str], env: dict[str, str] | None = None) -> None:
@@ -35,6 +36,7 @@ def postgres_database() -> Iterator[dict[str, str]]:
             "SIEMBIOT_POSTGRES_DB": "siembiot_test",
             "SIEMBIOT_POSTGRES_OWNER_PASSWORD": "placeholder",
             "SIEMBIOT_POSTGRES_APP_PASSWORD": "placeholder",
+            "SIEMBIOT_POSTGRES_WORKER_PASSWORD": "worker-placeholder",
             "SIEMBIOT_DATABASE_URL": OWNER_ALEMBIC_URL,
             "SIEMBIOT_APP_DATABASE_URL": APP_URL,
         }
@@ -53,6 +55,6 @@ def postgres_database() -> Iterator[dict[str, str]]:
             ],
             test_env,
         )
-        yield {"owner_url": OWNER_URL, "app_url": APP_URL}
+        yield {"owner_url": OWNER_URL, "app_url": APP_URL, "worker_url": WORKER_URL}
     finally:
         run([*compose, "down", "--volumes", "--remove-orphans"], test_env)

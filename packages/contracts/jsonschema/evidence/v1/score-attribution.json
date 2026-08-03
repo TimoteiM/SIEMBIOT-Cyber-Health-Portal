@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://siembiot.example/contracts/evidence/v1/score-attribution.json",
+  "type": "object", "additionalProperties": false,
+  "required": ["contract_version", "attribution_id", "organization_id", "asset_id", "snapshot_id", "previous_snapshot_id", "attribution_type", "reason_code", "delta", "details", "created_at"],
+  "properties": {
+    "contract_version": {"const": "v1"}, "attribution_id": {"type": "string", "pattern": "^sha256-v1:[a-f0-9]{64}$"},
+    "organization_id": {"type": "string"}, "asset_id": {"type": "string"},
+    "snapshot_id": {"type": "string", "pattern": "^sha256-v1:[a-f0-9]{64}$"},
+    "previous_snapshot_id": {"type": ["string", "null"], "pattern": "^sha256-v1:[a-f0-9]{64}$"},
+    "attribution_type": {"enum": ["evidence", "methodology", "applicability", "coverage", "confidence"]},
+    "reason_code": {"type": "string", "pattern": "^[a-z][a-z0-9_]{1,63}$"},
+    "delta": {"type": "number"}, "details": {"type": "object"}, "created_at": {"type": "string", "format": "date-time"}
+  }
+}

@@ -49,6 +49,16 @@ def seed_finding(
         ).fetchone()
         assert finding_row is not None
         finding = finding_row[0]
+        audit_row = owner.execute(
+            "INSERT INTO audit_events(organization_id,actor_type,actor_id,action,resource_type,resource_id,request_id,correlation_id,outcome) VALUES(%s,'system',%s,'finding.observed','finding',%s,'01K1X6HBFM6W2Y0M76K5G5HT3C','01K1X6HBFM6W2Y0M76K5G5HT3D','success') RETURNING id",
+            (org, str(user), str(finding)),
+        ).fetchone()
+        assert audit_row is not None
+        audit = audit_row[0]
+        owner.execute(
+            "INSERT INTO finding_events(organization_id,finding_id,evidence_mode,event_hash,event_type,actor_id,reason,scope_reference,occurred_at,request_id,correlation_id,audit_event_id) VALUES(%s,%s,'fixture',%s,'observed',%s,'Initial fixture observation recorded',%s,now(), '01K1X6HBFM6W2Y0M76K5G5HT3C','01K1X6HBFM6W2Y0M76K5G5HT3D',%s)",
+            (org, finding, bytes([4]) * 32, user, str(manifest), audit),
+        )
     principal = Principal(
         session_id=uuid4(),
         user_id=user,
@@ -89,14 +99,17 @@ def test_fixture_finding_is_visibly_classified_and_decisions_append_events(
             json={
                 "event_type": "suppressed",
                 "reason": "Approved temporary suppression for review",
-                "scope_reference": "scope-a",
                 "review_at": (datetime.now(UTC) + timedelta(days=30)).isoformat(),
             },
         )
         assert decision.status_code == 201
         history = client.get(f"/api/v1/organizations/{org}/evidence/findings/{finding}/history")
         assert history.status_code == 200
-        assert history.json()[0]["event_type"] == "suppressed"
+        assert [item["event_type"] for item in history.json()] == ["observed", "suppressed"]
+        assert (
+            client.get(f"/api/v1/organizations/{org}/evidence/fixture-export").json()["publishable"]
+            is False
+        )
 
 
 def test_cross_tenant_and_low_role_decisions_are_denied(postgres_database: dict[str, str]) -> None:
@@ -112,7 +125,6 @@ def test_cross_tenant_and_low_role_decisions_are_denied(postgres_database: dict[
             json={
                 "event_type": "reopened",
                 "reason": "Attempted cross tenant mutation",
-                "scope_reference": "scope-a",
             },
         )
         assert response.status_code in {403, 404}

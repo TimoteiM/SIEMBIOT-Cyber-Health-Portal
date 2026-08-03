@@ -1,14 +1,16 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "https://siembiot.example/policy/schema/v1/check.schema.json",
   "type": "object", "additionalProperties": false,
-  "required": ["schema_version", "check_id", "content_version", "observation_type", "pillar", "weight", "severity", "freshness_seconds", "remediation", "references", "public_classification", "result_rule", "critical_cap"],
+  "required": ["schema_version", "check_id", "content_version", "observation_type", "pillar", "weight", "severity", "freshness_seconds", "remediation", "references", "public_classification", "result_rule", "critical_cap", "required_cap_evidence"],
   "properties": {
     "schema_version": {"const": "v1"}, "check_id": {"type": "string", "pattern": "^[a-z][a-z0-9._-]{2,127}$"},
     "content_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"}, "observation_type": {"type": "string"},
     "pillar": {"type": "string"}, "weight": {"type": "number", "exclusiveMinimum": 0},
     "severity": {"enum": ["info", "low", "medium", "high", "critical"]}, "freshness_seconds": {"type": "integer", "minimum": 1},
     "remediation": {"type": "string", "minLength": 1}, "references": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
-    "public_classification": {"enum": ["public_aggregate", "public_profile", "private_only"]}, "result_rule": {"type": "string"},
-    "critical_cap": {"type": ["integer", "null"], "minimum": 0, "maximum": 100}
-  }
+    "public_classification": {"enum": ["public_aggregate", "public_profile", "private_only"]}, "result_rule": {"enum": ["boolean_secure", "policy_strength", "header_present", "attribution_review", "provider_signal", "registration_freshness"]},
+    "critical_cap": {"type": ["integer", "null"], "minimum": 0, "maximum": 100},
+    "required_cap_evidence": {"type": ["integer", "null"], "minimum": 1, "maximum": 10}
+  },
+  "allOf": [{"if": {"properties": {"critical_cap": {"type": "integer"}}}, "then": {"properties": {"required_cap_evidence": {"type": "integer"}}}, "else": {"properties": {"required_cap_evidence": {"type": "null"}}}}]
 }

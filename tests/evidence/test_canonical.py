@@ -3,7 +3,13 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from siembiot_worker.evidence.canonical import CanonicalizationError, canonical_hash, canonical_json
+from siembiot_worker.evidence.canonical import (
+    CanonicalizationError,
+    CanonicalProjection,
+    canonical_hash,
+    canonical_json,
+    parse_json,
+)
 
 
 def test_canonical_json_v1_is_semantic_and_stable() -> None:
@@ -32,8 +38,11 @@ def test_identity_projection_excludes_only_declared_volatile_fields() -> None:
     first = {"tenant": "org-a", "payload": {"ok": True}, "created_at": "one"}
     second = {**first, "created_at": "two"}
     assert canonical_hash(first) != canonical_hash(second)
-    assert canonical_hash(first, projection=("tenant", "payload")) == canonical_hash(
-        second, projection=("tenant", "payload")
-    )
-    with pytest.raises(CanonicalizationError, match="unknown_projection_field"):
-        canonical_hash(first, projection=("tenant", "missing"))
+    assert canonical_hash(
+        first, projection=CanonicalProjection.CONTENT_IDENTITY_V1
+    ) == canonical_hash(second, projection=CanonicalProjection.CONTENT_IDENTITY_V1)
+
+
+def test_duplicate_json_keys_are_rejected_before_canonicalization() -> None:
+    with pytest.raises(CanonicalizationError, match="duplicate_json_key"):
+        parse_json('{"tenant":"one","tenant":"two"}')

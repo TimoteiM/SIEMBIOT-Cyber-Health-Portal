@@ -35,6 +35,8 @@ class StrictModel(BaseModel):
 class Provenance(StrictModel):
     collector_id: str = Field(pattern=r"^[a-z][a-z0-9._-]{1,63}$")
     collector_version: str = Field(pattern=r"^[0-9]+\.[0-9]+\.[0-9]+$")
+    adapter_id: str = Field(pattern=r"^[a-z][a-z0-9._-]{1,63}$")
+    adapter_version: str = Field(pattern=r"^[0-9]+\.[0-9]+\.[0-9]+$")
     normalizer_version: str = Field(pattern=r"^[0-9]+\.[0-9]+\.[0-9]+$")
     scenario_id: str | None = Field(default=None, min_length=1, max_length=128)
     scenario_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
@@ -183,3 +185,62 @@ class ScoreSnapshot(StrictModel):
             draft.model_dump(mode="python", exclude={"snapshot_id"})
         )
         return cls.model_validate(values)
+
+
+class ScoreAttribution(StrictModel):
+    contract_version: Literal["v1"] = "v1"
+    attribution_id: str = Field(pattern=r"^sha256-v1:[a-f0-9]{64}$")
+    organization_id: str
+    asset_id: str
+    snapshot_id: str = Field(pattern=r"^sha256-v1:[a-f0-9]{64}$")
+    previous_snapshot_id: str | None = Field(default=None, pattern=r"^sha256-v1:[a-f0-9]{64}$")
+    attribution_type: Literal["evidence", "methodology", "applicability", "coverage", "confidence"]
+    reason_code: str = Field(pattern=r"^[a-z][a-z0-9_]{1,63}$")
+    delta: float
+    details: Mapping[str, Any]
+    created_at: datetime
+
+    @model_validator(mode="after")
+    def validate_attribution(self) -> ScoreAttribution:
+        if self.created_at.utcoffset() is None:
+            raise ValueError("timezone_aware_timestamp_required")
+        identity = self.model_dump(mode="python", exclude={"attribution_id"})
+        if self.attribution_id != canonical_hash(identity):
+            raise ValueError("attribution_id_mismatch")
+        object.__setattr__(self, "details", deep_freeze(self.details))
+        return self
+
+    @classmethod
+    def build(cls, **values: Any) -> ScoreAttribution:
+        draft = cls.model_construct(attribution_id="sha256-v1:" + "0" * 64, **values)
+        values["attribution_id"] = canonical_hash(
+            draft.model_dump(mode="python", exclude={"attribution_id"})
+        )
+        return cls.model_validate(values)
+
+
+class Finding(StrictModel):
+    contract_version: Literal["v1"] = "v1"
+    finding_id: str = Field(pattern=r"^sha256-v1:[a-f0-9]{64}$")
+    fingerprint_version: Literal["fingerprint-v1"] = "fingerprint-v1"
+    organization_id: str
+    asset_id: str
+    scope_reference: str
+    check_id: str
+    policy_hash: str = Field(pattern=r"^sha256-v1:[a-f0-9]{64}$")
+    mode: EvidenceMode
+    severity: Literal["info", "low", "medium", "high", "critical"]
+    attribution_state: Literal["direct", "shared_hosting", "uncertain"]
+    first_seen_at: datetime
+    publishable: bool
+    classification: Literal["DEMO/FIXTURE", "PRIVATE"]
+
+    @model_validator(mode="after")
+    def fixture_boundary(self) -> Finding:
+        if self.first_seen_at.utcoffset() is None:
+            raise ValueError("timezone_aware_timestamp_required")
+        if self.mode is EvidenceMode.FIXTURE and (
+            self.publishable or self.classification != "DEMO/FIXTURE"
+        ):
+            raise ValueError("fixture_finding_boundary")
+        return self

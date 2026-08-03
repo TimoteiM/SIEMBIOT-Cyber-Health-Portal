@@ -25,7 +25,6 @@ class FindingResponse(StrictModel):
 class FindingEventCreate(StrictModel):
     event_type: Literal["suppressed", "accepted_risk", "reopened", "remediation_verified"]
     reason: str = Field(min_length=10, max_length=1000)
-    scope_reference: str = Field(min_length=1, max_length=256)
     review_at: datetime | None = None
 
     @model_validator(mode="after")
@@ -62,3 +61,27 @@ class ScoreSnapshotResponse(StrictModel):
     publishable: bool
     classification: Literal["DEMO/FIXTURE", "PRIVATE"]
     created_at: datetime
+
+
+class CheckEvaluationResponse(StrictModel):
+    id: UUID
+    asset_id: UUID
+    check_id: str
+    evidence_mode: Literal["fixture", "live"]
+    methodology_version: str
+    scoring_behavior_version: str
+    outcome: str
+    reason_code: str
+    evaluated_at: datetime
+    publishable: bool
+
+
+class EvidenceExportResponse(StrictModel):
+    contract_version: Literal["v1"] = "v1"
+    organization_id: UUID
+    evidence_mode: Literal["fixture"]
+    classification: Literal["DEMO/FIXTURE"]
+    publishable: Literal[False]
+    disclaimer: Literal["Fixture-only demonstration; not a live internet assessment."]
+    snapshot_count: int
+    finding_count: int

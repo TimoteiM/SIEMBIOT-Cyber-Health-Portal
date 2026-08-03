@@ -40,6 +40,9 @@ def update_first_check(path: Path, **changes: object) -> None:
         ({"remediation": ""}, "missing_remediation"),
         ({"references": ["missing"]}, "invalid_reference"),
         ({"weight": 0}, "invalid_weight"),
+        ({"content_version": "nonsense"}, "invalid_check"),
+        ({"result_rule": "python_exec"}, "invalid_check"),
+        ({"severity": "banana"}, "invalid_check"),
     ],
 )
 def test_catalog_rejects_invalid_check_definitions(

@@ -5,6 +5,7 @@ from datetime import datetime
 
 from siembiot_worker.collection.models import ObservationOutcome
 from siembiot_worker.evaluation.policy import CheckDefinition, PolicyCatalog
+from siembiot_worker.evaluation.rules import evaluate_rule
 from siembiot_worker.evidence.models import (
     CheckEvaluation,
     EvaluationOutcome,
@@ -18,16 +19,21 @@ class EvaluationContext:
     evaluated_at: datetime
 
 
-def _source_outcome(item: NormalizedObservation) -> EvaluationOutcome:
-    return {
-        ObservationOutcome.PASS: EvaluationOutcome.PASS,
-        ObservationOutcome.FAIL: EvaluationOutcome.FAIL,
-        ObservationOutcome.WARNING: EvaluationOutcome.WARNING,
+def _evaluate_observation(
+    check: CheckDefinition, item: NormalizedObservation
+) -> tuple[EvaluationOutcome, str]:
+    transport = {
         ObservationOutcome.ERROR: EvaluationOutcome.ERROR,
         ObservationOutcome.UNKNOWN: EvaluationOutcome.UNKNOWN,
         ObservationOutcome.UNAVAILABLE: EvaluationOutcome.UNKNOWN,
         ObservationOutcome.DISABLED_BY_POLICY: EvaluationOutcome.UNKNOWN,
-    }[item.source_outcome]
+    }.get(item.source_outcome)
+    if transport is not None:
+        return (
+            transport,
+            "source_error" if transport is EvaluationOutcome.ERROR else "source_unknown",
+        )
+    return evaluate_rule(check.result_rule, item.payload)
 
 
 def evaluate_check(
@@ -42,7 +48,10 @@ def evaluate_check(
 ) -> CheckEvaluation:
     evidence_mode: EvidenceMode
     matches = tuple(
-        item for item in observations if item.observation_type == check.observation_type
+        sorted(
+            (item for item in observations if item.observation_type == check.observation_type),
+            key=lambda item: item.normalized_id,
+        )
     )
     if matches:
         organization_id = matches[0].organization_id
@@ -55,16 +64,29 @@ def evaluate_check(
             for item in matches
         ):
             raise ValueError("mixed_evaluation_inputs")
-        outcome = _source_outcome(matches[0])
-        reason = "source_outcome"
+        results = tuple(_evaluate_observation(check, item) for item in matches)
+        priority = {
+            EvaluationOutcome.ERROR: 0,
+            EvaluationOutcome.FAIL: 1,
+            EvaluationOutcome.WARNING: 2,
+            EvaluationOutcome.UNKNOWN: 3,
+            EvaluationOutcome.NOT_APPLICABLE: 4,
+            EvaluationOutcome.PASS: 5,
+        }
+        outcome, reason = min(results, key=lambda result: priority[result[0]])
         evidence_ids = tuple(sorted(item.normalized_id for item in matches))
         source_confidence = min(item.source_confidence for item in matches)
         attribution_confidence = min(item.attribution_confidence for item in matches)
-        fresh = all(
-            (context.evaluated_at - item.observed_at).total_seconds() <= check.freshness_seconds
-            for item in matches
+        ages = tuple((context.evaluated_at - item.observed_at).total_seconds() for item in matches)
+        future = any(age < 0 for age in ages)
+        fresh = not future and all(age <= check.freshness_seconds for age in ages)
+        if future:
+            outcome, reason = EvaluationOutcome.ERROR, "future_evidence"
+        elif not fresh:
+            outcome, reason = EvaluationOutcome.UNKNOWN, "stale_evidence"
+        disagreement = len({result[0] for result in results}) > 1 or any(
+            item.payload.get("provider_disagreement") is True for item in matches
         )
-        disagreement = any(item.payload.get("provider_disagreement") is True for item in matches)
     else:
         if organization_id is None or asset_id is None or mode is None:
             raise ValueError("missing_evaluation_identity")

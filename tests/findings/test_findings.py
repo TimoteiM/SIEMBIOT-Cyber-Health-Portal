@@ -72,6 +72,12 @@ def test_fingerprint_collision_fails_closed() -> None:
         registry.register(identity(asset_id="asset-b"), asserted_fingerprint=fingerprint)
 
 
+@pytest.mark.parametrize("key", ["raw secret value", "x" * 129, "line\nbreak"])
+def test_material_evidence_key_is_a_bounded_identifier(key: str) -> None:
+    with pytest.raises(ValueError, match="unsafe_material_evidence_key"):
+        finding_fingerprint(**identity(material_evidence_key=key))
+
+
 def test_decision_events_require_authorization_reason_and_review_date() -> None:
     with pytest.raises(ValueError, match="finding_event_not_authorized"):
         event(FindingEventType.SUPPRESSED, authorized=False, review_at=NOW + timedelta(days=30))

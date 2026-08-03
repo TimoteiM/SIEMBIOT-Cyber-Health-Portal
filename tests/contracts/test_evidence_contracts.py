@@ -26,6 +26,7 @@ SCHEMAS = Path(__file__).resolve().parents[2] / "packages/contracts/jsonschema/e
         "finding",
         "finding-event",
         "score-snapshot",
+        "score-attribution",
     ],
 )
 def test_evidence_schema_is_valid(name: str) -> None:
@@ -45,6 +46,8 @@ def observation(**changes: object) -> NormalizedObservation:
         "provenance": Provenance(
             collector_id="dns",
             collector_version="1.0.0",
+            adapter_id="fixture-dns",
+            adapter_version="1.0.0",
             normalizer_version="1.0.0",
             scenario_id="healthy",
             scenario_sha256="b" * 64,

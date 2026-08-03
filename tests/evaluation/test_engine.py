@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from siembiot_worker.collection.models import ObservationOutcome, build_fixture_observation
@@ -13,14 +13,19 @@ ROOT = Path(__file__).resolve().parents[2]
 CATALOG = load_policy_catalog(ROOT / "packages/policy/checks/v1")
 
 
-def normalized(outcome: ObservationOutcome, payload: dict[str, object]) -> NormalizedObservation:
+def normalized(
+    outcome: ObservationOutcome,
+    payload: dict[str, object],
+    *,
+    collected_at: datetime | None = None,
+) -> NormalizedObservation:
     source = build_fixture_observation(
         scope_reference="scope-a",
         collector_id="dns",
         collector_version="1.0.0",
         adapter_id="fixture-dns",
         adapter_version="1.0.0",
-        collected_at=datetime(2026, 8, 3, 12, tzinfo=UTC),
+        collected_at=collected_at or datetime(2026, 8, 3, 12, tzinfo=UTC),
         scenario_id="healthy",
         scenario_sha256="b" * 64,
         outcome=outcome,
@@ -43,21 +48,42 @@ def test_boolean_rule_preserves_pass_fail_warning() -> None:
     )
     failed = evaluate_check(
         check,
-        (normalized(ObservationOutcome.FAIL, {"record_type": "DNSSEC", "secure": False}),),
+        (normalized(ObservationOutcome.PASS, {"record_type": "DNSSEC", "secure": False}),),
         CATALOG,
         context(),
     )
-    warning = evaluate_check(
+    assert [passed.outcome, failed.outcome] == [EvaluationOutcome.PASS, EvaluationOutcome.FAIL]
+
+
+def test_policy_rules_interpret_payload_instead_of_transport_success() -> None:
+    hsts = next(item for item in CATALOG.checks if item.check_id == "web.hsts")
+    source = build_fixture_observation(
+        scope_reference="scope-a",
+        collector_id="http",
+        collector_version="1.0.0",
+        adapter_id="fixture-http",
+        adapter_version="1.0.0",
+        collected_at=datetime(2026, 8, 3, 12, tzinfo=UTC),
+        scenario_id="healthy",
+        scenario_sha256="b" * 64,
+        outcome=ObservationOutcome.PASS,
+        payload={"status": 200, "headers": {}},
+    )
+    item = normalize_observation(source, organization_id="org-a", asset_id="asset-a")
+    result = evaluate_check(hsts, (item,), CATALOG, context())
+    assert result.outcome is EvaluationOutcome.FAIL
+    assert result.reason_code == "required_header_missing"
+
+
+def test_explicit_applicability_false_is_not_applicable() -> None:
+    check = next(item for item in CATALOG.checks if item.check_id == "dns.dnssec")
+    result = evaluate_check(
         check,
-        (normalized(ObservationOutcome.WARNING, {"record_type": "DNSSEC", "secure": False}),),
+        (normalized(ObservationOutcome.PASS, {"record_type": "DNSSEC", "applicable": False}),),
         CATALOG,
         context(),
     )
-    assert [passed.outcome, failed.outcome, warning.outcome] == [
-        EvaluationOutcome.PASS,
-        EvaluationOutcome.FAIL,
-        EvaluationOutcome.WARNING,
-    ]
+    assert result.outcome is EvaluationOutcome.NOT_APPLICABLE
 
 
 def test_missing_unknown_and_error_never_become_pass_or_fail() -> None:
@@ -103,3 +129,42 @@ def test_fixture_evaluation_is_policy_hash_bound_and_non_publishable() -> None:
     assert evaluation.evaluation_id.startswith("sha256-v1:")
     assert evaluation.mode.value == "fixture"
     assert not evaluation.publishable
+
+
+def test_stale_and_future_evidence_never_drive_posture() -> None:
+    check = next(item for item in CATALOG.checks if item.check_id == "dns.dnssec")
+    now = context().evaluated_at
+    stale = evaluate_check(
+        check,
+        (
+            normalized(
+                ObservationOutcome.PASS,
+                {"record_type": "DNSSEC", "secure": True},
+                collected_at=now - timedelta(days=2),
+            ),
+        ),
+        CATALOG,
+        context(),
+    )
+    future = evaluate_check(
+        check,
+        (
+            normalized(
+                ObservationOutcome.PASS,
+                {"record_type": "DNSSEC", "secure": True},
+                collected_at=now + timedelta(seconds=1),
+            ),
+        ),
+        CATALOG,
+        context(),
+    )
+    assert (stale.outcome, stale.reason_code, stale.fresh) == (
+        EvaluationOutcome.UNKNOWN,
+        "stale_evidence",
+        False,
+    )
+    assert (future.outcome, future.reason_code, future.fresh) == (
+        EvaluationOutcome.ERROR,
+        "future_evidence",
+        False,
+    )

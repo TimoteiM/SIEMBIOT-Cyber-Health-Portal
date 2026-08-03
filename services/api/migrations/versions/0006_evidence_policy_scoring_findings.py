@@ -14,6 +14,7 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     op.execute(r"""
+    ALTER TABLE audit_events ADD CONSTRAINT audit_events_organization_id_id_key UNIQUE(organization_id,id);
     CREATE TYPE evidence_mode AS ENUM ('fixture', 'live');
     CREATE TYPE evaluation_outcome AS ENUM ('pass','fail','warning','unknown','error','not_applicable','suppressed','accepted_risk');
 
@@ -113,8 +114,9 @@ def upgrade() -> None:
       event_hash bytea NOT NULL CHECK(octet_length(event_hash)=32), event_type text NOT NULL CHECK(event_type IN ('observed','suppressed','accepted_risk','reopened','expired_review','remediation_verified')),
       actor_id uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT, reason text NOT NULL CHECK(length(reason) BETWEEN 10 AND 1000),
       scope_reference text NOT NULL, occurred_at timestamptz NOT NULL, review_at timestamptz NULL,
-      request_id text NOT NULL, correlation_id text NOT NULL, audit_event_id uuid NOT NULL REFERENCES audit_events(id) ON DELETE RESTRICT,
+      request_id text NOT NULL, correlation_id text NOT NULL, audit_event_id uuid NOT NULL,
       FOREIGN KEY(organization_id,finding_id,evidence_mode) REFERENCES findings(organization_id,id,evidence_mode) ON DELETE RESTRICT,
+      FOREIGN KEY(organization_id,audit_event_id) REFERENCES audit_events(organization_id,id) ON DELETE RESTRICT,
       UNIQUE(organization_id,id,evidence_mode), UNIQUE(organization_id,event_hash),
       CHECK(event_type NOT IN ('suppressed','accepted_risk') OR review_at > occurred_at)
     );
@@ -125,28 +127,90 @@ def upgrade() -> None:
       FOREACH table_name IN ARRAY ARRAY['raw_artifacts','normalized_observations','check_evaluations','evaluation_evidence','score_snapshots','snapshot_evaluations','score_attributions','findings','finding_occurrences','finding_events']
       LOOP EXECUTE format('CREATE TRIGGER %I_immutable BEFORE UPDATE OR DELETE ON %I FOR EACH ROW EXECUTE FUNCTION prevent_evidence_mutation()', table_name, table_name); END LOOP;
     END $$;
+    CREATE FUNCTION validate_finding_event() RETURNS trigger LANGUAGE plpgsql AS $$
+    DECLARE prior_state text; expected_scope text; member_role text;
+    BEGIN
+      SELECT scope_manifest_id::text INTO expected_scope FROM findings
+        WHERE organization_id=NEW.organization_id AND id=NEW.finding_id;
+      IF NEW.scope_reference <> expected_scope THEN
+        RAISE EXCEPTION 'finding scope mismatch' USING ERRCODE='23514';
+      END IF;
+      SELECT event_type INTO prior_state FROM finding_events
+        WHERE organization_id=NEW.organization_id AND finding_id=NEW.finding_id
+        ORDER BY occurred_at DESC,id DESC LIMIT 1;
+      IF prior_state IS NULL AND NEW.event_type <> 'observed' THEN
+        RAISE EXCEPTION 'first finding event must be observed' USING ERRCODE='23514';
+      END IF;
+      IF prior_state IS NOT NULL AND NEW.event_type='observed' THEN
+        RAISE EXCEPTION 'observed event already exists' USING ERRCODE='23514';
+      END IF;
+      IF NEW.event_type IN ('suppressed','accepted_risk','remediation_verified')
+         AND prior_state NOT IN ('observed','reopened','expired_review') THEN
+        RAISE EXCEPTION 'invalid finding transition' USING ERRCODE='23514';
+      END IF;
+      IF NEW.event_type='reopened' AND prior_state NOT IN ('suppressed','accepted_risk') THEN
+        RAISE EXCEPTION 'invalid finding transition' USING ERRCODE='23514';
+      END IF;
+      IF current_user='siembiot_app' THEN
+        SELECT role INTO member_role FROM memberships WHERE organization_id=NEW.organization_id
+          AND user_id=app_current_user_id() AND status='active';
+        IF member_role NOT IN ('organization_owner','security_admin') OR NEW.actor_id<>app_current_user_id() THEN
+          RAISE EXCEPTION 'finding event actor not authorized' USING ERRCODE='42501';
+        END IF;
+      END IF;
+      RETURN NEW;
+    END $$;
+    CREATE TRIGGER finding_events_validate BEFORE INSERT ON finding_events
+      FOR EACH ROW EXECUTE FUNCTION validate_finding_event();
+    CREATE FUNCTION reject_finding_fingerprint_collision() RETURNS trigger LANGUAGE plpgsql AS $$
+    DECLARE existing_digest bytea;
+    BEGIN
+      SELECT identity_digest INTO existing_digest FROM findings
+        WHERE organization_id=NEW.organization_id AND fingerprint=NEW.fingerprint;
+      IF existing_digest IS NOT NULL AND existing_digest<>NEW.identity_digest THEN
+        RAISE EXCEPTION 'finding_fingerprint_collision' USING ERRCODE='23505';
+      END IF;
+      RETURN NEW;
+    END $$;
+    CREATE TRIGGER findings_collision_guard BEFORE INSERT ON findings
+      FOR EACH ROW EXECUTE FUNCTION reject_finding_fingerprint_collision();
     DO $$ DECLARE table_name text; BEGIN
       FOREACH table_name IN ARRAY ARRAY['raw_artifacts','normalized_observations','check_evaluations','evaluation_evidence','score_snapshots','snapshot_evaluations','score_attributions','findings','finding_occurrences','finding_events']
       LOOP
         EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', table_name);
         EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', table_name);
-        EXECUTE format('CREATE POLICY %I_select ON %I FOR SELECT USING (app_has_tenant_access(organization_id))', table_name, table_name);
-        EXECUTE format('CREATE POLICY %I_insert ON %I FOR INSERT WITH CHECK (organization_id=app_current_organization_id() AND app_has_active_membership(organization_id))', table_name, table_name);
+        EXECUTE format('CREATE POLICY %I_select ON %I FOR SELECT USING ((current_user=''siembiot_worker'' AND organization_id=app_current_organization_id()) OR app_has_tenant_access(organization_id))', table_name, table_name);
+        EXECUTE format('CREATE POLICY %I_worker_insert ON %I FOR INSERT WITH CHECK (current_user=''siembiot_worker'' AND organization_id=app_current_organization_id())', table_name, table_name);
       END LOOP;
     END $$;
-    GRANT SELECT,INSERT ON raw_artifacts,normalized_observations,check_evaluations,evaluation_evidence,score_snapshots,snapshot_evaluations,score_attributions,findings,finding_occurrences,finding_events TO siembiot_app;
+    CREATE POLICY finding_events_app_insert ON finding_events FOR INSERT TO siembiot_app
+      WITH CHECK (organization_id=app_current_organization_id() AND actor_id=app_current_user_id()
+        AND EXISTS(SELECT 1 FROM memberships WHERE organization_id=finding_events.organization_id
+          AND user_id=app_current_user_id() AND status='active' AND role IN ('organization_owner','security_admin')));
+    GRANT USAGE ON SCHEMA public TO siembiot_worker;
+    GRANT EXECUTE ON FUNCTION app_current_organization_id() TO siembiot_worker;
+    GRANT SELECT,INSERT ON raw_artifacts,normalized_observations,check_evaluations,evaluation_evidence,score_snapshots,snapshot_evaluations,score_attributions,findings,finding_occurrences,finding_events TO siembiot_worker;
+    GRANT SELECT ON raw_artifacts,normalized_observations,check_evaluations,evaluation_evidence,score_snapshots,snapshot_evaluations,score_attributions,findings,finding_occurrences,finding_events TO siembiot_app;
+    GRANT INSERT ON finding_events TO siembiot_app;
     CREATE VIEW current_finding_states WITH (security_invoker=true) AS
-      SELECT DISTINCT ON (f.organization_id,f.id) f.organization_id,f.id AS finding_id,f.evidence_mode,e.event_type AS state,e.occurred_at,e.review_at
+      SELECT DISTINCT ON (f.organization_id,f.id) f.organization_id,f.id AS finding_id,f.evidence_mode,e.event_type AS state,e.occurred_at,e.review_at,(e.review_at IS NOT NULL AND e.review_at<=now()) AS review_due
       FROM findings f LEFT JOIN finding_events e ON e.organization_id=f.organization_id AND e.finding_id=f.id AND e.evidence_mode=f.evidence_mode
       ORDER BY f.organization_id,f.id,e.occurred_at DESC,e.id DESC;
     GRANT SELECT ON current_finding_states TO siembiot_app;
+    CREATE VIEW publishable_score_snapshots WITH (security_invoker=true) AS
+      SELECT * FROM score_snapshots WHERE evidence_mode='live' AND publishable AND classification='PRIVATE';
+    GRANT SELECT ON publishable_score_snapshots TO siembiot_app;
+    GRANT SELECT ON publishable_score_snapshots TO siembiot_worker;
     """)
 
 
 def downgrade() -> None:
     op.execute(r"""
+    DROP VIEW IF EXISTS publishable_score_snapshots;
     DROP VIEW IF EXISTS current_finding_states;
     DROP TABLE IF EXISTS finding_events,finding_occurrences,findings,score_attributions,snapshot_evaluations,score_snapshots,evaluation_evidence,check_evaluations,normalized_observations,raw_artifacts CASCADE;
     DROP FUNCTION IF EXISTS prevent_evidence_mutation();
+    DROP FUNCTION IF EXISTS validate_finding_event();
+    DROP FUNCTION IF EXISTS reject_finding_fingerprint_collision();
     DROP TYPE IF EXISTS evaluation_outcome; DROP TYPE IF EXISTS evidence_mode;
     """)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from typing import Any
 
@@ -21,6 +22,8 @@ def finding_identity(
     material_evidence_key: str,
     attribution_state: str,
 ) -> dict[str, str]:
+    if re.fullmatch(r"[a-z0-9][a-z0-9._:-]{0,127}", material_evidence_key) is None:
+        raise ValueError("unsafe_material_evidence_key")
     return {
         "fingerprint_version": "fingerprint-v1",
         "organization_id": organization_id,

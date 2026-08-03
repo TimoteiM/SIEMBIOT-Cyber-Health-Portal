@@ -4,5 +4,7 @@ from collections.abc import Mapping
 from typing import Any
 
 
-def observation_type(_: Mapping[str, Any]) -> str:
-    return "http.security_headers"
+def observation_type(payload: Mapping[str, Any]) -> str:
+    return (
+        "http.security_txt" if payload.get("check") == "security_text" else "http.security_headers"
+    )

@@ -32,6 +32,9 @@ All notable changes are documented here. The project has no supported release ye
 - Append-only tenant evidence migration with forced RLS, fixture lineage constraints, restricted grants, and database mutation guards.
 - Typed findings, history, and snapshot API with audited suppression, accepted-risk, reopening, and remediation-verification events.
 - Published fixture-only methodology 1.0 and deterministic reproduction command.
+- Review-hardened policy evaluation with closed rule semantics, stable check-ID history, stale/future evidence rejection, source-adapter provenance, methodology-driven coverage, required-evidence caps, and typed score-change attribution.
+- Dedicated tenant-scoped evidence-writer database role; interactive application identities can read evidence but cannot forge generated observations, evaluations, scores, findings, or occurrences.
+- Tenant/scope/actor-bound finding events with database-enforced lifecycle transitions, composite audit linkage, collision diagnostics, fixture export labeling, and typed evaluation reads.
 
 ### Security
 
@@ -48,6 +51,7 @@ All notable changes are documented here. The project has no supported release ye
 - Adapter/collector architecture tests reject direct network/process capabilities, and a runtime socket/DNS trap proves the full fixture suite opens no connection.
 - Fixture provenance is broker-bound, hash-verified, recursively immutable, timezone-aware, and cannot be relabeled as live, published, converted into real-world findings, or scored.
 - Fixture mode now propagates structurally through normalized evidence, evaluations, findings, snapshots, API responses, and methodology output; fixture critical caps and publication are rejected.
+- Duplicate JSON keys, arbitrary canonical-hash projections, unsupported policy operators, stable-ID repurposing, unsafe fingerprint keys, cross-tenant audit linkage, forged decision actors, and fixture publication views fail closed.
 
 ### Verification
 
@@ -56,6 +60,7 @@ All notable changes are documented here. The project has no supported release ye
 - On 2026-08-03, GitHub PR #1 passed remote `phase0` run `30804463289` and `ci` run `30804461427`, then merged Milestone 1 into `main` as merge commit `683fcfe03dbc97e89e5eda77ec2dcacc5098dcb1` without squashing its verified checkpoints.
 - Verified the merged Milestone 1 `main` state with `python scripts/bootstrap.py` (exit 0), `python scripts/verify_repo.py` (14/14 gates; 44 Python and 3 web tests), an independent empty-database migration test (1 passed), `python -m uv run --frozen pytest -q` (44 passed), `corepack pnpm --filter @siembiot/web build` (exit 0), and `git show --check --stat --oneline 683fcfe03dbc97e89e5eda77ec2dcacc5098dcb1` (exit 0).
 - On 2026-08-03, verified Milestone 3 fixture-only collection with `python scripts/bootstrap.py` (exit 0), `python scripts/verify_repo.py` (15/15 gates; 241 Python and 7 web tests; production web build passed), `python -m uv run --frozen pytest -q` (241 passed), contract drift and migration-head checks, and the runtime broker-bypass/network trap. GNU Make was unavailable on the Windows host, so the `fixture-stack`, `test-adapters`, and `test-collectors` target bodies were run directly; CI retains the Make target invocation.
+- On 2026-08-03, review-hardened Milestone 4 passed `python scripts/bootstrap.py` (exit 0) and `python scripts/verify_repo.py` (17/17 gates; 323 Python and 7 web tests; empty-database migration, policy, methodology, contract drift, and production web build passed).
 
 ### Known limitations
 

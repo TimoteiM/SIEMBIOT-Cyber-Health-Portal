@@ -365,6 +365,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/organizations/{organization_id}/evidence/evaluations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Evaluations */
+        get: operations["list_evaluations_api_v1_organizations__organization_id__evidence_evaluations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/organizations/{organization_id}/evidence/findings": {
         parameters: {
             query?: never;
@@ -408,6 +425,23 @@ export interface paths {
         };
         /** Finding History */
         get: operations["finding_history_api_v1_organizations__organization_id__evidence_findings__finding_id__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/evidence/fixture-export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fixture Export */
+        get: operations["fixture_export_api_v1_organizations__organization_id__evidence_fixture_export_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -614,6 +648,41 @@ export interface components {
         AuthorizationRevoke: {
             /** Reason */
             reason: string;
+        };
+        /** CheckEvaluationResponse */
+        CheckEvaluationResponse: {
+            /**
+             * Asset Id
+             * Format: uuid
+             */
+            asset_id: string;
+            /** Check Id */
+            check_id: string;
+            /**
+             * Evaluated At
+             * Format: date-time
+             */
+            evaluated_at: string;
+            /**
+             * Evidence Mode
+             * @enum {string}
+             */
+            evidence_mode: "fixture" | "live";
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Methodology Version */
+            methodology_version: string;
+            /** Outcome */
+            outcome: string;
+            /** Publishable */
+            publishable: boolean;
+            /** Reason Code */
+            reason_code: string;
+            /** Scoring Behavior Version */
+            scoring_behavior_version: string;
         };
         /** CollectionCapabilityResponse */
         CollectionCapabilityResponse: {
@@ -835,6 +904,44 @@ export interface components {
              */
             scope: "global" | "organization" | "domain" | "operation_class";
         };
+        /** EvidenceExportResponse */
+        EvidenceExportResponse: {
+            /**
+             * Classification
+             * @constant
+             */
+            classification: "DEMO/FIXTURE";
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /**
+             * Disclaimer
+             * @constant
+             */
+            disclaimer: "Fixture-only demonstration; not a live internet assessment.";
+            /**
+             * Evidence Mode
+             * @constant
+             */
+            evidence_mode: "fixture";
+            /** Finding Count */
+            finding_count: number;
+            /**
+             * Organization Id
+             * Format: uuid
+             */
+            organization_id: string;
+            /**
+             * Publishable
+             * @constant
+             */
+            publishable: false;
+            /** Snapshot Count */
+            snapshot_count: number;
+        };
         /** FindingEventCreate */
         FindingEventCreate: {
             /**
@@ -846,8 +953,6 @@ export interface components {
             reason: string;
             /** Review At */
             review_at?: string | null;
-            /** Scope Reference */
-            scope_reference: string;
         };
         /** FindingEventResponse */
         FindingEventResponse: {
@@ -2078,6 +2183,39 @@ export interface operations {
             };
         };
     };
+    list_evaluations_api_v1_organizations__organization_id__evidence_evaluations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: {
+                "__Host-siembiot_session"?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckEvaluationResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_findings_api_v1_organizations__organization_id__evidence_findings_get: {
         parameters: {
             query?: never;
@@ -2170,6 +2308,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FindingEventResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    fixture_export_api_v1_organizations__organization_id__evidence_fixture_export_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: {
+                "__Host-siembiot_session"?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceExportResponse"];
                 };
             };
             /** @description Validation Error */

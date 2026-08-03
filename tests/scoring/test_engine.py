@@ -97,10 +97,11 @@ def test_monotonicity_holds_under_fixed_assurance_and_applicability() -> None:
 
 
 def test_critical_caps_require_eligible_non_fixture_evidence() -> None:
-    capped = CATALOG.checks[0].model_copy(update={"critical_cap": 40})
+    capped = CATALOG.checks[0].model_copy(update={"critical_cap": 40, "required_cap_evidence": 1})
     catalog = PolicyCatalog(
         CATALOG.methodology_version,
         CATALOG.scoring_behavior_version,
+        CATALOG.minimum_coverage,
         CATALOG.pillars,
         (capped, *CATALOG.checks[1:]),
         CATALOG.policy_hash,
@@ -133,10 +134,11 @@ def test_critical_caps_require_eligible_non_fixture_evidence() -> None:
     ],
 )
 def test_cap_is_denied_when_assurance_is_insufficient(changes: dict[str, object]) -> None:
-    capped = CATALOG.checks[0].model_copy(update={"critical_cap": 40})
+    capped = CATALOG.checks[0].model_copy(update={"critical_cap": 40, "required_cap_evidence": 1})
     catalog = PolicyCatalog(
         CATALOG.methodology_version,
         CATALOG.scoring_behavior_version,
+        CATALOG.minimum_coverage,
         CATALOG.pillars,
         (capped, *CATALOG.checks[1:]),
         CATALOG.policy_hash,
@@ -148,3 +150,30 @@ def test_cap_is_denied_when_assurance_is_insufficient(changes: dict[str, object]
         for check in CATALOG.checks[1:]
     )
     assert score_evaluations(inputs, catalog, created_at=NOW).caps_applied == ()
+
+
+def test_cap_requires_actual_evidence_reference() -> None:
+    capped = CATALOG.checks[0].model_copy(update={"critical_cap": 40, "required_cap_evidence": 1})
+    catalog = PolicyCatalog(
+        CATALOG.methodology_version,
+        CATALOG.scoring_behavior_version,
+        CATALOG.minimum_coverage,
+        CATALOG.pillars,
+        (capped, *CATALOG.checks[1:]),
+        CATALOG.policy_hash,
+    )
+    inputs = (
+        evaluation(capped, EvaluationOutcome.FAIL, mode=EvidenceMode.LIVE, evidence_ids=()),
+    ) + tuple(
+        evaluation(check, EvaluationOutcome.PASS, mode=EvidenceMode.LIVE)
+        for check in CATALOG.checks[1:]
+    )
+    assert score_evaluations(inputs, catalog, created_at=NOW).caps_applied == ()
+
+
+def test_scoring_behavior_version_mismatch_is_rejected() -> None:
+    inputs = list(all_outcomes(EvaluationOutcome.PASS))
+    changed = inputs[0].model_dump(exclude={"evaluation_id", "scoring_behavior_version"})
+    inputs[0] = CheckEvaluation.build(**changed, scoring_behavior_version="999.0.0")
+    with pytest.raises(ValueError, match="mixed_score_inputs"):
+        score_evaluations(tuple(inputs), CATALOG, created_at=NOW)

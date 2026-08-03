@@ -149,3 +149,31 @@ def test_database_rejects_fixture_relabel_and_mixed_mode_lineage(
                 "INSERT INTO evaluation_evidence (organization_id,evaluation_id,observation_id,evidence_mode) VALUES (%s,%s,%s,'live')",
                 (org, evaluation, observation),
             )
+
+
+def test_interactive_app_cannot_forge_worker_evidence(
+    postgres_database: dict[str, str],
+) -> None:
+    org, user, asset, manifest = seed_scope(postgres_database["owner_url"], "roles")
+    with psycopg.connect(postgres_database["app_url"]) as app:
+        app.execute("SELECT set_config('app.user_id',%s,false)", (user,))
+        app.execute("SELECT set_config('app.organization_id',%s,false)", (org,))
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
+            app.execute(
+                "INSERT INTO normalized_observations (organization_id,asset_id,scope_manifest_id,evidence_mode,normalized_hash,hash_version,schema_version,observation_type,source_evidence_id,payload,observed_at,source_confidence,attribution_confidence,publishable,real_world) VALUES (%s,%s,%s,'fixture',%s,'sha256-v1','v1','dns.dnssec',%s,'{}',now(),1,1,false,false)",
+                (org, asset, manifest, bytes.fromhex("cd" * 32), "sha256:" + "c" * 64),
+            )
+
+
+def test_worker_append_is_tenant_scoped_and_fixture_is_not_publishable(
+    postgres_database: dict[str, str],
+) -> None:
+    org, _, asset, manifest = seed_scope(postgres_database["owner_url"], "worker")
+    with psycopg.connect(postgres_database["worker_url"]) as worker:
+        worker.execute("SELECT set_config('app.organization_id',%s,false)", (org,))
+        worker.execute(
+            "INSERT INTO normalized_observations (organization_id,asset_id,scope_manifest_id,evidence_mode,normalized_hash,hash_version,schema_version,observation_type,source_evidence_id,payload,observed_at,source_confidence,attribution_confidence,publishable,real_world) VALUES (%s,%s,%s,'fixture',%s,'sha256-v1','v1','dns.dnssec',%s,'{}',now(),1,1,false,false)",
+            (org, asset, manifest, bytes.fromhex("ef" * 32), "sha256:" + "e" * 64),
+        )
+        assert worker.execute("SELECT count(*) FROM normalized_observations").fetchone() == (1,)
+        assert worker.execute("SELECT count(*) FROM publishable_score_snapshots").fetchone() == (0,)

@@ -234,6 +234,72 @@
         "title": "AuthorizationRevoke",
         "type": "object"
       },
+      "CheckEvaluationResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_id": {
+            "format": "uuid",
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "check_id": {
+            "title": "Check Id",
+            "type": "string"
+          },
+          "evaluated_at": {
+            "format": "date-time",
+            "title": "Evaluated At",
+            "type": "string"
+          },
+          "evidence_mode": {
+            "enum": [
+              "fixture",
+              "live"
+            ],
+            "title": "Evidence Mode",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "methodology_version": {
+            "title": "Methodology Version",
+            "type": "string"
+          },
+          "outcome": {
+            "title": "Outcome",
+            "type": "string"
+          },
+          "publishable": {
+            "title": "Publishable",
+            "type": "boolean"
+          },
+          "reason_code": {
+            "title": "Reason Code",
+            "type": "string"
+          },
+          "scoring_behavior_version": {
+            "title": "Scoring Behavior Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "asset_id",
+          "check_id",
+          "evidence_mode",
+          "methodology_version",
+          "scoring_behavior_version",
+          "outcome",
+          "reason_code",
+          "evaluated_at",
+          "publishable"
+        ],
+        "title": "CheckEvaluationResponse",
+        "type": "object"
+      },
       "CollectionCapabilityResponse": {
         "additionalProperties": false,
         "properties": {
@@ -676,6 +742,61 @@
         "title": "EmergencyControlResponse",
         "type": "object"
       },
+      "EvidenceExportResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "classification": {
+            "const": "DEMO/FIXTURE",
+            "title": "Classification",
+            "type": "string"
+          },
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "disclaimer": {
+            "const": "Fixture-only demonstration; not a live internet assessment.",
+            "title": "Disclaimer",
+            "type": "string"
+          },
+          "evidence_mode": {
+            "const": "fixture",
+            "title": "Evidence Mode",
+            "type": "string"
+          },
+          "finding_count": {
+            "title": "Finding Count",
+            "type": "integer"
+          },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "publishable": {
+            "const": false,
+            "title": "Publishable",
+            "type": "boolean"
+          },
+          "snapshot_count": {
+            "title": "Snapshot Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "organization_id",
+          "evidence_mode",
+          "classification",
+          "publishable",
+          "disclaimer",
+          "snapshot_count",
+          "finding_count"
+        ],
+        "title": "EvidenceExportResponse",
+        "type": "object"
+      },
       "FindingEventCreate": {
         "additionalProperties": false,
         "properties": {
@@ -706,18 +827,11 @@
               }
             ],
             "title": "Review At"
-          },
-          "scope_reference": {
-            "maxLength": 256,
-            "minLength": 1,
-            "title": "Scope Reference",
-            "type": "string"
           }
         },
         "required": [
           "event_type",
-          "reason",
-          "scope_reference"
+          "reason"
         ],
         "title": "FindingEventCreate",
         "type": "object"
@@ -2973,6 +3087,69 @@
         ]
       }
     },
+    "/api/v1/organizations/{organization_id}/evidence/evaluations": {
+      "get": {
+        "operationId": "list_evaluations_api_v1_organizations__organization_id__evidence_evaluations_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "__Host-siembiot_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "  Host-Siembiot Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CheckEvaluationResponse"
+                  },
+                  "title": "Response List Evaluations Api V1 Organizations  Organization Id  Evidence Evaluations Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Evaluations",
+        "tags": [
+          "evidence"
+        ]
+      }
+    },
     "/api/v1/organizations/{organization_id}/evidence/findings": {
       "get": {
         "operationId": "list_findings_api_v1_organizations__organization_id__evidence_findings_get",
@@ -3183,6 +3360,65 @@
           }
         },
         "summary": "Finding History",
+        "tags": [
+          "evidence"
+        ]
+      }
+    },
+    "/api/v1/organizations/{organization_id}/evidence/fixture-export": {
+      "get": {
+        "operationId": "fixture_export_api_v1_organizations__organization_id__evidence_fixture_export_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "__Host-siembiot_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "  Host-Siembiot Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceExportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Fixture Export",
         "tags": [
           "evidence"
         ]
