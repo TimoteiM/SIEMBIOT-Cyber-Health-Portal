@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://siembiot.example/contracts/v1/domain.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "id", "organization_id", "canonical_name", "unicode_display", "registrable_domain", "warnings", "ownership_state", "created_at"],
+  "properties": {
+    "contract_version": {"const": "v1"},
+    "id": {"type": "string", "format": "uuid"},
+    "organization_id": {"type": "string", "format": "uuid"},
+    "canonical_name": {"type": "string", "pattern": "^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$", "maxLength": 253},
+    "unicode_display": {"type": "string", "minLength": 1, "maxLength": 253},
+    "registrable_domain": {"type": "string", "minLength": 1, "maxLength": 253},
+    "warnings": {"type": "array", "uniqueItems": true, "items": {"enum": ["idn_present", "mixed_scripts"]}},
+    "ownership_state": {"enum": ["pending", "verified", "expired", "failed", "revoked", "reverification_required"]},
+    "created_at": {"type": "string", "format": "date-time"}
+  }
+}

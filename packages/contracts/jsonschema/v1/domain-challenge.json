@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://siembiot.example/contracts/v1/domain-challenge.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "id", "domain_id", "method", "state", "expires_at", "attempts_remaining", "verification_location"],
+  "properties": {
+    "contract_version": {"const": "v1"},
+    "id": {"type": "string", "format": "uuid"},
+    "domain_id": {"type": "string", "format": "uuid"},
+    "method": {"enum": ["dns_txt", "https_file"]},
+    "state": {"enum": ["pending", "verified", "expired", "failed", "revoked"]},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "attempts_remaining": {"type": "integer", "minimum": 0, "maximum": 5},
+    "verification_location": {"type": "string", "minLength": 1, "maxLength": 320}
+  }
+}

@@ -102,6 +102,11 @@ def test_rbac_matrix_is_deny_by_default() -> None:
     assert not is_allowed(Role.VIEWER_AUDITOR, Action.ORGANIZATION_UPDATE)
     assert not is_allowed("future_role", Action.ORGANIZATION_READ)
     assert not is_allowed(Role.ORGANIZATION_OWNER, "future.action")
+    assert is_allowed(Role.ORGANIZATION_OWNER, Action.DOMAIN_MANAGE)
+    assert is_allowed(Role.SECURITY_ADMIN, Action.AUTHORIZATION_MANAGE)
+    assert is_allowed(Role.ANALYST, Action.DOMAIN_READ)
+    assert not is_allowed(Role.ANALYST, Action.DOMAIN_MANAGE)
+    assert not is_allowed(Role.VIEWER_AUDITOR, Action.EMERGENCY_CONTROL_MANAGE)
 
 
 def test_unauthenticated_private_access_is_rejected(postgres_database: dict[str, str]) -> None:

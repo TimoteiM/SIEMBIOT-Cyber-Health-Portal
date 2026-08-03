@@ -19,6 +19,13 @@ class Action(StrEnum):
     MEMBERSHIP_CHANGE = "membership.change"
     MEMBERSHIP_REVOKE = "membership.revoke"
     AUDIT_READ = "audit.read"
+    DOMAIN_READ = "domain.read"
+    DOMAIN_MANAGE = "domain.manage"
+    DOMAIN_VERIFY = "domain.verify"
+    AUTHORIZATION_READ = "authorization.read"
+    AUTHORIZATION_MANAGE = "authorization.manage"
+    EMERGENCY_CONTROL_READ = "emergency_control.read"
+    EMERGENCY_CONTROL_MANAGE = "emergency_control.manage"
 
 
 ROLE_ACTIONS: dict[Role, frozenset[Action]] = {
@@ -32,11 +39,33 @@ ROLE_ACTIONS: dict[Role, frozenset[Action]] = {
             Action.MEMBERSHIP_CHANGE,
             Action.MEMBERSHIP_REVOKE,
             Action.AUDIT_READ,
+            Action.DOMAIN_READ,
+            Action.DOMAIN_MANAGE,
+            Action.DOMAIN_VERIFY,
+            Action.AUTHORIZATION_READ,
+            Action.AUTHORIZATION_MANAGE,
+            Action.EMERGENCY_CONTROL_READ,
+            Action.EMERGENCY_CONTROL_MANAGE,
         }
     ),
-    Role.ANALYST: frozenset({Action.ORGANIZATION_READ, Action.MEMBERSHIP_READ}),
+    Role.ANALYST: frozenset(
+        {
+            Action.ORGANIZATION_READ,
+            Action.MEMBERSHIP_READ,
+            Action.DOMAIN_READ,
+            Action.AUTHORIZATION_READ,
+            Action.EMERGENCY_CONTROL_READ,
+        }
+    ),
     Role.VIEWER_AUDITOR: frozenset(
-        {Action.ORGANIZATION_READ, Action.MEMBERSHIP_READ, Action.AUDIT_READ}
+        {
+            Action.ORGANIZATION_READ,
+            Action.MEMBERSHIP_READ,
+            Action.AUDIT_READ,
+            Action.DOMAIN_READ,
+            Action.AUTHORIZATION_READ,
+            Action.EMERGENCY_CONTROL_READ,
+        }
     ),
     Role.MATURITY_CONTRIBUTOR: frozenset({Action.ORGANIZATION_READ}),
 }

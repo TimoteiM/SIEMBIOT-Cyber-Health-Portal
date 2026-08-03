@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://siembiot.example/contracts/v1/network-decision.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "allowed", "reason_code", "operation_class", "policy_version"],
+  "properties": {
+    "contract_version": {"const": "v1"},
+    "allowed": {"type": "boolean"},
+    "reason_code": {"enum": ["allowed", "invalid_target", "forbidden_address", "mixed_dns_answers", "forbidden_port", "redirect_not_authorized", "manifest_inactive", "authorization_revoked", "emergency_control_active", "budget_exceeded", "timeout", "response_too_large", "cancelled"]},
+    "operation_class": {"enum": ["dns_verification", "https_verification", "passive_assessment", "active_assessment"]},
+    "policy_version": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"}
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://siembiot.example/contracts/v1/emergency-control.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "id", "scope", "reason", "active", "created_at"],
+  "properties": {
+    "contract_version": {"const": "v1"},
+    "id": {"type": "string", "format": "uuid"},
+    "scope": {"enum": ["global", "organization", "domain", "operation_class"]},
+    "organization_id": {"type": "string", "format": "uuid"},
+    "domain_id": {"type": "string", "format": "uuid"},
+    "operation_class": {"enum": ["dns_verification", "https_verification", "passive_assessment", "active_assessment"]},
+    "reason": {"type": "string", "minLength": 10, "maxLength": 500},
+    "active": {"type": "boolean"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": ["string", "null"], "format": "date-time"}
+  }
+}
