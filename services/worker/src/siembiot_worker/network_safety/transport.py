@@ -21,6 +21,8 @@ class NetworkTransportError(RuntimeError):
 
 SAFE_METHODS = frozenset({"GET", "HEAD"})
 REPEATABLE_HEADERS = frozenset({"set-cookie"})
+#: Slack for chunk size lines and trailers when bounding raw bytes read.
+MAX_CHUNK_OVERHEAD_BYTES = 16_384
 
 
 class RequestDestination(Protocol):
@@ -170,8 +172,14 @@ class BoundedHTTPTransport:
                 raise NetworkTransportError("duplicate_header")
             raw_headers.append((lowered, value.strip()))
             headers.setdefault(lowered, value.strip())
-        if "transfer-encoding" in headers:
-            raise NetworkTransportError("unsupported_framing")
+        encoding = headers.get("transfer-encoding")
+        if encoding is not None:
+            # Both framings at once is the request-smuggling shape: two parties can
+            # disagree about where the message ends. Refuse rather than pick a side.
+            if "content-length" in headers:
+                raise NetworkTransportError("ambiguous_framing")
+            if encoding.strip().lower() != "chunked":
+                raise NetworkTransportError("unsupported_framing")
         return status, headers, tuple(raw_headers)
 
     def _read_body(
@@ -183,6 +191,9 @@ class BoundedHTTPTransport:
         checkpoint: Callable[[BrokerCheckpoint], None],
         deadline: float,
     ) -> bytes:
+        if headers.get("transfer-encoding", "").strip().lower() == "chunked":
+            return self._read_chunked_body(stream, initial, budget, checkpoint, deadline)
+
         content_length: int | None = None
         if "content-length" in headers:
             try:
@@ -209,4 +220,65 @@ class BoundedHTTPTransport:
             checkpoint(BrokerCheckpoint.BODY_CHUNK)
         if content_length is not None and len(body) != content_length:
             raise NetworkTransportError("truncated_response")
+        return bytes(body)
+
+    def _read_chunked_body(
+        self,
+        stream: Stream,
+        initial: bytes,
+        budget: NetworkBudget,
+        checkpoint: Callable[[BrokerCheckpoint], None],
+        deadline: float,
+    ) -> bytes:
+        """Decode chunked transfer encoding under the same byte cap as any other body.
+
+        Chunked framing is ubiquitous on real sites, so refusing it outright would mean
+        observing almost nothing. The bound that matters is unchanged: the decoded body
+        may not exceed the budget, and neither may the raw bytes read to produce it.
+        """
+        buffer = bytearray(initial)
+        body = bytearray()
+        raw_read = len(initial)
+
+        def fill() -> bool:
+            nonlocal raw_read
+            self._set_read_timeout(stream, budget, deadline)
+            chunk = stream.recv(4096)
+            if not chunk:
+                return False
+            raw_read += len(chunk)
+            # A hostile peer could otherwise stream unbounded chunk headers that decode
+            # to almost nothing, so the raw byte count is capped too.
+            if raw_read > budget.max_body_bytes * 2 + MAX_CHUNK_OVERHEAD_BYTES:
+                raise NetworkTransportError("response_too_large")
+            buffer.extend(chunk)
+            return True
+
+        while True:
+            while b"\r\n" not in buffer:
+                if not fill():
+                    raise NetworkTransportError("truncated_response")
+            line, _, rest = bytes(buffer).partition(b"\r\n")
+            buffer[:] = rest
+            # Chunk extensions after ";" are permitted by the protocol and ignored here.
+            size_token = line.split(b";", 1)[0].strip()
+            try:
+                size = int(size_token, 16)
+            except ValueError as exc:
+                raise NetworkTransportError("malformed_response") from exc
+            if size < 0:
+                raise NetworkTransportError("malformed_response")
+            if size == 0:
+                break
+            if len(body) + size > budget.max_body_bytes:
+                raise NetworkTransportError("response_too_large")
+            while len(buffer) < size + 2:
+                if not fill():
+                    raise NetworkTransportError("truncated_response")
+            body.extend(buffer[:size])
+            if bytes(buffer[size : size + 2]) != b"\r\n":
+                raise NetworkTransportError("malformed_response")
+            buffer[:] = buffer[size + 2 :]
+            checkpoint(BrokerCheckpoint.BODY_CHUNK)
+
         return bytes(body)

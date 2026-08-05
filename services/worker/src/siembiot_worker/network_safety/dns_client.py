@@ -77,15 +77,34 @@ class DNSRecordSet:
 
 @dataclass(frozen=True)
 class DNSBudget:
-    lifetime_seconds: float = 3.0
+    """Bounds for one assessment's DNS use.
+
+    ``per_server_timeout_seconds`` must stay well below ``lifetime_seconds``: it is the
+    wait for a single nameserver, while the lifetime is the budget for the whole query.
+    Setting them equal means the first unreachable resolver consumes the entire budget
+    and the query never fails over to a working one.
+    """
+
+    lifetime_seconds: float = 8.0
+    per_server_timeout_seconds: float = 2.0
     max_queries: int = 64
     max_records: int = MAX_RECORDS_PER_QUERY
     max_record_bytes: int = MAX_RECORD_BYTES
 
+    def __post_init__(self) -> None:
+        if self.per_server_timeout_seconds >= self.lifetime_seconds:
+            raise DNSClientError("per_server_timeout_must_be_below_lifetime")
+
 
 class DNSTransport(Protocol):
     def query(
-        self, name: str, record_type: str, *, lifetime: float, want_dnssec: bool
+        self,
+        name: str,
+        record_type: str,
+        *,
+        lifetime: float,
+        want_dnssec: bool,
+        per_server_timeout: float = 2.0,
     ) -> DNSRecordSet: ...
 
 
@@ -122,6 +141,7 @@ class BoundedDNSClient:
             record_type,
             lifetime=self._budget.lifetime_seconds,
             want_dnssec=want_dnssec,
+            per_server_timeout=self._budget.per_server_timeout_seconds,
         )
         return self._bound(query, answer)
 
@@ -147,7 +167,13 @@ class DnspythonTransport:
     """Live resolver transport. Constructed only by the worker runtime, never by a collector."""
 
     def query(
-        self, name: str, record_type: str, *, lifetime: float, want_dnssec: bool
+        self,
+        name: str,
+        record_type: str,
+        *,
+        lifetime: float,
+        want_dnssec: bool,
+        per_server_timeout: float = 2.0,
     ) -> DNSRecordSet:
         import dns.exception  # noqa: PLC0415
         import dns.flags  # noqa: PLC0415
@@ -156,8 +182,10 @@ class DnspythonTransport:
 
         query = DNSQuery(name, record_type)
         resolver = dns.resolver.Resolver()
+        # Total budget for the query, and a shorter per-nameserver wait so an
+        # unreachable resolver is abandoned in time to try the next one.
         resolver.lifetime = lifetime
-        resolver.timeout = lifetime
+        resolver.timeout = min(per_server_timeout, lifetime)
         if want_dnssec:
             resolver.use_edns(0, dns.flags.DO, 4096)
         try:

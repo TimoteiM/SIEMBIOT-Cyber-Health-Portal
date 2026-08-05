@@ -188,7 +188,9 @@ def authorize_collection_redirect(
     expected_port = 443 if parsed.scheme == "https" else 80
     if port not in {None, expected_port}:
         raise DestinationPolicyError("forbidden_port")
-    if resolved_host not in authorized_hosts:
+    if resolved_host not in authorized_hosts and not follows_provider_redirects(
+        current.operation_class
+    ):
         raise DestinationPolicyError("redirect_not_authorized")
     fixed = _FIXED_PATHS.get(current.operation_class)
     if fixed is not None and current.operation_class is not OperationClass.HTTP_SURFACE:
@@ -202,6 +204,21 @@ def authorize_collection_redirect(
         _validate_path(parsed.path or "/"),
         _validate_query(parsed.query),
     )
+
+
+#: Classes whose protocol inherently redirects to a host that cannot be known in
+#: advance. RDAP bootstrap answers with a redirect to the authoritative registry, and
+#: there are hundreds of registries, so an allowlist is not maintainable.
+#:
+#: These classes never target a customer domain, their responses are parsed as hostile
+#: input under strict size caps, and every other control still applies -- the resolved
+#: address must pass the same policy, so a redirect can never reach a private, loopback
+#: or metadata address. Only the "must be an already-authorized host" rule is relaxed.
+PROVIDER_REDIRECT_CLASSES = frozenset({OperationClass.RDAP_QUERY, OperationClass.CT_QUERY})
+
+
+def follows_provider_redirects(operation_class: OperationClass) -> bool:
+    return operation_class in PROVIDER_REDIRECT_CLASSES
 
 
 def is_target_owned(operation_class: OperationClass) -> bool:

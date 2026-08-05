@@ -1,6 +1,6 @@
 .PHONY: bootstrap check contracts-check api-test web-test e2e-auth db-up db-down migrate \
 	test-domain test-network-safety test-collectors test-adapters providers-check fixture-stack \
-	policy-validate test-normalization test-scoring methodology-reproduce
+	policy-validate test-normalization test-scoring methodology-reproduce observe
 
 bootstrap:
 	python scripts/bootstrap.py
@@ -32,6 +32,11 @@ test-collectors:
 
 test-adapters:
 	python -m uv run --frozen pytest tests/adapters -q
+
+# Assess a public domain using passive observation only. No enrollment, no ownership
+# proof: DOMAIN=example.com make observe
+observe:
+	python -m uv run --frozen python scripts/observe_domain.py $(DOMAIN)
 
 policy-validate:
 	python -m uv run --frozen pytest tests/policy/test_evaluation.py -q

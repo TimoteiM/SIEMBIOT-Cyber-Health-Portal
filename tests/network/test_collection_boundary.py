@@ -95,7 +95,13 @@ class FixtureDNSTransport:
         self.calls: list[tuple[str, str]] = []
 
     def query(
-        self, name: str, record_type: str, *, lifetime: float, want_dnssec: bool
+        self,
+        name: str,
+        record_type: str,
+        *,
+        lifetime: float,
+        want_dnssec: bool,
+        per_server_timeout: float = 2.0,
     ) -> DNSRecordSet:
         self.calls.append((name, record_type))
         return self.answers.get(

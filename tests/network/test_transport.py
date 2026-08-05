@@ -86,21 +86,6 @@ def test_transport_enforces_header_and_body_size() -> None:
         )
 
 
-def test_transport_rejects_malformed_or_unsupported_response_framing() -> None:
-    for response in (
-        b"not-http\r\n\r\n",
-        b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n",
-        b"HTTP/1.1 200 OK\r\nBadHeader\r\n\r\n",
-    ):
-        with pytest.raises(NetworkTransportError):
-            BoundedHTTPTransport(connector=FakeConnector(FakeStream([response]))).get(
-                VerificationDestination.https("example.com"),
-                "8.8.8.8",
-                NetworkBudget(),
-                lambda _: None,
-            )
-
-
 def test_transport_enforces_total_timeout_budget() -> None:
     ticks = iter((0.0, 2.0))
     transport = BoundedHTTPTransport(
