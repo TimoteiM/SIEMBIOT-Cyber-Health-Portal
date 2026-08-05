@@ -1,0 +1,29 @@
+{
+  "_comment": "Local Certificate Transparency fixture. Entries deliberately include an unrelated name, a wildcard, a duplicate, and a malformed name.",
+  "entries": [
+    {
+      "issuer": "Fixture CA R3",
+      "not_before": "2026-01-10T00:00:00Z",
+      "not_after": "2026-04-10T00:00:00Z",
+      "dns_names": ["strong.example.test", "www.strong.example.test"]
+    },
+    {
+      "issuer": "Fixture CA R3",
+      "not_before": "2026-04-01T00:00:00Z",
+      "not_after": "2026-07-01T00:00:00Z",
+      "dns_names": ["www.strong.example.test", "mail.strong.example.test"]
+    },
+    {
+      "issuer": "Other Fixture CA",
+      "not_before": "2026-05-01T00:00:00Z",
+      "not_after": "2026-08-01T00:00:00Z",
+      "dns_names": ["*.strong.example.test"]
+    },
+    {
+      "issuer": "Shared Hosting CA",
+      "not_before": "2026-02-01T00:00:00Z",
+      "not_after": "2026-05-01T00:00:00Z",
+      "dns_names": ["unrelated-tenant.hosting.test", "NOT A HOSTNAME", "strong.example.test."]
+    }
+  ]
+}

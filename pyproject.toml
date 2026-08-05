@@ -10,6 +10,7 @@ requires-python = "==3.13.*"
 license = "MIT"
 dependencies = [
     "alembic==1.16.5",
+    "cryptography==50.0.0",
     "dnspython==2.8.0",
     "fastapi==0.116.1",
     "httpx==0.28.1",
@@ -50,7 +51,7 @@ select = ["E", "F", "I", "N", "S", "UP"]
 [tool.mypy]
 python_version = "3.13"
 strict = true
-files = ["scripts", "tests"]
+files = ["scripts", "tests", "services/worker/src"]
 mypy_path = ["services/api/src", "services/worker/src"]
 
 [tool.setuptools.packages.find]
