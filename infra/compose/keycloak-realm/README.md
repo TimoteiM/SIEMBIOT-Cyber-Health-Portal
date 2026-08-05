@@ -16,3 +16,10 @@ rather than as a `_comment` field inside the JSON.
 | Redirect URI | `http://localhost:3000/api/v1/auth/callback` |
 | Demo user | `analist` / `CHANGEME_LOCAL_ONLY` |
 | Admin console | http://localhost:8080 (`admin`) |
+
+## Why there is no `accessTokenLifespan`
+
+The repository secret scanner matches `access[_-]?token`, which `accessTokenLifespan`
+contains. The key holds a duration, not a credential, but the correct response is to
+drop an optional key rather than loosen a security gate — Keycloak's default lifespan
+is appropriate for local development.

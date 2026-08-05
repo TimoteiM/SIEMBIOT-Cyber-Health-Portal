@@ -5,7 +5,6 @@
   "sslRequired": "none",
   "registrationAllowed": false,
   "loginWithEmailAllowed": true,
-  "accessTokenLifespan": 900,
   "clients": [
     {
       "clientId": "siembiot-web",
