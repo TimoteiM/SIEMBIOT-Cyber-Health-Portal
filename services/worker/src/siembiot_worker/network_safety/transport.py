@@ -11,13 +11,35 @@ from siembiot_worker.network_safety.models import (
     NetworkBudget,
     TransportResponse,
 )
-from siembiot_worker.network_safety.url_policy import VerificationDestination
 
 
 class NetworkTransportError(RuntimeError):
     def __init__(self, reason: str) -> None:
         super().__init__(reason)
         self.reason = reason
+
+
+SAFE_METHODS = frozenset({"GET", "HEAD"})
+REPEATABLE_HEADERS = frozenset({"set-cookie"})
+
+
+class RequestDestination(Protocol):
+    """Read-only structural view of an already-authorized destination."""
+
+    @property
+    def scheme(self) -> str: ...
+
+    @property
+    def host(self) -> str: ...
+
+    @property
+    def port(self) -> int: ...
+
+    @property
+    def host_header(self) -> str: ...
+
+    @property
+    def request_target(self) -> str: ...
 
 
 class Stream(Protocol):
@@ -58,11 +80,14 @@ class BoundedHTTPTransport:
 
     def get(
         self,
-        destination: VerificationDestination,
+        destination: RequestDestination,
         address: str,
         budget: NetworkBudget,
         checkpoint: Callable[[BrokerCheckpoint], None],
+        method: str = "GET",
     ) -> TransportResponse:
+        if method not in SAFE_METHODS:
+            raise NetworkTransportError("forbidden_method")
         stream: Stream | None = None
         deadline = self._clock() + budget.total_timeout_seconds
         try:
@@ -73,7 +98,7 @@ class BoundedHTTPTransport:
                 min(budget.connect_timeout_seconds, budget.total_timeout_seconds),
             )
             request = (
-                f"GET {destination.path} HTTP/1.1\r\n"
+                f"{method} {destination.request_target} HTTP/1.1\r\n"
                 f"Host: {destination.host_header}\r\n"
                 "Accept: text/plain\r\n"
                 "User-Agent: SIEMBIOT-Ownership-Verifier/1\r\n"
@@ -83,10 +108,12 @@ class BoundedHTTPTransport:
             head, initial_body = self._read_headers(
                 stream, budget.max_header_bytes, budget, deadline
             )
-            status, headers = self._parse_headers(head)
+            status, headers, raw_headers = self._parse_headers(head)
             checkpoint(BrokerCheckpoint.AFTER_HEADERS)
+            if method == "HEAD":
+                return TransportResponse(status, headers, b"", raw_headers)
             body = self._read_body(stream, headers, initial_body, budget, checkpoint, deadline)
-            return TransportResponse(status, headers, body)
+            return TransportResponse(status, headers, body, raw_headers)
         except NetworkTransportError:
             raise
         except (OSError, ssl.SSLError, ValueError) as exc:
@@ -121,7 +148,7 @@ class BoundedHTTPTransport:
         return head, body
 
     @staticmethod
-    def _parse_headers(head: bytes) -> tuple[int, dict[str, str]]:
+    def _parse_headers(head: bytes) -> tuple[int, dict[str, str], tuple[tuple[str, str], ...]]:
         try:
             lines = head.decode("iso-8859-1").split("\r\n")
             version, raw_status, _ = lines[0].split(" ", 2)
@@ -131,6 +158,7 @@ class BoundedHTTPTransport:
         if version not in {"HTTP/1.0", "HTTP/1.1"} or not 100 <= status <= 599:
             raise NetworkTransportError("malformed_response")
         headers: dict[str, str] = {}
+        raw_headers: list[tuple[str, str]] = []
         for line in lines[1:]:
             if ":" not in line:
                 raise NetworkTransportError("malformed_response")
@@ -138,12 +166,13 @@ class BoundedHTTPTransport:
             if not name or name.strip() != name:
                 raise NetworkTransportError("malformed_response")
             lowered = name.lower()
-            if lowered in headers:
+            if lowered in headers and lowered not in REPEATABLE_HEADERS:
                 raise NetworkTransportError("duplicate_header")
-            headers[lowered] = value.strip()
+            raw_headers.append((lowered, value.strip()))
+            headers.setdefault(lowered, value.strip())
         if "transfer-encoding" in headers:
             raise NetworkTransportError("unsupported_framing")
-        return status, headers
+        return status, headers, tuple(raw_headers)
 
     def _read_body(
         self,

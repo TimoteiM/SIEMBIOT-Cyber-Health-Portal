@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import ipaddress
 from dataclasses import dataclass
 from urllib.parse import urljoin, urlsplit
 
-import idna
+from siembiot_worker.network_safety.host_policy import HostPolicyError, canonical_host
 
 VERIFICATION_PATH = "/.well-known/tyche-verification.txt"
 
@@ -16,21 +15,10 @@ class DestinationPolicyError(ValueError):
 
 
 def _canonical_host(host: str) -> str:
-    if not host or host != host.lower() or host.endswith("."):
-        raise DestinationPolicyError("noncanonical_host")
     try:
-        ipaddress.ip_address(host)
-    except ValueError:
-        pass
-    else:
-        raise DestinationPolicyError("ip_literal")
-    try:
-        encoded = idna.encode(host, uts46=True, std3_rules=True, transitional=False).decode("ascii")
-    except idna.IDNAError as exc:
-        raise DestinationPolicyError("noncanonical_host") from exc
-    if encoded != host:
-        raise DestinationPolicyError("noncanonical_host")
-    return host
+        return canonical_host(host)
+    except HostPolicyError as exc:
+        raise DestinationPolicyError(exc.reason) from exc
 
 
 @dataclass(frozen=True)
@@ -61,6 +49,10 @@ class VerificationDestination:
     @property
     def host_header(self) -> str:
         return self.host
+
+    @property
+    def request_target(self) -> str:
+        return self.path
 
     @property
     def url(self) -> str:

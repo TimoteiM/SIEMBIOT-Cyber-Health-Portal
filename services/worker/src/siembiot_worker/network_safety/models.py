@@ -60,6 +60,7 @@ class TransportResponse:
     status_code: int
     headers: dict[str, str]
     body: bytes
+    raw_headers: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True)

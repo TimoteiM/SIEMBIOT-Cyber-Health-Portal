@@ -8,7 +8,20 @@ WORKER = ROOT / "services" / "worker" / "src"
 
 
 def test_direct_network_clients_are_confined_to_network_safety_boundary() -> None:
-    forbidden = {"socket", "httpx", "requests", "urllib", "aiohttp"}
+    forbidden = {
+        "socket",
+        "httpx",
+        "requests",
+        "urllib",
+        "aiohttp",
+        "dns",
+        "ssl",
+        "http",
+        "smtplib",
+        "ftplib",
+        "telnetlib",
+        "asyncio",
+    }
     violations: list[str] = []
     for path in WORKER.rglob("*.py"):
         if "network_safety" in path.parts:
