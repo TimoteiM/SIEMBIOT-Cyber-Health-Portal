@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://siembiot.example/contracts/evidence/v1/score-snapshot.json",
+  "title": "ScoreSnapshot",
+  "description": "An immutable, reproducible score for one assessment under one methodology version. Recomputing under a newer methodology produces a distinct projection and never overwrites this record.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "snapshot_id",
+    "organization_id",
+    "assessment_id",
+    "methodology_version",
+    "policy_digest",
+    "evidence_digest",
+    "coverage",
+    "pillars",
+    "overall",
+    "confidence",
+    "computed_at"
+  ],
+  "properties": {
+    "contract_version": {"const": "v1"},
+    "snapshot_id": {"type": "string", "format": "uuid"},
+    "organization_id": {"type": "string", "format": "uuid"},
+    "assessment_id": {"type": "string", "format": "uuid"},
+    "methodology_version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"},
+    "is_projection": {
+      "type": "boolean",
+      "default": false,
+      "description": "True when the snapshot recomputes historical evidence under a later methodology."
+    },
+    "policy_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "evidence_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["percentage", "completed_weight", "applicable_weight", "sufficient", "undetermined_checks"],
+      "properties": {
+        "percentage": {"type": "number", "minimum": 0, "maximum": 100},
+        "completed_weight": {"type": "number", "minimum": 0},
+        "applicable_weight": {"type": "number", "minimum": 0},
+        "sufficient": {
+          "type": "boolean",
+          "description": "When false the overall score must be presented as insufficient coverage rather than a precise number."
+        },
+        "undetermined_checks": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[A-F]\\.[a-z0-9_]{3,48}$"}
+        }
+      }
+    },
+    "pillars": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["pillar", "weight", "score", "scored_checks", "excluded_checks", "contributions"],
+        "properties": {
+          "pillar": {"enum": ["dns", "email", "web_tls", "attack_surface", "reputation", "exposure_hygiene"]},
+          "weight": {"type": "number", "minimum": 0, "maximum": 1},
+          "score": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+          "scored_checks": {"type": "integer", "minimum": 0},
+          "excluded_checks": {"type": "integer", "minimum": 0},
+          "contributions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["check_id", "result", "weight", "factor"],
+              "properties": {
+                "check_id": {"type": "string", "pattern": "^[A-F]\\.[a-z0-9_]{3,48}$"},
+                "result": {"enum": ["pass", "fail", "warning", "unknown", "error", "not_applicable", "suppressed", "accepted_risk"]},
+                "weight": {"type": "number", "minimum": 0},
+                "factor": {"type": ["number", "null"], "minimum": 0, "maximum": 1}
+              }
+            }
+          }
+        }
+      }
+    },
+    "overall": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uncapped_score", "score", "band", "caps_applied"],
+      "properties": {
+        "uncapped_score": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+        "score": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+        "band": {"enum": ["resilient", "managed", "developing", "exposed", "critical", "insufficient_coverage"]},
+        "caps_applied": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["cap_id", "ceiling", "triggering_check_ids"],
+            "properties": {
+              "cap_id": {"type": "string", "pattern": "^[a-z][a-z0-9_]{2,63}$"},
+              "ceiling": {"type": "number", "minimum": 0, "maximum": 100},
+              "triggering_check_ids": {
+                "type": "array",
+                "minItems": 1,
+                "items": {"type": "string", "pattern": "^[A-F]\\.[a-z0-9_]{3,48}$"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "confidence": {"$ref": "confidence.json"},
+    "computed_at": {"type": "string", "format": "date-time"}
+  }
+}

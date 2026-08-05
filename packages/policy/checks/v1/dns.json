@@ -1,0 +1,92 @@
+{
+  "pillar": "dns",
+  "pillar_letter": "A",
+  "checks": [
+    {
+      "check_id": "A.dnssec_enabled",
+      "version": "1.0.0",
+      "title_ro": "DNSSEC este activ și delegat",
+      "title_en": "DNSSEC is enabled and delegated",
+      "rationale_ro": "DNSSEC permite rezolverilor să detecteze răspunsuri DNS falsificate pentru domeniul organizației.",
+      "rationale_en": "DNSSEC lets resolvers detect forged DNS answers for the organization's domain.",
+      "collection_mode": "passive",
+      "observation_type": "dns.dnssec",
+      "applicability": {"always": true},
+      "rules": [
+        {"when": {"attribute": "state", "equals": "signed_and_delegated"}, "result": "pass"},
+        {"when": {"attribute": "state", "equals": "signed_without_delegation"}, "result": "warning", "reason_code": "ds_record_absent"},
+        {"when": {"attribute": "state", "equals": "unsigned"}, "result": "fail", "reason_code": "dnssec_absent"},
+        {"when": {"attribute": "state", "equals": "unknown"}, "result": "unknown", "reason_code": "dnssec_state_unknown"}
+      ],
+      "weight": 10,
+      "severity": "medium",
+      "public_safety_class": "public_profile",
+      "remediation_template": "dnssec_enable",
+      "references": ["rfc4033", "rfc4035"]
+    },
+    {
+      "check_id": "A.caa_present",
+      "version": "1.0.0",
+      "title_ro": "Înregistrări CAA restricționează emiterea certificatelor",
+      "title_en": "CAA records restrict certificate issuance",
+      "rationale_ro": "CAA limitează autoritățile de certificare care pot emite certificate pentru domeniu.",
+      "rationale_en": "CAA limits which certificate authorities may issue certificates for the domain.",
+      "collection_mode": "passive",
+      "observation_type": "dns.caa",
+      "applicability": {"always": true},
+      "rules": [
+        {"when": {"attribute": "present", "equals": true}, "result": "pass"},
+        {"when": {"status": "absent"}, "result": "warning", "reason_code": "caa_absent"},
+        {"when": {"status": "inconclusive"}, "result": "unknown", "reason_code": "caa_lookup_inconclusive"}
+      ],
+      "weight": 6,
+      "severity": "low",
+      "public_safety_class": "public_profile",
+      "remediation_template": "caa_publish",
+      "references": ["rfc8659"]
+    },
+    {
+      "check_id": "A.nameserver_diversity",
+      "version": "1.0.0",
+      "title_ro": "Delegarea DNS folosește mai mulți furnizori",
+      "title_en": "DNS delegation uses more than one provider",
+      "rationale_ro": "Serverele de nume aflate toate la un singur furnizor concentrează riscul de indisponibilitate. Aceasta este o observație de reziliență, nu o vulnerabilitate.",
+      "rationale_en": "Nameservers all under a single provider concentrate availability risk. This is a resilience observation, not a vulnerability.",
+      "collection_mode": "passive",
+      "observation_type": "dns.delegation",
+      "applicability": {"always": true},
+      "rules": [
+        {"when": {"attribute": "distinct_parent_count", "at_least": 2}, "result": "pass"},
+        {"when": {"attribute": "nameserver_count", "at_least": 1}, "result": "warning", "reason_code": "single_provider_delegation"},
+        {"when": {"status": "inconclusive"}, "result": "unknown", "reason_code": "delegation_unknown"}
+      ],
+      "weight": 4,
+      "severity": "low",
+      "public_safety_class": "public_profile",
+      "remediation_template": "nameserver_diversify",
+      "references": ["rfc1034"]
+    },
+    {
+      "check_id": "A.registration_expiry",
+      "version": "1.0.0",
+      "title_ro": "Înregistrarea domeniului nu expiră curând",
+      "title_en": "Domain registration is not expiring soon",
+      "rationale_ro": "Expirarea înregistrării poate duce la pierderea domeniului și la preluarea lui de către terți.",
+      "rationale_en": "An expiring registration can lead to loss of the domain and takeover by a third party.",
+      "collection_mode": "passive",
+      "observation_type": "rdap.registration",
+      "applicability": {"requires_observation": true},
+      "rules": [
+        {"when": {"attribute": "days_until_expiry", "at_least": 60}, "result": "pass"},
+        {"when": {"attribute": "days_until_expiry", "at_least": 30}, "result": "warning", "reason_code": "registration_expiring"},
+        {"when": {"attribute": "days_until_expiry", "at_least": 0}, "result": "fail", "reason_code": "registration_expiring_urgently"},
+        {"when": {"status": "inconclusive"}, "result": "unknown", "reason_code": "rdap_unavailable"}
+      ],
+      "weight": 6,
+      "severity": "medium",
+      "public_safety_class": "public_profile",
+      "remediation_template": "registration_renew",
+      "references": ["rfc7483"]
+    }
+  ]
+}

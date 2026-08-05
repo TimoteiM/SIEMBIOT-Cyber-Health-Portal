@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://siembiot.example/contracts/evidence/v1/check-evaluation.json",
+  "title": "CheckEvaluation",
+  "description": "The deterministic outcome of applying one catalog check to the observations of one assessment. Produced only by the policy engine, never by a model.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "evaluation_id",
+    "organization_id",
+    "assessment_id",
+    "check_id",
+    "check_version",
+    "methodology_version",
+    "pillar",
+    "subject",
+    "result",
+    "score_bearing",
+    "weight",
+    "severity",
+    "observation_ids",
+    "confidence",
+    "evaluated_at"
+  ],
+  "properties": {
+    "contract_version": {"const": "v1"},
+    "evaluation_id": {"type": "string", "format": "uuid"},
+    "organization_id": {"type": "string", "format": "uuid"},
+    "assessment_id": {"type": "string", "format": "uuid"},
+    "check_id": {"type": "string", "pattern": "^[A-F]\\.[a-z0-9_]{3,48}$"},
+    "check_version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"},
+    "methodology_version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"},
+    "pillar": {"enum": ["dns", "email", "web_tls", "attack_surface", "reputation", "exposure_hygiene"]},
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "identifier"],
+      "properties": {
+        "kind": {"enum": ["domain", "hostname", "mx_host", "url", "ip_address", "certificate"]},
+        "identifier": {"type": "string", "minLength": 1, "maxLength": 253},
+        "authorized_domain_id": {"type": "string", "format": "uuid"}
+      }
+    },
+    "result": {
+      "enum": ["pass", "fail", "warning", "unknown", "error", "not_applicable", "suppressed", "accepted_risk"],
+      "description": "Exactly the eight states from the brief. Missing data is unknown or error and is never folded into pass or fail."
+    },
+    "score_bearing": {
+      "type": "boolean",
+      "description": "Only pass, fail and warning contribute a factor. Every other result is excluded from the numerator and reduces coverage or leaves the denominator."
+    },
+    "weight": {"type": "number", "minimum": 0, "maximum": 100},
+    "severity": {"enum": ["critical", "high", "medium", "low", "informational"]},
+    "reason_code": {"type": ["string", "null"], "pattern": "^[a-z][a-z0-9_]{2,63}$"},
+    "observation_ids": {
+      "type": "array",
+      "items": {"type": "string", "format": "uuid"},
+      "description": "Every observation this outcome was derived from, so any statement can be traced to immutable evidence."
+    },
+    "confidence": {"$ref": "confidence.json"},
+    "caps_applied": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]{2,63}$"}
+    },
+    "evaluated_at": {"type": "string", "format": "date-time"}
+  }
+}

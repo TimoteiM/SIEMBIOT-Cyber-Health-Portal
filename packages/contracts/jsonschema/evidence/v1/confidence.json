@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://siembiot.example/contracts/evidence/v1/confidence.json",
+  "title": "Confidence",
+  "description": "Confidence is never a single scalar disguised as truth. Attribution, source and freshness are recorded separately and rolled up deterministically with stated reasons.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["attribution", "source", "freshness", "level", "reasons"],
+  "properties": {
+    "attribution": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "How certain it is that the subject belongs to this organization."
+    },
+    "source": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "How reliable the collecting adapter is for this observation type."
+    },
+    "freshness": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "How recent the underlying evidence is relative to its freshness window."
+    },
+    "level": {"enum": ["high", "medium", "low"]},
+    "reasons": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]{2,63}$"},
+      "description": "Machine-readable reasons for anything that lowered confidence."
+    }
+  }
+}

@@ -1,0 +1,180 @@
+{
+  "pillar": "web_tls",
+  "pillar_letter": "C",
+  "checks": [
+    {
+      "check_id": "C.https_available",
+      "version": "1.0.0",
+      "title_ro": "HTTPS este disponibil pe gazda autorizată",
+      "title_en": "HTTPS is available on the authorized host",
+      "rationale_ro": "Fără HTTPS, traficul utilizatorilor circulă în clar și poate fi citit sau modificat.",
+      "rationale_en": "Without HTTPS, user traffic travels in the clear and can be read or modified.",
+      "collection_mode": "passive",
+      "observation_type": "http.availability",
+      "applicability": {"always": true},
+      "rules": [
+        {"when": {"attribute": "https_reachable", "equals": true}, "result": "pass"},
+        {"when": {"attribute": "https_reachable", "equals": false}, "result": "fail", "reason_code": "https_unavailable"},
+        {"when": {"status": "inconclusive"}, "result": "unknown", "reason_code": "site_unreachable"}
+      ],
+      "weight": 12,
+      "severity": "critical",
+      "public_safety_class": "public_profile",
+      "remediation_template": "https_enable",
+      "references": ["rfc9110"]
+    },
+    {
+      "check_id": "C.http_redirects_https",
+      "version": "1.0.0",
+      "title_ro": "HTTP redirecționează către HTTPS",
+      "title_en": "HTTP redirects to HTTPS",
+      "rationale_ro": "Vizitatorii care ajung pe HTTP trebuie mutați automat pe conexiunea securizată.",
+      "rationale_en": "Visitors arriving over HTTP must be moved automatically to the secure connection.",
+      "collection_mode": "passive",
+      "observation_type": "http.redirect",
+      "applicability": {"always": true},
+      "rules": [
+        {"when": {"attribute": "redirects_to_https", "equals": true}, "result": "pass"},
+        {"when": {"attribute": "http_reachable", "equals": true}, "result": "fail", "reason_code": "no_https_redirect"},
+        {"when": {"status": "absent"}, "result": "not_applicable", "reason_code": "http_not_served"},
+        {"when": {"status": "inconclusive"}, "result": "unknown", "reason_code": "redirect_unknown"}
+      ],
+      "weight": 8,
+      "severity": "high",
+      "public_safety_class": "public_profile",
+      "remediation_template": "http_redirect_configure",
+      "references": ["rfc9110"]
+    },
+    {
+      "check_id": "C.certificate_validity",
+      "version": "1.0.0",
+      "title_ro": "Certificatul este valid și nu expiră curând",
+      "title_en": "The certificate is valid and not expiring soon",
+      "rationale_ro": "Un certificat expirat blochează accesul utilizatorilor cu avertismente de securitate.",
+      "rationale_en": "An expired certificate blocks users with security warnings.",
+      "collection_mode": "passive",
+      "observation_type": "tls.certificate",
+      "applicability": {"requires_observation": true},
+      "rules": [
+        {"when": {"attribute": "expired", "equals": true}, "result": "fail", "reason_code": "certificate_expired"},
+        {"when": {"attribute": "not_yet_valid", "equals": true}, "result": "fail", "reason_code": "certificate_not_yet_valid"},
+        {"when": {"attribute": "days_until_expiry", "at_least": 30}, "result": "pass"},
+        {"when": {"attribute": "days_until_expiry", "at_least": 0}, "result": "warning", "reason_code": "certificate_expiring_soon"},
+        {"when": {"status": "inconclusive"}, "result": "unknown", "reason_code": "certificate_unavailable"}
+      ],
+      "weight": 12,
+      "severity": "critical",
+      "public_safety_class": "public_profile",
+      "remediation_template": "certificate_renew",
+      "references": ["rfc5280"]
+    },
+    {
+      "check_id": "C.certificate_hostname",
+      "version": "1.0.0",
+      "title_ro": "Certificatul acoperă gazda autorizată",
+      "title_en": "The certificate covers the authorized host",
+      "rationale_ro": "Un certificat care nu include numele gazdei produce avertismente în browser.",
+      "rationale_en": "A certificate that does not include the host name produces browser warnings.",
+      "collection_mode": "passive",
+      "observation_type": "tls.certificate",
+      "applicability": {"requires_observation": true},
+      "rules": [
+        {"when": {"attribute": "hostname_covered", "equals": true}, "result": "pass"},
+        {"when": {"attribute": "hostname_covered", "equals": false}, "result": "fail", "reason_code": "certificate_hostname_mismatch"},
+        {"when": {"status": "inconclusive"}, "result": "unknown", "reason_code": "certificate_unavailable"}
+      ],
+      "weight": 8,
+      "severity": "high",
+      "public_safety_class": "public_profile",
+      "remediation_template": "certificate_reissue_with_hostname",
+      "references": ["rfc6125"]
+    },
+    {
+      "check_id": "C.tls_protocol_posture",
+      "version": "1.0.0",
+      "title_ro": "Sunt oferite numai versiuni TLS moderne",
+      "title_en": "Only modern TLS versions are offered",
+      "rationale_ro": "TLS 1.0 și 1.1 sunt depreciate și nu mai oferă garanții adecvate.",
+      "rationale_en": "TLS 1.0 and 1.1 are deprecated and no longer provide adequate guarantees.",
+      "collection_mode": "passive",
+      "observation_type": "tls.protocols",
+      "applicability": {"requires_observation": true},
+      "rules": [
+        {"when": {"attribute": "deprecated_supported_count", "equals": 0}, "result": "pass"},
+        {"when": {"attribute": "deprecated_supported_count", "at_least": 1}, "result": "warning", "reason_code": "deprecated_tls_offered"},
+        {"when": {"status": "inconclusive"}, "result": "unknown", "reason_code": "protocol_probe_inconclusive"}
+      ],
+      "weight": 6,
+      "severity": "medium",
+      "public_safety_class": "public_profile",
+      "remediation_template": "tls_disable_deprecated",
+      "references": ["rfc8996"]
+    },
+    {
+      "check_id": "C.hsts_present",
+      "version": "1.0.0",
+      "title_ro": "HSTS este activ cu durată adecvată",
+      "title_en": "HSTS is enabled with an adequate lifetime",
+      "rationale_ro": "HSTS obligă browserele să folosească HTTPS. Preîncărcarea se recomandă abia după validare.",
+      "rationale_en": "HSTS forces browsers to use HTTPS. Preloading is recommended only after validation.",
+      "collection_mode": "passive",
+      "observation_type": "http.security_headers",
+      "applicability": {"requires_attribute": "https_reachable"},
+      "rules": [
+        {"when": {"attribute": "hsts_max_age", "at_least": 31536000}, "result": "pass"},
+        {"when": {"attribute": "hsts_max_age", "at_least": 1}, "result": "warning", "reason_code": "hsts_max_age_short"},
+        {"when": {"attribute": "hsts_present", "equals": false}, "result": "fail", "reason_code": "hsts_absent"},
+        {"when": {"status": "inconclusive"}, "result": "unknown", "reason_code": "headers_unavailable"}
+      ],
+      "weight": 8,
+      "severity": "medium",
+      "public_safety_class": "public_profile",
+      "remediation_template": "hsts_enable",
+      "references": ["rfc6797"]
+    },
+    {
+      "check_id": "C.security_headers",
+      "version": "1.0.0",
+      "title_ro": "Anteturile de securitate de bază sunt prezente",
+      "title_en": "Baseline security headers are present",
+      "rationale_ro": "CSP, protecția împotriva încadrării și blocarea deducerii tipului reduc clasele comune de atac asupra vizitatorilor.",
+      "rationale_en": "CSP, framing protection and content-type sniffing protection reduce common attack classes against visitors.",
+      "collection_mode": "passive",
+      "observation_type": "http.security_headers",
+      "applicability": {"requires_attribute": "https_reachable"},
+      "rules": [
+        {"when": {"attribute": "missing_baseline_count", "equals": 0}, "result": "pass"},
+        {"when": {"attribute": "missing_baseline_count", "at_most": 2}, "result": "warning", "reason_code": "some_security_headers_missing"},
+        {"when": {"attribute": "missing_baseline_count", "at_least": 3}, "result": "fail", "reason_code": "security_headers_missing"},
+        {"when": {"status": "inconclusive"}, "result": "unknown", "reason_code": "headers_unavailable"}
+      ],
+      "weight": 8,
+      "severity": "medium",
+      "public_safety_class": "public_profile",
+      "remediation_template": "security_headers_configure",
+      "references": ["owasp_secure_headers"]
+    },
+    {
+      "check_id": "C.cookie_attributes",
+      "version": "1.0.0",
+      "title_ro": "Cookie-urile publice folosesc atribute sigure",
+      "title_en": "Public cookies use safe attributes",
+      "rationale_ro": "Cookie-urile observate pe pagini publice neautentificate trebuie marcate Secure și HttpOnly.",
+      "rationale_en": "Cookies observed on public unauthenticated pages should be marked Secure and HttpOnly.",
+      "collection_mode": "passive",
+      "observation_type": "http.cookies",
+      "applicability": {"requires_observation": true},
+      "rules": [
+        {"when": {"attribute": "insecure_cookie_count", "equals": 0}, "result": "pass"},
+        {"when": {"attribute": "insecure_cookie_count", "at_least": 1}, "result": "warning", "reason_code": "insecure_cookie_attributes"},
+        {"when": {"status": "absent"}, "result": "not_applicable", "reason_code": "no_cookies_observed"},
+        {"when": {"status": "inconclusive"}, "result": "unknown", "reason_code": "cookies_unavailable"}
+      ],
+      "weight": 4,
+      "severity": "low",
+      "public_safety_class": "private_only",
+      "remediation_template": "cookie_attributes_harden",
+      "references": ["rfc6265bis"]
+    }
+  ]
+}

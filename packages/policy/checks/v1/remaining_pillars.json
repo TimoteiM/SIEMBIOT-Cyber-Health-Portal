@@ -1,0 +1,130 @@
+{
+  "_comment": "Pillars D, E and F. Reputation checks stay unknown until an opt-in provider is configured; they must never resolve to pass or fail from absent data.",
+  "pillars": [
+    {
+      "pillar": "attack_surface",
+      "pillar_letter": "D",
+      "checks": [
+        {
+          "check_id": "D.asset_attribution_reviewed",
+          "version": "1.0.0",
+          "title_ro": "Candidații de active descoperiți au fost revizuiți",
+          "title_en": "Discovered asset candidates have been reviewed",
+          "rationale_ro": "Numele descoperite public sunt candidați, nu active confirmate. Organizația decide ce îi aparține.",
+          "rationale_en": "Publicly discovered names are candidates, not confirmed assets. The organization decides what belongs to it.",
+          "collection_mode": "passive",
+          "observation_type": "assets.candidates",
+          "applicability": {"requires_observation": true},
+          "rules": [
+            {"when": {"attribute": "unreviewed_count", "equals": 0}, "result": "pass"},
+            {"when": {"attribute": "unreviewed_count", "at_least": 1}, "result": "warning", "reason_code": "asset_candidates_unreviewed"},
+            {"when": {"status": "absent"}, "result": "not_applicable", "reason_code": "no_asset_candidates"},
+            {"when": {"status": "inconclusive"}, "result": "unknown", "reason_code": "asset_discovery_unavailable"}
+          ],
+          "weight": 8,
+          "severity": "low",
+          "public_safety_class": "private_only",
+          "remediation_template": "asset_review_candidates",
+          "references": ["rfc6962"]
+        },
+        {
+          "check_id": "D.wildcard_dns_exposure",
+          "version": "1.0.0",
+          "title_ro": "Nu există înregistrare DNS wildcard neintenționată",
+          "title_en": "No unintended wildcard DNS record",
+          "rationale_ro": "Un wildcard face ca orice subdomeniu inexistent să rezolve, ceea ce lărgește suprafața observabilă.",
+          "rationale_en": "A wildcard makes every non-existent subdomain resolve, which widens the observable surface.",
+          "collection_mode": "passive",
+          "observation_type": "dns.wildcard",
+          "applicability": {"always": true},
+          "rules": [
+            {"when": {"attribute": "resolves", "equals": false}, "result": "pass"},
+            {"when": {"attribute": "resolves", "equals": true}, "result": "warning", "reason_code": "wildcard_dns_present"},
+            {"when": {"status": "inconclusive"}, "result": "unknown", "reason_code": "wildcard_probe_inconclusive"}
+          ],
+          "weight": 4,
+          "severity": "low",
+          "public_safety_class": "private_only",
+          "remediation_template": "wildcard_dns_review",
+          "references": ["rfc4592"]
+        }
+      ]
+    },
+    {
+      "pillar": "reputation",
+      "pillar_letter": "E",
+      "checks": [
+        {
+          "check_id": "E.domain_reputation_clean",
+          "version": "1.0.0",
+          "title_ro": "Domeniul nu apare în liste de reputație negativă",
+          "title_en": "The domain does not appear on negative reputation lists",
+          "rationale_ro": "O listare este un semnal al unui terț, niciodată dovada unei compromiteri. Dezacordul între furnizori rămâne vizibil.",
+          "rationale_en": "A listing is a third-party signal, never proof of compromise. Provider disagreement stays visible.",
+          "collection_mode": "passive",
+          "observation_type": "reputation.domain",
+          "applicability": {"requires_observation": true},
+          "rules": [
+            {"when": {"attribute": "contested", "equals": true}, "result": "unknown", "reason_code": "provider_disagreement"},
+            {"when": {"attribute": "listed", "equals": false}, "result": "pass"},
+            {"when": {"attribute": "listed", "equals": true}, "result": "warning", "reason_code": "reputation_listing_present"},
+            {"when": {"status": "inconclusive"}, "result": "unknown", "reason_code": "reputation_provider_unconfigured"}
+          ],
+          "weight": 10,
+          "severity": "medium",
+          "public_safety_class": "private_only",
+          "remediation_template": "reputation_investigate_listing",
+          "references": ["provider_terms"]
+        }
+      ]
+    },
+    {
+      "pillar": "exposure_hygiene",
+      "pillar_letter": "F",
+      "checks": [
+        {
+          "check_id": "F.server_banner_disclosure",
+          "version": "1.0.0",
+          "title_ro": "Anteturile nu dezvăluie versiuni exacte de software",
+          "title_en": "Headers do not disclose exact software versions",
+          "rationale_ro": "Versiunile exacte din anteturi ajută la țintirea atacurilor. Nu deducem vulnerabilități din versiuni.",
+          "rationale_en": "Exact versions in headers help attackers target. We never infer a vulnerability from a version string.",
+          "collection_mode": "passive",
+          "observation_type": "http.disclosure",
+          "applicability": {"requires_attribute": "https_reachable"},
+          "rules": [
+            {"when": {"attribute": "version_disclosing_count", "equals": 0}, "result": "pass"},
+            {"when": {"attribute": "version_disclosing_count", "at_least": 1}, "result": "warning", "reason_code": "software_version_disclosed"},
+            {"when": {"status": "inconclusive"}, "result": "unknown", "reason_code": "headers_unavailable"}
+          ],
+          "weight": 4,
+          "severity": "low",
+          "public_safety_class": "private_only",
+          "remediation_template": "banner_suppress_versions",
+          "references": ["owasp_secure_headers"]
+        },
+        {
+          "check_id": "F.evidence_freshness",
+          "version": "1.0.0",
+          "title_ro": "Dovezile evaluării sunt recente",
+          "title_en": "Assessment evidence is recent",
+          "rationale_ro": "Datele vechi reduc încrederea în scor și trebuie raportate explicit, nu ascunse.",
+          "rationale_en": "Stale data lowers confidence in the score and must be reported explicitly, not hidden.",
+          "collection_mode": "derived",
+          "observation_type": "assessment.freshness",
+          "applicability": {"always": true},
+          "rules": [
+            {"when": {"attribute": "stale_observation_count", "equals": 0}, "result": "pass"},
+            {"when": {"attribute": "stale_observation_count", "at_least": 1}, "result": "warning", "reason_code": "stale_evidence_present"},
+            {"when": {"status": "inconclusive"}, "result": "unknown", "reason_code": "freshness_undetermined"}
+          ],
+          "weight": 4,
+          "severity": "informational",
+          "public_safety_class": "public_profile",
+          "remediation_template": "assessment_rerun",
+          "references": []
+        }
+      ]
+    }
+  ]
+}

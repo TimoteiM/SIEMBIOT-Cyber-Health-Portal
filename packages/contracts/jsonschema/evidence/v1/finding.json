@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://siembiot.example/contracts/evidence/v1/finding.json",
+  "title": "Finding",
+  "description": "A durable, deduplicated issue derived only from deterministic check evaluations. A finding accepted as risk or suppressed stays visible and never silently becomes a pass.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "finding_id",
+    "organization_id",
+    "fingerprint",
+    "check_id",
+    "check_version",
+    "methodology_version",
+    "pillar",
+    "subject",
+    "severity",
+    "state",
+    "confidence",
+    "public_safety_class",
+    "first_seen_at",
+    "last_seen_at",
+    "evidence",
+    "history"
+  ],
+  "properties": {
+    "contract_version": {"const": "v1"},
+    "finding_id": {"type": "string", "format": "uuid"},
+    "organization_id": {"type": "string", "format": "uuid"},
+    "fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Stable across assessments: derived from tenant, authorized subject identity, check id and the material evidence key only."
+    },
+    "check_id": {"type": "string", "pattern": "^[A-F]\\.[a-z0-9_]{3,48}$"},
+    "check_version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"},
+    "methodology_version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"},
+    "pillar": {"enum": ["dns", "email", "web_tls", "attack_surface", "reputation", "exposure_hygiene"]},
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "identifier"],
+      "properties": {
+        "kind": {"enum": ["domain", "hostname", "mx_host", "url", "ip_address", "certificate"]},
+        "identifier": {"type": "string", "minLength": 1, "maxLength": 253},
+        "authorized_domain_id": {"type": "string", "format": "uuid"}
+      }
+    },
+    "severity": {"enum": ["critical", "high", "medium", "low", "informational"]},
+    "state": {
+      "enum": ["open", "resolved", "regressed", "suppressed", "accepted_risk"],
+      "description": "suppressed and accepted_risk remain listed; they change presentation and scoring treatment, never visibility."
+    },
+    "confidence": {"$ref": "confidence.json"},
+    "public_safety_class": {
+      "enum": ["public_aggregate", "public_profile", "private_only"],
+      "description": "private_only content must never reach the public projection."
+    },
+    "first_seen_at": {"type": "string", "format": "date-time"},
+    "last_seen_at": {"type": "string", "format": "date-time"},
+    "resolved_at": {"type": ["string", "null"], "format": "date-time"},
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "format": "uuid"},
+      "description": "Immutable observation identifiers backing every factual statement about this finding."
+    },
+    "suppression": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["reason", "actor_id", "created_at", "expires_at"],
+      "properties": {
+        "reason": {"type": "string", "minLength": 8, "maxLength": 2000},
+        "actor_id": {"type": "string", "format": "uuid"},
+        "created_at": {"type": "string", "format": "date-time"},
+        "expires_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Suppression always expires; an indefinite suppression is not representable."
+        }
+      }
+    },
+    "history": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["at", "from_state", "to_state", "assessment_id"],
+        "properties": {
+          "at": {"type": "string", "format": "date-time"},
+          "from_state": {"enum": ["open", "resolved", "regressed", "suppressed", "accepted_risk", "absent"]},
+          "to_state": {"enum": ["open", "resolved", "regressed", "suppressed", "accepted_risk"]},
+          "assessment_id": {"type": "string", "format": "uuid"},
+          "actor_id": {"type": ["string", "null"], "format": "uuid"}
+        }
+      }
+    }
+  }
+}

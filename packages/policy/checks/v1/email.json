@@ -1,0 +1,124 @@
+{
+  "pillar": "email",
+  "pillar_letter": "B",
+  "checks": [
+    {
+      "check_id": "B.spf_present",
+      "version": "1.0.0",
+      "title_ro": "SPF este publicat și valid",
+      "title_en": "SPF is published and valid",
+      "rationale_ro": "SPF declară ce servere pot trimite e-mail în numele domeniului.",
+      "rationale_en": "SPF declares which servers may send e-mail on the domain's behalf.",
+      "collection_mode": "passive",
+      "observation_type": "email.spf",
+      "applicability": {"always": true},
+      "rules": [
+        {"when": {"attribute": "multiple_records", "equals": true}, "result": "fail", "reason_code": "multiple_spf_records"},
+        {"when": {"attribute": "valid", "equals": false}, "result": "fail", "reason_code": "spf_syntax_invalid"},
+        {"when": {"attribute": "permissive_all", "equals": true}, "result": "fail", "reason_code": "spf_permits_all_senders"},
+        {"when": {"attribute": "exceeds_lookup_limit", "equals": true}, "result": "warning", "reason_code": "spf_lookup_limit_exceeded"},
+        {"when": {"attribute": "soft_all", "equals": true}, "result": "warning", "reason_code": "spf_soft_fail_only"},
+        {"when": {"attribute": "present", "equals": true}, "result": "pass"},
+        {"when": {"status": "absent"}, "result": "fail", "reason_code": "spf_absent"},
+        {"when": {"status": "inconclusive"}, "result": "unknown", "reason_code": "spf_lookup_inconclusive"}
+      ],
+      "weight": 10,
+      "severity": "high",
+      "public_safety_class": "public_profile",
+      "remediation_template": "spf_publish",
+      "references": ["rfc7208"]
+    },
+    {
+      "check_id": "B.dmarc_enforced",
+      "version": "1.0.0",
+      "title_ro": "DMARC este publicat cu politică de aplicare",
+      "title_en": "DMARC is published with an enforcing policy",
+      "rationale_ro": "DMARC indică destinatarilor cum să trateze mesajele nealiniate. Trecerea la aplicare se face gradual, după monitorizare.",
+      "rationale_en": "DMARC tells recipients how to treat unaligned mail. Moving to enforcement is staged, after monitoring.",
+      "collection_mode": "passive",
+      "observation_type": "email.dmarc",
+      "applicability": {"always": true},
+      "rules": [
+        {"when": {"attribute": "valid", "equals": false}, "result": "fail", "reason_code": "dmarc_syntax_invalid"},
+        {"when": {"attribute": "policy", "equals": "reject"}, "result": "pass"},
+        {"when": {"attribute": "policy", "equals": "quarantine"}, "result": "warning", "reason_code": "dmarc_quarantine_only"},
+        {"when": {"attribute": "policy", "equals": "none"}, "result": "warning", "reason_code": "dmarc_monitoring_only"},
+        {"when": {"status": "absent"}, "result": "fail", "reason_code": "dmarc_absent"},
+        {"when": {"status": "inconclusive"}, "result": "unknown", "reason_code": "dmarc_lookup_inconclusive"}
+      ],
+      "weight": 10,
+      "severity": "high",
+      "public_safety_class": "public_profile",
+      "remediation_template": "dmarc_stage_to_enforcement",
+      "references": ["rfc7489"]
+    },
+    {
+      "check_id": "B.mta_sts_enforced",
+      "version": "1.0.0",
+      "title_ro": "MTA-STS este publicat în mod enforce",
+      "title_en": "MTA-STS is published in enforce mode",
+      "rationale_ro": "MTA-STS împiedică degradarea conexiunilor SMTP la text clar.",
+      "rationale_en": "MTA-STS prevents SMTP connections from being downgraded to cleartext.",
+      "collection_mode": "passive",
+      "observation_type": "email.mta_sts",
+      "applicability": {"requires_attribute": "mx_present"},
+      "rules": [
+        {"when": {"attribute": "mode", "equals": "enforce"}, "result": "pass"},
+        {"when": {"attribute": "mode", "equals": "testing"}, "result": "warning", "reason_code": "mta_sts_testing_mode"},
+        {"when": {"attribute": "mode", "equals": "none"}, "result": "warning", "reason_code": "mta_sts_mode_none"},
+        {"when": {"attribute": "policy_invalid", "equals": true}, "result": "fail", "reason_code": "mta_sts_policy_invalid"},
+        {"when": {"status": "absent"}, "result": "warning", "reason_code": "mta_sts_absent"},
+        {"when": {"status": "inconclusive"}, "result": "unknown", "reason_code": "mta_sts_inconclusive"}
+      ],
+      "weight": 6,
+      "severity": "medium",
+      "public_safety_class": "public_profile",
+      "remediation_template": "mta_sts_publish",
+      "references": ["rfc8461"]
+    },
+    {
+      "check_id": "B.tls_rpt_present",
+      "version": "1.0.0",
+      "title_ro": "Raportarea TLS SMTP este configurată",
+      "title_en": "SMTP TLS reporting is configured",
+      "rationale_ro": "TLS-RPT oferă vizibilitate asupra eșecurilor de livrare securizată.",
+      "rationale_en": "TLS-RPT gives visibility into secure delivery failures.",
+      "collection_mode": "passive",
+      "observation_type": "email.tls_rpt",
+      "applicability": {"requires_attribute": "mx_present"},
+      "rules": [
+        {"when": {"attribute": "valid", "equals": true}, "result": "pass"},
+        {"when": {"attribute": "present", "equals": true}, "result": "warning", "reason_code": "tls_rpt_invalid"},
+        {"when": {"status": "absent"}, "result": "warning", "reason_code": "tls_rpt_absent"},
+        {"when": {"status": "inconclusive"}, "result": "unknown", "reason_code": "tls_rpt_inconclusive"}
+      ],
+      "weight": 4,
+      "severity": "low",
+      "public_safety_class": "public_profile",
+      "remediation_template": "tls_rpt_publish",
+      "references": ["rfc8460"]
+    },
+    {
+      "check_id": "B.dkim_declared_present",
+      "version": "1.0.0",
+      "title_ro": "Selectorii DKIM declarați publică chei valide",
+      "title_en": "Declared DKIM selectors publish valid keys",
+      "rationale_ro": "DKIM semnează mesajele. Verificăm numai selectorii declarați de organizație; nu ghicim selectori.",
+      "rationale_en": "DKIM signs messages. Only selectors declared by the organization are checked; selectors are never guessed.",
+      "collection_mode": "passive",
+      "observation_type": "email.dkim",
+      "applicability": {"requires_observation": true},
+      "rules": [
+        {"when": {"attribute": "all_selectors_present", "equals": true}, "result": "pass"},
+        {"when": {"attribute": "any_selector_present", "equals": true}, "result": "warning", "reason_code": "dkim_selector_missing"},
+        {"when": {"status": "absent"}, "result": "fail", "reason_code": "dkim_declared_selectors_absent"},
+        {"when": {"status": "inconclusive"}, "result": "unknown", "reason_code": "dkim_lookup_inconclusive"}
+      ],
+      "weight": 6,
+      "severity": "medium",
+      "public_safety_class": "public_profile",
+      "remediation_template": "dkim_publish_selector",
+      "references": ["rfc6376"]
+    }
+  ]
+}

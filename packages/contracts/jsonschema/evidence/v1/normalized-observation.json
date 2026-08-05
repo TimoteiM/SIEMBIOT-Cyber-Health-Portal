@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://siembiot.example/contracts/evidence/v1/normalized-observation.json",
+  "title": "NormalizedObservation",
+  "description": "One immutable, deterministic fact derived from a collector payload. An observation states what was seen; it never states whether that is good or bad.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "observation_id",
+    "organization_id",
+    "assessment_id",
+    "subject",
+    "observation_type",
+    "status",
+    "attributes",
+    "provenance",
+    "confidence",
+    "content_hash"
+  ],
+  "properties": {
+    "contract_version": {"const": "v1"},
+    "observation_id": {"type": "string", "format": "uuid"},
+    "organization_id": {"type": "string", "format": "uuid"},
+    "assessment_id": {"type": "string", "format": "uuid"},
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "identifier"],
+      "properties": {
+        "kind": {"enum": ["domain", "hostname", "mx_host", "url", "ip_address", "certificate"]},
+        "identifier": {"type": "string", "minLength": 1, "maxLength": 253},
+        "authorized_domain_id": {"type": "string", "format": "uuid"}
+      }
+    },
+    "observation_type": {"type": "string", "pattern": "^[a-z][a-z0-9_.]{2,63}$"},
+    "status": {
+      "enum": ["observed", "absent", "inconclusive", "not_applicable"],
+      "description": "absent is a proven negative; inconclusive means the collector could not prove presence or absence and must never be scored as either."
+    },
+    "attributes": {"type": "object"},
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adapter_id", "adapter_version", "collected_at", "from_cache"],
+      "properties": {
+        "adapter_id": {"type": "string", "pattern": "^[a-z][a-z0-9_]{2,63}$"},
+        "adapter_version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"},
+        "collected_at": {"type": "string", "format": "date-time"},
+        "observed_at": {"type": ["string", "null"], "format": "date-time"},
+        "from_cache": {"type": "boolean"},
+        "source_reference": {"type": ["string", "null"], "maxLength": 512}
+      }
+    },
+    "confidence": {"$ref": "confidence.json"},
+    "content_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 over the canonical serialization of subject, type, status and attributes. Identical evidence always yields an identical hash."
+    }
+  }
+}
