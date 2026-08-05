@@ -1,0 +1,333 @@
+{
+  "assessment_id": "22222222-2222-4222-8222-222222222222",
+  "computed_at": "2026-08-05T12:00:00Z",
+  "confidence": {
+    "attribution": 1.0,
+    "freshness": 1.0,
+    "level": "high",
+    "reasons": [],
+    "source": 1.0
+  },
+  "contract_version": "v1",
+  "coverage": {
+    "applicable_weight": 158.0,
+    "completed_weight": 148.0,
+    "percentage": 93.7,
+    "sufficient": true,
+    "undetermined_checks": [
+      "E.domain_reputation_clean"
+    ]
+  },
+  "evaluations": [
+    {
+      "check_id": "A.caa_present",
+      "reason_code": null,
+      "result": "pass"
+    },
+    {
+      "check_id": "A.dnssec_enabled",
+      "reason_code": null,
+      "result": "pass"
+    },
+    {
+      "check_id": "A.nameserver_diversity",
+      "reason_code": null,
+      "result": "pass"
+    },
+    {
+      "check_id": "A.registration_expiry",
+      "reason_code": null,
+      "result": "pass"
+    },
+    {
+      "check_id": "B.dkim_declared_present",
+      "reason_code": null,
+      "result": "pass"
+    },
+    {
+      "check_id": "B.dmarc_enforced",
+      "reason_code": null,
+      "result": "pass"
+    },
+    {
+      "check_id": "B.mta_sts_enforced",
+      "reason_code": "mta_sts_testing_mode",
+      "result": "warning"
+    },
+    {
+      "check_id": "B.spf_present",
+      "reason_code": null,
+      "result": "pass"
+    },
+    {
+      "check_id": "B.tls_rpt_present",
+      "reason_code": null,
+      "result": "pass"
+    },
+    {
+      "check_id": "C.certificate_hostname",
+      "reason_code": null,
+      "result": "pass"
+    },
+    {
+      "check_id": "C.certificate_validity",
+      "reason_code": null,
+      "result": "pass"
+    },
+    {
+      "check_id": "C.cookie_attributes",
+      "reason_code": "insecure_cookie_attributes",
+      "result": "warning"
+    },
+    {
+      "check_id": "C.hsts_present",
+      "reason_code": null,
+      "result": "pass"
+    },
+    {
+      "check_id": "C.http_redirects_https",
+      "reason_code": null,
+      "result": "pass"
+    },
+    {
+      "check_id": "C.https_available",
+      "reason_code": null,
+      "result": "pass"
+    },
+    {
+      "check_id": "C.security_headers",
+      "reason_code": "some_security_headers_missing",
+      "result": "warning"
+    },
+    {
+      "check_id": "C.tls_protocol_posture",
+      "reason_code": null,
+      "result": "pass"
+    },
+    {
+      "check_id": "D.asset_attribution_reviewed",
+      "reason_code": "asset_candidates_unreviewed",
+      "result": "warning"
+    },
+    {
+      "check_id": "D.wildcard_dns_exposure",
+      "reason_code": null,
+      "result": "pass"
+    },
+    {
+      "check_id": "E.domain_reputation_clean",
+      "reason_code": "reputation_provider_unconfigured",
+      "result": "unknown"
+    },
+    {
+      "check_id": "F.evidence_freshness",
+      "reason_code": null,
+      "result": "pass"
+    },
+    {
+      "check_id": "F.server_banner_disclosure",
+      "reason_code": null,
+      "result": "pass"
+    }
+  ],
+  "evidence_digest": "e6094d9ad16935562abeb7683a10fa4c2dd2cb7fa35aebc35c2fb5034f82f59c",
+  "is_projection": false,
+  "methodology_version": "1.0.0",
+  "organization_id": "11111111-1111-4111-8111-111111111111",
+  "overall": {
+    "band": "resilient",
+    "caps_applied": [],
+    "score": 90.1,
+    "uncapped_score": 90.1
+  },
+  "pillars": [
+    {
+      "contributions": [
+        {
+          "check_id": "D.asset_attribution_reviewed",
+          "factor": 0.5,
+          "result": "warning",
+          "weight": 8.0
+        },
+        {
+          "check_id": "D.wildcard_dns_exposure",
+          "factor": 1.0,
+          "result": "pass",
+          "weight": 4.0
+        }
+      ],
+      "excluded_checks": 0,
+      "pillar": "attack_surface",
+      "score": 66.7,
+      "scored_checks": 2,
+      "weight": 0.15
+    },
+    {
+      "contributions": [
+        {
+          "check_id": "A.caa_present",
+          "factor": 1.0,
+          "result": "pass",
+          "weight": 6.0
+        },
+        {
+          "check_id": "A.dnssec_enabled",
+          "factor": 1.0,
+          "result": "pass",
+          "weight": 10.0
+        },
+        {
+          "check_id": "A.nameserver_diversity",
+          "factor": 1.0,
+          "result": "pass",
+          "weight": 4.0
+        },
+        {
+          "check_id": "A.registration_expiry",
+          "factor": 1.0,
+          "result": "pass",
+          "weight": 6.0
+        }
+      ],
+      "excluded_checks": 0,
+      "pillar": "dns",
+      "score": 100.0,
+      "scored_checks": 4,
+      "weight": 0.2
+    },
+    {
+      "contributions": [
+        {
+          "check_id": "B.dkim_declared_present",
+          "factor": 1.0,
+          "result": "pass",
+          "weight": 6.0
+        },
+        {
+          "check_id": "B.dmarc_enforced",
+          "factor": 1.0,
+          "result": "pass",
+          "weight": 10.0
+        },
+        {
+          "check_id": "B.mta_sts_enforced",
+          "factor": 0.5,
+          "result": "warning",
+          "weight": 6.0
+        },
+        {
+          "check_id": "B.spf_present",
+          "factor": 1.0,
+          "result": "pass",
+          "weight": 10.0
+        },
+        {
+          "check_id": "B.tls_rpt_present",
+          "factor": 1.0,
+          "result": "pass",
+          "weight": 4.0
+        }
+      ],
+      "excluded_checks": 0,
+      "pillar": "email",
+      "score": 91.7,
+      "scored_checks": 5,
+      "weight": 0.2
+    },
+    {
+      "contributions": [
+        {
+          "check_id": "F.evidence_freshness",
+          "factor": 1.0,
+          "result": "pass",
+          "weight": 4.0
+        },
+        {
+          "check_id": "F.server_banner_disclosure",
+          "factor": 1.0,
+          "result": "pass",
+          "weight": 4.0
+        }
+      ],
+      "excluded_checks": 0,
+      "pillar": "exposure_hygiene",
+      "score": 100.0,
+      "scored_checks": 2,
+      "weight": 0.1
+    },
+    {
+      "contributions": [
+        {
+          "check_id": "E.domain_reputation_clean",
+          "factor": null,
+          "result": "unknown",
+          "weight": 10.0
+        }
+      ],
+      "excluded_checks": 1,
+      "pillar": "reputation",
+      "score": null,
+      "scored_checks": 0,
+      "weight": 0.1
+    },
+    {
+      "contributions": [
+        {
+          "check_id": "C.certificate_hostname",
+          "factor": 1.0,
+          "result": "pass",
+          "weight": 8.0
+        },
+        {
+          "check_id": "C.certificate_validity",
+          "factor": 1.0,
+          "result": "pass",
+          "weight": 12.0
+        },
+        {
+          "check_id": "C.cookie_attributes",
+          "factor": 0.5,
+          "result": "warning",
+          "weight": 4.0
+        },
+        {
+          "check_id": "C.hsts_present",
+          "factor": 1.0,
+          "result": "pass",
+          "weight": 8.0
+        },
+        {
+          "check_id": "C.http_redirects_https",
+          "factor": 1.0,
+          "result": "pass",
+          "weight": 8.0
+        },
+        {
+          "check_id": "C.https_available",
+          "factor": 1.0,
+          "result": "pass",
+          "weight": 12.0
+        },
+        {
+          "check_id": "C.security_headers",
+          "factor": 0.5,
+          "result": "warning",
+          "weight": 8.0
+        },
+        {
+          "check_id": "C.tls_protocol_posture",
+          "factor": 1.0,
+          "result": "pass",
+          "weight": 6.0
+        }
+      ],
+      "excluded_checks": 0,
+      "pillar": "web_tls",
+      "score": 90.9,
+      "scored_checks": 8,
+      "weight": 0.25
+    }
+  ],
+  "policy_digest": "86421e35d811eee278f75a44c415370d8f3a853de8a0106fc6342726a90f4acf",
+  "snapshot_id": "33333333-3333-4333-8333-333333333333"
+}

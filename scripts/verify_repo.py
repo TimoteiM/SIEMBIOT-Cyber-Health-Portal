@@ -105,7 +105,15 @@ def build_checks(root: Path | None = None) -> tuple[Check, ...]:
                 (corepack, "pnpm", "--filter", "@siembiot/web", "build"),
             ),
         ),
-        Check("contracts", (uv + ("run", "--frozen", "python", "scripts/check_contracts.py"),)),
+        Check(
+            "contracts",
+            (
+                uv + ("run", "--frozen", "python", "scripts/check_contracts.py"),
+                uv
+                + ("run", "--frozen", "python", "scripts/generate_provider_matrix.py", "--check"),
+                uv + ("run", "--frozen", "python", "scripts/reproduce_methodology.py", "--check"),
+            ),
+        ),
         Check(
             "migrations",
             (uv + ("run", "--frozen", "alembic", "-c", "services/api/alembic.ini", "heads"),),
@@ -174,6 +182,7 @@ def verify_internal_gate(name: str, root: Path) -> list[str]:
         required = (
             root / "docs" / "product" / "phase0-review.md",
             root / "docs" / "development" / "setup.md",
+            root / "docs" / "providers" / "matrix.md",
         )
         return [
             f"missing documentation: {path.relative_to(root)}"
