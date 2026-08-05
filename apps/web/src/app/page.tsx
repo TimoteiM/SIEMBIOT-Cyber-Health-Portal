@@ -2,7 +2,7 @@ export default function LoginPage() {
   return (
     <section className="hero" aria-labelledby="login-title">
       <p className="eyebrow">Securitate măsurabilă, acces controlat</p>
-      <h1 id="login-title">Bine ai venit în SIEMBIOT</h1>
+      <h1 id="login-title">Bine ai venit în SIEMBIOT Cyber Health Portal</h1>
       <p>
         Autentificarea este realizată prin furnizorul OIDC configurat. Sesiunea rămâne pe server,
         iar browserul primește doar un cookie opac protejat.
