@@ -50,3 +50,35 @@ def test_domain_ui_uses_only_typed_same_origin_client_for_api_access() -> None:
     )
     assert "apiRequest" in domain_sources
     assert "fetch(" not in domain_sources
+
+
+def test_development_identity_injection_cannot_reach_a_deployed_build() -> None:
+    """The local identity middleware is a development convenience, not a bypass.
+
+    Authentication terminates upstream, so locally there is no gateway to inject the
+    identity headers a browser cannot set itself. The middleware fills that gap, and
+    these are the guards that stop it ever mattering in a real deployment.
+    """
+    middleware = (WEB_SOURCE / "middleware.ts").read_text(encoding="utf-8")
+
+    # Gated on the build mode, so a production build never takes the path at all.
+    assert 'process.env.NODE_ENV === "development"' in middleware
+
+    # Gated on explicit opt-in, so an unconfigured development build injects nothing.
+    assert "SIEMBIOT_DEV_IDENTITY_SUBJECT" in middleware
+
+    # Never overwrites an identity that is already present, so a real gateway wins.
+    assert "!headers.has(name)" in middleware
+
+    # Injects no gateway proof, so the API's production resolver rejects these headers
+    # regardless. The bypass cannot survive a deployment even if it were reached.
+    assert "gateway-secret" not in middleware.lower()
+    assert "gateway_secret" not in middleware.lower()
+
+
+def test_no_page_offers_a_login_flow_this_service_does_not_implement() -> None:
+    """Authentication is upstream, so the UI must not imply a login it cannot perform."""
+    sources = source_text()
+    assert "/api/v1/auth/login" not in sources
+    assert "/api/v1/auth/callback" not in sources
+    assert "Autentifică-te din nou" not in sources

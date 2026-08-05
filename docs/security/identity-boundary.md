@@ -65,8 +65,31 @@ so it would be an authentication bypass if it ever ran in a deployed environment
 
 ## Local development
 
-With `SIEMBIOT_ENV=development` and no gateway secret, the development resolver reads
-the identity headers directly. Send them with any request:
+A browser cannot set request headers on its own, so with no gateway in front of the
+app every page would sit at `401`. Two pieces close that gap locally.
+
+**The API** uses the development resolver, which reads the identity headers directly
+when the environment is `development` and no gateway secret is configured.
+
+**The web application** injects those headers in `apps/web/src/middleware.ts`. It is
+gated three ways and all three must hold: `NODE_ENV` is exactly `development`,
+`SIEMBIOT_DEV_IDENTITY_SUBJECT` is explicitly set, and an identity already present on
+the request is never overwritten. It injects no gateway proof, so the production
+resolver would reject the headers anyway — the convenience cannot survive a real
+deployment even if the code path were somehow reached.
+
+Set the identity in `.env`:
+
+```
+SIEMBIOT_DEV_IDENTITY_ISSUER=https://idp.local.test
+SIEMBIOT_DEV_IDENTITY_SUBJECT=local-analyst
+SIEMBIOT_DEV_IDENTITY_EMAIL=analist@example.test
+SIEMBIOT_DEV_IDENTITY_NAME="Ana Popescu"
+```
+
+Leaving `SIEMBIOT_DEV_IDENTITY_SUBJECT` empty disables injection entirely, which is
+how you exercise the unauthenticated states. To call the API directly, send the
+headers yourself:
 
 ```bash
 curl http://127.0.0.1:8000/api/v1/session \

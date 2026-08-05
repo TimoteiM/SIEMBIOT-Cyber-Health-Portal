@@ -11,7 +11,7 @@ type Organization = components["schemas"]["OrganizationResponse"];
 export default function OnboardingPage() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
-  const [message, setMessage] = useState("Verificăm sesiunea…");
+  const [message, setMessage] = useState("Verificăm identitatea…");
 
   useEffect(() => {
     loadSession()
@@ -19,7 +19,16 @@ export default function OnboardingPage() {
         setReady(true);
         setMessage("");
       })
-      .catch(() => setMessage("Sesiunea a expirat. Autentifică-te din nou."));
+      .catch((error: unknown) => {
+        // Authentication happens upstream, so there is no login page to send anyone
+        // to. Say what is actually true: the identity did not arrive.
+        setMessage(
+          error instanceof ApiError && error.status === 401
+            ? "Identitatea nu a fost primită de la platforma de identitate. " +
+                "Reîncarcă pagina sau contactează administratorul."
+            : "Starea nu a putut fi încărcată.",
+        );
+      });
   }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
