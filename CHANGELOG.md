@@ -23,8 +23,30 @@ All notable changes are documented here. The project has no supported release ye
 - Purpose-specific address-pinned network broker with DNS rebinding, redirect, SSRF, framing, concurrency, time, and size defenses.
 - Global, organization, domain, and operation-class emergency controls with audited activation/deactivation.
 - Romanian-first domain verification and authorization workflow with one-time in-memory challenge display.
+- Milestone 3 operation-class collection boundary generalizing the network broker to DNS queries, TLS handshakes, and multi-path HTTP fetches under the same authorization, pinning, and redirect revalidation rules.
+- Record-type allowlisted, budget-bounded DNS client and handshake-only TLS inspector with bounded protocol probing.
+- Declarative provider adapter contract covering capabilities, terms, data classification, secrets, timeout, rate limit, cost unit, cache policy, and mandatory fixture support.
+- Adapter registry plus token-bucket rate limiting, circuit breaking, quota accounting, TTL caching, and provider-disagreement summaries.
+- Keyless DNS resilience, e-mail trust, TLS/certificate, HTTP surface, RDAP, and Certificate Transparency collectors with golden pass/fail/warning/unknown/error and hostile-input fixtures.
+- Generated provider matrix with a CI drift check, and `test-collectors`, `test-adapters`, `providers-check`, `test-domain`, `test-network-safety`, and `fixture-stack` targets.
+- Milestone 4 versioned evidence contracts for normalized observations, check evaluations, score snapshots, findings, and multi-dimensional confidence.
+- Policy-as-data methodology v1.0.0 with 22 checks across all six pillars, declared weights, severities, public-safety classes, remediation templates, and bilingual titles.
+- Deterministic normalizers turning collector payloads into content-addressed observations that keep proven absence and inconclusive collection distinct.
+- Pure evaluation engine producing all eight result states, with ordered rules, applicability gating, and expiring authorized overrides.
+- Reproducible scoring engine with pillar weighting, high-confidence-only critical caps, coverage floor, and minimum-based confidence roll-up.
+- Stable finding fingerprints with resolve/regress reconciliation, expiring suppression, accepted risk, and methodology-aware score-change attribution.
+- Append-only migration for assessments, observations, evaluations, score snapshots, findings, suppressions, and finding history under row-level security.
+- Published methodology v1 documentation, reference snapshot, and `policy-validate`, `test-normalization`, `test-scoring`, and `methodology-reproduce` targets.
 
 ### Security
+
+- DKIM selectors are collected only from organization declarations; selector wordlists are never tried.
+- RDAP entity and contact objects are discarded at parse time; only registration facts are retained.
+- Certificate Transparency names are recorded as confidence-labelled candidates, never as confirmed organizational assets.
+- Architecture test extended to confine `dns`, `ssl`, `http`, `smtplib`, and `asyncio` imports to the network-safety boundary.
+- Observations, evaluations, score snapshots, and finding history are append-only at the database level, so a completed assessment cannot be rewritten.
+- A critical cap can only lower a score, is rejected by a database constraint otherwise, and never fires on a low-confidence or shared-hosting observation.
+- Suppression requires a reason, an actor, and an expiry; an indefinite suppression is not representable in the schema.
 
 - Safe environment template with the model disabled by default.
 - Tracked secret/key/generated-file rejection and assignment-shaped secret scanning.
