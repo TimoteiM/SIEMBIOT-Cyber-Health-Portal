@@ -104,3 +104,25 @@ The Docker-backed tests use only fixed test placeholders and reserved domains. T
 ## Production blocker
 
 The upstream Tyche credential exposure remains unresolved and is a production launch blocker. Its rotation and Git-history remediation are separately authorized security actions. This repository does not contain, access, test, rotate, or modify that credential.
+
+## Running the whole application locally
+
+`infra/compose/local-stack.compose.yml` starts the infrastructure only — PostgreSQL and
+a Keycloak OIDC provider with a seeded fictional realm. The API and web application run
+on the host, because production container images are Milestone 10 work and
+`scripts/verify_repo.py` fails the build if a Dockerfile appears earlier.
+
+```bash
+cp .env.example .env        # then set the local placeholders
+make stack-up               # postgres + keycloak, both digest-pinned
+make migrate                # apply all Alembic migrations
+make api-serve              # http://127.0.0.1:8000
+make web-serve              # http://localhost:3000
+```
+
+Sign in with the seeded development user documented in
+`infra/compose/keycloak-realm/README.md`. Everything in that realm is fictional and
+uses reserved test domains; no real credential or real domain is involved.
+
+`make stack-down` stops the containers. If port 5432 is already taken, set
+`SIEMBIOT_POSTGRES_PORT` in `.env` and update the two database URLs to match.
