@@ -7,10 +7,11 @@ from uuid import UUID, uuid4
 
 import psycopg
 from fastapi.testclient import TestClient
-from siembiot.auth import Principal, current_principal, require_csrf
+from siembiot.auth import current_principal, require_trusted_origin
 from siembiot.config import Settings
 from siembiot.domains.manifests import canonical_manifest_bytes, manifest_allows_target
 from siembiot.domains.signing import Ed25519ManifestSigner, ManifestKeySet
+from siembiot.identity import NullIdentityResolver, Principal
 from siembiot.main import create_app
 
 
@@ -20,7 +21,7 @@ def seed_verified_domain(
     organization_id, user_id, domain_id = uuid4(), uuid4(), uuid4()
     with psycopg.connect(owner_url) as owner:
         owner.execute(
-            "INSERT INTO users (id, oidc_issuer, oidc_subject, email, display_name) "
+            "INSERT INTO users (id, identity_issuer, identity_subject, email, display_name) "
             "VALUES (%s, 'https://idp.example.test', %s, %s, 'Authorization user')",
             (str(user_id), str(user_id), f"{user_id}@example.test"),
         )
@@ -41,12 +42,9 @@ def seed_verified_domain(
             (str(domain_id), str(organization_id), domain, domain, domain, str(user_id)),
         )
     principal = Principal(
-        session_id=uuid4(),
         user_id=user_id,
         email=f"{user_id}@example.test",
         display_name="Authorization user",
-        expires_at=datetime.now(UTC) + timedelta(hours=1),
-        csrf_hash=bytes(32),
     )
     return organization_id, domain_id, principal
 
@@ -65,9 +63,10 @@ def client_for(
             ),
         ),
         manifest_signer=signer,
+        identity_resolver=NullIdentityResolver(),
     )
     app.dependency_overrides[current_principal] = lambda: principal
-    app.dependency_overrides[require_csrf] = lambda: principal
+    app.dependency_overrides[require_trusted_origin] = lambda: principal
     return TestClient(app, base_url="https://portal.example.test")
 
 

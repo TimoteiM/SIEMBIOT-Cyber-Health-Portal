@@ -4,8 +4,9 @@ from collections.abc import Callable
 
 import pytest
 from fastapi.testclient import TestClient
-from siembiot.auth import current_principal, require_csrf
+from siembiot.auth import current_principal, require_trusted_origin
 from siembiot.config import Settings
+from siembiot.identity import NullIdentityResolver
 from siembiot.main import create_app
 from siembiot_worker.network_safety.broker import NetworkSafetyBroker, PolicyAuthorizer
 from siembiot_worker.network_safety.models import (
@@ -66,10 +67,11 @@ def test_https_challenge_uses_policy_broker_and_exact_token(
     app = create_app(
         settings=settings,
         txt_resolver=MutableTXTResolver(),
+        identity_resolver=NullIdentityResolver(),
         network_broker_factory=factory,
     )
     app.dependency_overrides[current_principal] = lambda: principal
-    app.dependency_overrides[require_csrf] = lambda: principal
+    app.dependency_overrides[require_trusted_origin] = lambda: principal
     with TestClient(app, base_url="https://portal.example.test") as client:
         domain = client.post(
             f"/api/v1/organizations/{organization_id}/domains",
@@ -112,9 +114,13 @@ def test_https_verification_is_blocked_and_recovers_after_kill_switch(
         public_base_url="https://portal.example.test",
         database_url=postgres_database["app_url"].replace("postgresql://", "postgresql+psycopg://"),
     )
-    app = create_app(settings=settings, network_broker_factory=factory)
+    app = create_app(
+        settings=settings,
+        network_broker_factory=factory,
+        identity_resolver=NullIdentityResolver(),
+    )
     app.dependency_overrides[current_principal] = lambda: principal
-    app.dependency_overrides[require_csrf] = lambda: principal
+    app.dependency_overrides[require_trusted_origin] = lambda: principal
     with TestClient(app, base_url="https://portal.example.test") as client:
         domain = client.post(
             f"/api/v1/organizations/{organization_id}/domains",

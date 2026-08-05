@@ -10,7 +10,7 @@ from sqlalchemy.engine import RowMapping
 from sqlalchemy.exc import IntegrityError
 
 from siembiot.audit import append_audit_event
-from siembiot.auth import Principal, current_principal, require_csrf
+from siembiot.auth import current_principal, require_trusted_origin
 from siembiot.authorization import Action
 from siembiot.contracts import (
     EmergencyControlCreate,
@@ -19,6 +19,7 @@ from siembiot.contracts import (
 )
 from siembiot.db import Database
 from siembiot.errors import AppError
+from siembiot.identity import Principal
 from siembiot.organizations import authorize
 
 
@@ -87,7 +88,7 @@ def build_emergency_router() -> APIRouter:
         organization_id: UUID,
         body: EmergencyControlCreate,
         request: Request,
-        principal: Principal = Depends(require_csrf),
+        principal: Principal = Depends(require_trusted_origin),
     ) -> EmergencyControlResponse:
         if body.scope == "global":
             raise AppError(403, "forbidden", "Global controls require the platform endpoint.")
@@ -214,7 +215,7 @@ def build_emergency_router() -> APIRouter:
         control_id: UUID,
         body: EmergencyControlDeactivate,
         request: Request,
-        principal: Principal = Depends(require_csrf),
+        principal: Principal = Depends(require_trusted_origin),
     ) -> EmergencyControlResponse:
         with _database(request).tenant_connection(principal.user_id, organization_id) as connection:
             authorize(
@@ -274,7 +275,7 @@ def build_global_emergency_router() -> APIRouter:
     def activate_global(
         body: EmergencyControlCreate,
         request: Request,
-        principal: Principal = Depends(require_csrf),
+        principal: Principal = Depends(require_trusted_origin),
     ) -> EmergencyControlResponse:
         if body.scope != "global" or body.domain_id is not None or body.operation_class is not None:
             raise AppError(422, "invalid_scope", "Only a global control is accepted here.")
@@ -345,7 +346,7 @@ def build_global_emergency_router() -> APIRouter:
         control_id: UUID,
         body: EmergencyControlDeactivate,
         request: Request,
-        principal: Principal = Depends(require_csrf),
+        principal: Principal = Depends(require_trusted_origin),
     ) -> EmergencyControlResponse:
         with _database(request).user_connection(principal.user_id) as connection:
             permitted = connection.execute(

@@ -12,16 +12,10 @@ class Settings(BaseSettings):
     environment: str = "development"
     public_base_url: str = "http://localhost:3000"
     database_url: str = "postgresql+psycopg://siembiot_app:CHANGEME@127.0.0.1:5432/siembiot"
-    oidc_issuer: str = "http://localhost:8080/realms/siembiot"
-    oidc_client_id: str = "siembiot-web"
-    oidc_client_secret: str | None = None
-    session_encryption_key: str | None = None
-    session_ttl_seconds: int = Field(default=28800, ge=300, le=86400)
-    oidc_transaction_ttl_seconds: int = Field(default=600, ge=60, le=900)
+    # Authentication is owned by a separate team and terminates upstream. The
+    # gateway proves it is the caller with this shared secret; without it, identity
+    # headers are ignored. Required outside development.
+    identity_gateway_secret: str | None = None
     domain_challenge_ttl_seconds: int = Field(default=900, ge=60, le=3600)
     domain_challenge_create_limit_per_hour: int = Field(default=3, ge=1, le=20)
     domain_reverification_days: int = Field(default=30, ge=1, le=365)
-
-    @property
-    def callback_url(self) -> str:
-        return f"{self.public_base_url.rstrip('/')}/api/v1/auth/callback"

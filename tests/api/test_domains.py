@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 import psycopg
 from fastapi.testclient import TestClient
-from siembiot.auth import Principal, current_principal, require_csrf
+from siembiot.auth import current_principal, require_trusted_origin
 from siembiot.config import Settings
+from siembiot.identity import NullIdentityResolver, Principal
 from siembiot.main import create_app
 
 
@@ -26,7 +26,7 @@ def seed_owner(owner_url: str, *, role: str = "organization_owner") -> tuple[UUI
     user_id = uuid4()
     with psycopg.connect(owner_url) as owner:
         owner.execute(
-            "INSERT INTO users (id, oidc_issuer, oidc_subject, email, display_name) "
+            "INSERT INTO users (id, identity_issuer, identity_subject, email, display_name) "
             "VALUES (%s, 'https://idp.example.test', %s, %s, 'Domain API user')",
             (str(user_id), str(user_id), f"{user_id}@example.test"),
         )
@@ -40,12 +40,9 @@ def seed_owner(owner_url: str, *, role: str = "organization_owner") -> tuple[UUI
             (str(organization_id), str(user_id), role),
         )
     principal = Principal(
-        session_id=uuid4(),
         user_id=user_id,
         email=f"{user_id}@example.test",
         display_name="Domain API user",
-        expires_at=datetime.now(UTC) + timedelta(hours=1),
-        csrf_hash=bytes(32),
     )
     return organization_id, principal
 
@@ -60,9 +57,11 @@ def client_for(
         domain_challenge_ttl_seconds=900,
         domain_challenge_create_limit_per_hour=3,
     )
-    app = create_app(settings=settings, txt_resolver=resolver)
+    app = create_app(
+        settings=settings, txt_resolver=resolver, identity_resolver=NullIdentityResolver()
+    )
     app.dependency_overrides[current_principal] = lambda: principal
-    app.dependency_overrides[require_csrf] = lambda: principal
+    app.dependency_overrides[require_trusted_origin] = lambda: principal
     return TestClient(app, base_url="https://portal.example.test")
 
 

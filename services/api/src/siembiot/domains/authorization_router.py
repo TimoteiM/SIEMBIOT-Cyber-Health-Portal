@@ -10,7 +10,7 @@ from sqlalchemy import Connection, text
 from sqlalchemy.engine import RowMapping
 
 from siembiot.audit import append_audit_event
-from siembiot.auth import Principal, current_principal, require_csrf
+from siembiot.auth import current_principal, require_trusted_origin
 from siembiot.authorization import Action
 from siembiot.contracts import (
     AssessmentAuthorizationCreate,
@@ -22,6 +22,7 @@ from siembiot.db import Database
 from siembiot.domains.manifests import canonical_manifest_bytes, scope_manifest_payload
 from siembiot.domains.signing import ManifestSigner
 from siembiot.errors import AppError
+from siembiot.identity import Principal
 from siembiot.organizations import authorize
 
 
@@ -104,7 +105,7 @@ def build_authorization_router() -> APIRouter:
         organization_id: UUID,
         body: AssessmentAuthorizationCreate,
         request: Request,
-        principal: Principal = Depends(require_csrf),
+        principal: Principal = Depends(require_trusted_origin),
     ) -> AssessmentAuthorizationResponse:
         if (
             body.valid_from.tzinfo is None
@@ -232,7 +233,7 @@ def build_authorization_router() -> APIRouter:
         organization_id: UUID,
         authorization_id: UUID,
         request: Request,
-        principal: Principal = Depends(require_csrf),
+        principal: Principal = Depends(require_trusted_origin),
     ) -> ScopeManifestResponse:
         signer = cast(ManifestSigner, request.app.state.manifest_signer)
         manifest_id = uuid4()
@@ -360,7 +361,7 @@ def build_authorization_router() -> APIRouter:
         authorization_id: UUID,
         body: AuthorizationRevoke,
         request: Request,
-        principal: Principal = Depends(require_csrf),
+        principal: Principal = Depends(require_trusted_origin),
     ) -> AssessmentAuthorizationResponse:
         with _database(request).tenant_connection(principal.user_id, organization_id) as connection:
             authorize(connection, request, principal, organization_id, Action.AUTHORIZATION_MANAGE)

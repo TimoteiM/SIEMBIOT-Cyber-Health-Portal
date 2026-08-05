@@ -26,7 +26,7 @@ from siembiot.domains.signing import (
     ensure_signer_allowed,
 )
 from siembiot.errors import AppError
-from siembiot.oidc import OIDCClient, StandardOIDCClient
+from siembiot.identity import IdentityResolver, build_identity_resolver
 from siembiot.organizations import build_invitation_router, build_organization_router
 from siembiot.request_context import RequestContextMiddleware, new_request_id
 
@@ -44,7 +44,7 @@ def _error(request: Request, status_code: int, code: str, message: str) -> JSONR
 
 def create_app(
     settings: Settings | None = None,
-    oidc_client: OIDCClient | None = None,
+    identity_resolver: IdentityResolver | None = None,
     txt_resolver: TXTResolver | None = None,
     manifest_signer: ManifestSigner | None = None,
     network_broker_factory: NetworkBrokerFactory | None = None,
@@ -55,6 +55,11 @@ def create_app(
         "dev-ephemeral", development_only=True
     )
     ensure_signer_allowed(resolved_settings.environment, resolved_signer)
+    # Fails closed: outside development an unconfigured gateway secret raises here
+    # rather than letting a plain header authenticate a request.
+    resolved_identity_resolver = identity_resolver or build_identity_resolver(
+        resolved_settings.environment, resolved_settings.identity_gateway_secret
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -64,7 +69,7 @@ def create_app(
     app = FastAPI(title="SIEMBIOT Private API", version="1.0.0", lifespan=lifespan)
     app.state.settings = resolved_settings
     app.state.database = database
-    app.state.oidc_client = oidc_client or StandardOIDCClient(resolved_settings)
+    app.state.identity_resolver = resolved_identity_resolver
     app.state.txt_resolver = txt_resolver or BoundedTXTResolver()
     app.state.manifest_signer = resolved_signer
     app.state.network_broker_factory = network_broker_factory or default_network_broker_factory

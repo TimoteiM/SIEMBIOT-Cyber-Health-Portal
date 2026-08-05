@@ -1,10 +1,13 @@
-# Local development infrastructure: PostgreSQL plus an OIDC provider.
+# Local development infrastructure.
+#
+# Authentication is owned by a separate team and terminates upstream of this service,
+# so no identity provider runs here. Locally, the development identity resolver reads
+# the identity headers directly -- see docs/security/identity-boundary.md.
 #
 # Deliberately infrastructure only. The API and web application run on the host via
-# `make api-serve` and `pnpm dev`, because production container images are Milestone 10
-# work and `scripts/verify_repo.py` fails the build if a Dockerfile appears early.
-#
-# Every image is digest-pinned so a local stack is reproducible.
+# `make api-serve` and `make web-serve`, because production container images are
+# Milestone 10 work and `scripts/verify_repo.py` fails the build if a Dockerfile
+# appears early. Every image is digest-pinned so a local stack is reproducible.
 services:
   postgres:
     image: postgres@sha256:f3bd19c606e442c3d7bdfa8002e03fe260a1023351e0ea4598032022b68dd6e3
@@ -23,34 +26,6 @@ services:
       interval: 2s
       timeout: 3s
       retries: 30
-    restart: unless-stopped
-
-  keycloak:
-    image: quay.io/keycloak/keycloak@sha256:09a381c715ab0b111835b70f2905955274843a219c6f27efb348e4d9f4086858
-    command: ["start-dev", "--import-realm", "--http-port=8080"]
-    environment:
-      # Development-only bootstrap credentials. The realm below is fictional and the
-      # client secret is a documented local placeholder, never a production value.
-      KC_BOOTSTRAP_ADMIN_USERNAME: admin
-      KC_BOOTSTRAP_ADMIN_PASSWORD: ${SIEMBIOT_KEYCLOAK_ADMIN_PASSWORD:-CHANGEME_LOCAL_ONLY}
-      KC_HEALTH_ENABLED: "true"
-    ports:
-      - "127.0.0.1:${SIEMBIOT_KEYCLOAK_PORT:-8080}:8080"
-    volumes:
-      - ./keycloak-realm:/opt/keycloak/data/import:ro
-    healthcheck:
-      # The image ships no curl, so readiness is probed over bash's /dev/tcp against
-      # the management port. A block scalar keeps the HTTP text out of YAML parsing.
-      test:
-        - CMD-SHELL
-        - >-
-          exec 3<>/dev/tcp/127.0.0.1/9000
-          && printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3
-          && grep -q UP <&3
-      interval: 5s
-      timeout: 5s
-      retries: 40
-      start_period: 20s
     restart: unless-stopped
 
 volumes:

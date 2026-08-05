@@ -18,19 +18,18 @@ python scripts/bootstrap.py
 
 ## Local configuration
 
-Copy `.env.example` to the ignored `.env` and replace every `CHANGEME_LOCAL_ONLY` value with a local-only value. Generate the required Fernet session-encryption key locally:
+Copy `.env.example` to the ignored `.env` and replace every `CHANGEME_LOCAL_ONLY` value with a local-only value.
 
-```powershell
-python -m uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-```
+## Identity
 
-Configure any standards-compatible OIDC issuer that exposes discovery, authorization, token, JWKS, and optionally end-session endpoints. Register exactly this callback for the default setup:
+Authentication is owned by a separate team and terminates upstream of this service.
+There is no login flow here and no identity provider to configure locally — see
+[the identity boundary](../security/identity-boundary.md) for the header contract, the
+gateway shared secret, and the fail-closed rules.
 
-```text
-https://localhost:3000/api/v1/auth/callback
-```
-
-The API validates issuer, signed ID token, audience, expiry, state, nonce, and PKCE. It does not accept tenant or platform-role claims from the provider. Access and refresh tokens are never returned to the browser or stored in browser storage.
+In development the API reads the identity headers directly. Outside development,
+`SIEMBIOT_IDENTITY_GATEWAY_SECRET` is mandatory and the service refuses to start
+without it.
 
 ## PostgreSQL and migrations
 
@@ -107,22 +106,25 @@ The upstream Tyche credential exposure remains unresolved and is a production la
 
 ## Running the whole application locally
 
-`infra/compose/local-stack.compose.yml` starts the infrastructure only — PostgreSQL and
-a Keycloak OIDC provider with a seeded fictional realm. The API and web application run
-on the host, because production container images are Milestone 10 work and
-`scripts/verify_repo.py` fails the build if a Dockerfile appears earlier.
+`infra/compose/local-stack.compose.yml` starts the infrastructure only — PostgreSQL.
+The API and web application run on the host, because production container images are
+Milestone 10 work and `scripts/verify_repo.py` fails the build if a Dockerfile appears
+earlier.
+
+Authentication is owned by a separate team and terminates upstream of this service, so
+no identity provider runs locally. In development the identity is read straight from
+request headers; see [the identity boundary](../security/identity-boundary.md).
 
 ```bash
 cp .env.example .env        # then set the local placeholders
-make stack-up               # postgres + keycloak, both digest-pinned
+make stack-up               # digest-pinned PostgreSQL
 make migrate                # apply all Alembic migrations
 make api-serve              # http://127.0.0.1:8000
 make web-serve              # http://localhost:3000
 ```
 
-Sign in with the seeded development user documented in
-`infra/compose/keycloak-realm/README.md`. Everything in that realm is fictional and
-uses reserved test domains; no real credential or real domain is involved.
+The browser reaches the app through the Next.js dev proxy, which forwards the
+development identity headers. No credential is involved and no real domain is used.
 
 `make stack-down` stops the containers. If port 5432 is already taken, set
 `SIEMBIOT_POSTGRES_PORT` in `.env` and update the two database URLs to match.

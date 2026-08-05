@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import psycopg
 from fastapi.testclient import TestClient
-from siembiot.auth import current_principal, require_csrf
+from siembiot.auth import current_principal, require_trusted_origin
 from siembiot.config import Settings
+from siembiot.identity import NullIdentityResolver
 from siembiot.main import create_app
 from test_domains import MutableTXTResolver, seed_owner
 
@@ -18,9 +19,13 @@ def test_org_emergency_controls_are_tenant_scoped_and_audited(
         public_base_url="https://portal.example.test",
         database_url=postgres_database["app_url"].replace("postgresql://", "postgresql+psycopg://"),
     )
-    app = create_app(settings=settings, txt_resolver=MutableTXTResolver())
+    app = create_app(
+        settings=settings,
+        txt_resolver=MutableTXTResolver(),
+        identity_resolver=NullIdentityResolver(),
+    )
     app.dependency_overrides[current_principal] = lambda: principal
-    app.dependency_overrides[require_csrf] = lambda: principal
+    app.dependency_overrides[require_trusted_origin] = lambda: principal
     with TestClient(app, base_url="https://portal.example.test") as client:
         created = client.post(
             f"/api/v1/organizations/{organization_id}/emergency-controls",
@@ -53,9 +58,9 @@ def test_global_control_requires_phishing_resistant_platform_admin(
         public_base_url="https://portal.example.test",
         database_url=postgres_database["app_url"].replace("postgresql://", "postgresql+psycopg://"),
     )
-    app = create_app(settings=settings)
+    app = create_app(settings=settings, identity_resolver=NullIdentityResolver())
     app.dependency_overrides[current_principal] = lambda: principal
-    app.dependency_overrides[require_csrf] = lambda: principal
+    app.dependency_overrides[require_trusted_origin] = lambda: principal
     payload = {
         "scope": "global",
         "reason": "Emergency platform-wide network suspension",
@@ -88,9 +93,9 @@ def test_read_only_role_cannot_activate_emergency_control(
         public_base_url="https://portal.example.test",
         database_url=postgres_database["app_url"].replace("postgresql://", "postgresql+psycopg://"),
     )
-    app = create_app(settings=settings)
+    app = create_app(settings=settings, identity_resolver=NullIdentityResolver())
     app.dependency_overrides[current_principal] = lambda: principal
-    app.dependency_overrides[require_csrf] = lambda: principal
+    app.dependency_overrides[require_trusted_origin] = lambda: principal
     with TestClient(app, base_url="https://portal.example.test") as client:
         denied = client.post(
             f"/api/v1/organizations/{organization_id}/emergency-controls",

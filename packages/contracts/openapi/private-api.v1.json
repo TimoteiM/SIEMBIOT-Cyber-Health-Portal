@@ -782,33 +782,6 @@
         "title": "InvitationResponse",
         "type": "object"
       },
-      "LogoutResponse": {
-        "additionalProperties": false,
-        "properties": {
-          "contract_version": {
-            "const": "v1",
-            "default": "v1",
-            "title": "Contract Version",
-            "type": "string"
-          },
-          "logout_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Logout Url"
-          }
-        },
-        "required": [
-          "logout_url"
-        ],
-        "title": "LogoutResponse",
-        "type": "object"
-      },
       "MembershipResponse": {
         "additionalProperties": false,
         "properties": {
@@ -1009,23 +982,12 @@
             "title": "Contract Version",
             "type": "string"
           },
-          "csrf_token": {
-            "title": "Csrf Token",
-            "type": "string"
-          },
-          "expires_at": {
-            "format": "date-time",
-            "title": "Expires At",
-            "type": "string"
-          },
           "user": {
             "$ref": "#/components/schemas/UserResponse"
           }
         },
         "required": [
-          "user",
-          "expires_at",
-          "csrf_token"
+          "user"
         ],
         "title": "SessionResponse",
         "type": "object"
@@ -1098,166 +1060,9 @@
   },
   "openapi": "3.1.0",
   "paths": {
-    "/api/v1/auth/callback": {
-      "get": {
-        "operationId": "callback_api_v1_auth_callback_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "state",
-            "required": true,
-            "schema": {
-              "title": "State",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "code",
-            "required": true,
-            "schema": {
-              "title": "Code",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Callback",
-        "tags": [
-          "authentication"
-        ]
-      }
-    },
-    "/api/v1/auth/login": {
-      "get": {
-        "operationId": "login_api_v1_auth_login_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "return_path",
-            "required": false,
-            "schema": {
-              "default": "/",
-              "title": "Return Path",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Login",
-        "tags": [
-          "authentication"
-        ]
-      }
-    },
-    "/api/v1/auth/logout": {
-      "post": {
-        "operationId": "logout_api_v1_auth_logout_post",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "__Host-siembiot_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "  Host-Siembiot Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LogoutResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Logout",
-        "tags": [
-          "authentication"
-        ]
-      }
-    },
     "/api/v1/emergency-controls": {
       "post": {
         "operationId": "activate_global_api_v1_emergency_controls_post",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "__Host-siembiot_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "  Host-Siembiot Session"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1308,22 +1113,6 @@
               "format": "uuid",
               "title": "Control Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "__Host-siembiot_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "  Host-Siembiot Session"
             }
           }
         ],
@@ -1389,24 +1178,6 @@
     "/api/v1/invitations/accept": {
       "post": {
         "operationId": "accept_invitation_api_v1_invitations_accept_post",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "__Host-siembiot_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "  Host-Siembiot Session"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1448,24 +1219,6 @@
     "/api/v1/organizations": {
       "get": {
         "operationId": "list_organizations_api_v1_organizations_get",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "__Host-siembiot_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "  Host-Siembiot Session"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -1480,16 +1233,6 @@
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
         "summary": "List Organizations",
@@ -1499,24 +1242,6 @@
       },
       "post": {
         "operationId": "create_organization_api_v1_organizations_post",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "__Host-siembiot_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "  Host-Siembiot Session"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1567,22 +1292,6 @@
               "format": "uuid",
               "title": "Organization Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "__Host-siembiot_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "  Host-Siembiot Session"
             }
           }
         ],
@@ -1637,22 +1346,6 @@
               "title": "Limit",
               "type": "integer"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "__Host-siembiot_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "  Host-Siembiot Session"
-            }
           }
         ],
         "responses": {
@@ -1700,22 +1393,6 @@
               "title": "Organization Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "__Host-siembiot_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "  Host-Siembiot Session"
-            }
           }
         ],
         "responses": {
@@ -1760,22 +1437,6 @@
               "format": "uuid",
               "title": "Organization Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "__Host-siembiot_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "  Host-Siembiot Session"
             }
           }
         ],
@@ -1840,22 +1501,6 @@
               "title": "Authorization Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "__Host-siembiot_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "  Host-Siembiot Session"
-            }
           }
         ],
         "responses": {
@@ -1908,22 +1553,6 @@
               "format": "uuid",
               "title": "Authorization Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "__Host-siembiot_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "  Host-Siembiot Session"
             }
           }
         ],
@@ -1978,22 +1607,6 @@
               "title": "Organization Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "__Host-siembiot_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "  Host-Siembiot Session"
-            }
           }
         ],
         "responses": {
@@ -2038,22 +1651,6 @@
               "format": "uuid",
               "title": "Organization Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "__Host-siembiot_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "  Host-Siembiot Session"
             }
           }
         ],
@@ -2118,22 +1715,6 @@
               "title": "Domain Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "__Host-siembiot_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "  Host-Siembiot Session"
-            }
           }
         ],
         "responses": {
@@ -2186,22 +1767,6 @@
               "format": "uuid",
               "title": "Domain Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "__Host-siembiot_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "  Host-Siembiot Session"
             }
           }
         ],
@@ -2276,22 +1841,6 @@
               "title": "Challenge Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "__Host-siembiot_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "  Host-Siembiot Session"
-            }
           }
         ],
         "responses": {
@@ -2348,22 +1897,6 @@
               "title": "Challenge Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "__Host-siembiot_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "  Host-Siembiot Session"
-            }
           }
         ],
         "responses": {
@@ -2406,22 +1939,6 @@
               "format": "uuid",
               "title": "Organization Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "__Host-siembiot_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "  Host-Siembiot Session"
             }
           }
         ],
@@ -2467,22 +1984,6 @@
               "format": "uuid",
               "title": "Organization Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "__Host-siembiot_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "  Host-Siembiot Session"
             }
           }
         ],
@@ -2547,22 +2048,6 @@
               "title": "Control Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "__Host-siembiot_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "  Host-Siembiot Session"
-            }
           }
         ],
         "requestBody": {
@@ -2616,22 +2101,6 @@
               "title": "Organization Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "__Host-siembiot_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "  Host-Siembiot Session"
-            }
           }
         ],
         "requestBody": {
@@ -2684,22 +2153,6 @@
               "format": "uuid",
               "title": "Organization Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "__Host-siembiot_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "  Host-Siembiot Session"
             }
           }
         ],
@@ -2758,22 +2211,6 @@
               "title": "Membership Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "__Host-siembiot_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "  Host-Siembiot Session"
-            }
           }
         ],
         "responses": {
@@ -2818,22 +2255,6 @@
               "title": "Membership Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "__Host-siembiot_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "  Host-Siembiot Session"
-            }
           }
         ],
         "requestBody": {
@@ -2876,25 +2297,8 @@
     },
     "/api/v1/session": {
       "get": {
+        "description": "Report who the upstream authentication layer says the caller is.",
         "operationId": "session_api_v1_session_get",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "__Host-siembiot_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "  Host-Siembiot Session"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -2905,21 +2309,11 @@
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
         "summary": "Session",
         "tags": [
-          "authentication"
+          "identity"
         ]
       }
     }

@@ -10,7 +10,7 @@ from sqlalchemy.engine import RowMapping
 from sqlalchemy.exc import IntegrityError
 
 from siembiot.audit import append_audit_event
-from siembiot.auth import Principal, current_principal, hash_token, random_token, require_csrf
+from siembiot.auth import current_principal, hash_token, random_token, require_trusted_origin
 from siembiot.authorization import Action, Role, is_allowed
 from siembiot.contracts import (
     AuditEventResponse,
@@ -25,6 +25,7 @@ from siembiot.contracts import (
 )
 from siembiot.db import Database
 from siembiot.errors import AppError
+from siembiot.identity import Principal
 
 
 def _request_id(request: Request) -> str:
@@ -86,7 +87,7 @@ def build_organization_router() -> APIRouter:
     def create_organization(
         request: Request,
         body: OrganizationCreate,
-        principal: Principal = Depends(require_csrf),
+        principal: Principal = Depends(require_trusted_origin),
     ) -> OrganizationResponse:
         organization_id = uuid4()
         database: Database = request.app.state.database
@@ -188,7 +189,7 @@ def build_organization_router() -> APIRouter:
         membership_id: UUID,
         body: MembershipUpdate,
         request: Request,
-        principal: Principal = Depends(require_csrf),
+        principal: Principal = Depends(require_trusted_origin),
     ) -> MembershipResponse:
         database: Database = request.app.state.database
         with database.tenant_connection(principal.user_id, organization_id) as connection:
@@ -283,7 +284,7 @@ def build_organization_router() -> APIRouter:
         organization_id: UUID,
         membership_id: UUID,
         request: Request,
-        principal: Principal = Depends(require_csrf),
+        principal: Principal = Depends(require_trusted_origin),
     ) -> Response:
         database: Database = request.app.state.database
         with database.tenant_connection(principal.user_id, organization_id) as connection:
@@ -344,7 +345,7 @@ def build_organization_router() -> APIRouter:
         organization_id: UUID,
         body: InvitationCreate,
         request: Request,
-        principal: Principal = Depends(require_csrf),
+        principal: Principal = Depends(require_trusted_origin),
     ) -> InvitationCreatedResponse:
         database: Database = request.app.state.database
         token = random_token()
@@ -456,7 +457,7 @@ def build_invitation_router() -> APIRouter:
     def accept_invitation(
         body: InvitationAccept,
         request: Request,
-        principal: Principal = Depends(require_csrf),
+        principal: Principal = Depends(require_trusted_origin),
     ) -> InvitationResponse:
         database: Database = request.app.state.database
         try:

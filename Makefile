@@ -59,8 +59,9 @@ db-up:
 db-down:
 	docker compose --env-file .env -f infra/compose/postgres.compose.yml down
 
-# Local infrastructure only: PostgreSQL plus an OIDC provider. The API and web run on
-# the host, because production images are Milestone 10 work.
+# Local infrastructure only. Authentication terminates upstream and is owned by another
+# team, so no identity provider runs here. The API and web run on the host, because
+# production images are Milestone 10 work.
 stack-up:
 	docker compose --env-file .env -f infra/compose/local-stack.compose.yml up -d --wait
 

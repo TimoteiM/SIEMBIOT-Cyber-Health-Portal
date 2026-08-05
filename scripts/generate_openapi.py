@@ -4,10 +4,10 @@ import json
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "services" / "api" / "src"))
 
-from siembiot.main import create_app  # noqa: E402
+from siembiot.main import create_app  # noqa: E402  # type: ignore[reportMissingImports]
 
 
 def main() -> int:

@@ -5,10 +5,11 @@ from uuid import UUID, uuid4
 
 import psycopg
 from fastapi.testclient import TestClient
-from siembiot.auth import Principal, current_principal, require_csrf
+from siembiot.auth import current_principal, require_trusted_origin
 from siembiot.config import Settings
 from siembiot.db import Database
 from siembiot.domains.network_adapter import DatabaseNetworkPolicy
+from siembiot.identity import NullIdentityResolver, Principal
 from siembiot.main import create_app
 from siembiot_worker.network_safety.models import BrokerCheckpoint, VerificationFetchRequest
 from siembiot_worker.network_safety.url_policy import VerificationDestination
@@ -19,7 +20,7 @@ def seed_owner(owner_url: str) -> tuple[UUID, Principal]:
     user_id = uuid4()
     with psycopg.connect(owner_url) as owner:
         owner.execute(
-            "INSERT INTO users (id, oidc_issuer, oidc_subject, email, display_name) "
+            "INSERT INTO users (id, identity_issuer, identity_subject, email, display_name) "
             "VALUES (%s, 'https://idp.example.test', %s, %s, 'Security test user')",
             (str(user_id), str(user_id), f"{user_id}@example.test"),
         )
@@ -34,12 +35,9 @@ def seed_owner(owner_url: str) -> tuple[UUID, Principal]:
             (str(organization_id), str(user_id)),
         )
     return organization_id, Principal(
-        session_id=uuid4(),
         user_id=user_id,
         email=f"{user_id}@example.test",
         display_name="Security test user",
-        expires_at=datetime.now(UTC) + timedelta(hours=1),
-        csrf_hash=bytes(32),
     )
 
 
@@ -52,9 +50,9 @@ def _client(
         public_base_url="https://portal.example.test",
         database_url=postgres_database["app_url"].replace("postgresql://", "postgresql+psycopg://"),
     )
-    app = create_app(settings=settings)
+    app = create_app(settings=settings, identity_resolver=NullIdentityResolver())
     app.dependency_overrides[current_principal] = lambda: principal
-    app.dependency_overrides[require_csrf] = lambda: principal
+    app.dependency_overrides[require_trusted_origin] = lambda: principal
     return TestClient(app, base_url="https://portal.example.test"), settings
 
 

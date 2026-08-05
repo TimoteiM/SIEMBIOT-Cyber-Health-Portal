@@ -37,12 +37,6 @@ class UserResponse(BaseModel):
 class SessionResponse(ContractModel):
     authenticated: Literal[True] = True
     user: UserResponse
-    expires_at: datetime
-    csrf_token: str
-
-
-class LogoutResponse(ContractModel):
-    logout_url: str | None
 
 
 class OrganizationCreate(BaseModel):

@@ -5,8 +5,6 @@ type ErrorEnvelope = {
   error: { code: string; message: string; request_id: string };
 };
 
-let csrfToken: string | undefined;
-
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -28,10 +26,6 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
   const headers = new Headers(init.headers);
   headers.set("Accept", "application/json");
   if (init.body) headers.set("Content-Type", "application/json");
-  if (isMutation(method)) {
-    if (!csrfToken) throw new ApiError("Sesiunea trebuie reîmprospătată.", 401, "csrf_missing");
-    headers.set("X-CSRF-Token", csrfToken);
-  }
   const response = await fetch(path, {
     ...init,
     method,
@@ -57,12 +51,13 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
   return await response.json() as T;
 }
 
+/**
+ * Reports who the upstream authentication layer says the caller is.
+ *
+ * Authentication itself is owned by a separate team and terminates before a request
+ * reaches this application, so there is no login flow and no CSRF token to carry here.
+ * State-changing requests are same-origin, which the API enforces by origin.
+ */
 export async function loadSession(): Promise<Session> {
-  const session = await apiRequest<Session>("/api/v1/session");
-  csrfToken = session.csrf_token;
-  return session;
-}
-
-export function resetSessionMemoryForTests(): void {
-  csrfToken = undefined;
+  return await apiRequest<Session>("/api/v1/session");
 }

@@ -22,12 +22,17 @@ def test_web_never_uses_browser_token_storage() -> None:
     assert "refresh_token" not in source
 
 
-def test_web_uses_same_origin_cookie_transport_and_memory_csrf() -> None:
+def test_web_uses_same_origin_transport_and_holds_no_credential() -> None:
+    """Authentication terminates upstream, so this client must carry no credential.
+
+    It sends same-origin requests and never caches a private response; anything that
+    authenticates the request is attached by the layer in front of the application.
+    """
     client = (WEB_SOURCE / "lib" / "secure-client.ts").read_text(encoding="utf-8")
     assert 'credentials: "same-origin"' in client
     assert 'cache: "no-store"' in client
-    assert 'headers.set("X-CSRF-Token", csrfToken)' in client
-    assert "let csrfToken" in client
+    assert "csrfToken" not in client
+    assert "Authorization" not in client
 
 
 def test_domain_ui_does_not_persist_tokens_or_make_authorization_decisions() -> None:

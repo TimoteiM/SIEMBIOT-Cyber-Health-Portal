@@ -19,7 +19,7 @@ def seed_tenant(owner_url: str) -> tuple[str, str]:
     organization_id, user_id = str(uuid4()), str(uuid4())
     with psycopg.connect(owner_url) as owner:
         owner.execute(
-            "INSERT INTO users (id, oidc_issuer, oidc_subject, email, display_name) "
+            "INSERT INTO users (id, identity_issuer, identity_subject, email, display_name) "
             "VALUES (%s, 'https://idp.example.test', %s, %s, 'Test User')",
             (user_id, user_id, f"{user_id}@example.test"),
         )

@@ -11,7 +11,7 @@ from sqlalchemy.engine import RowMapping
 from sqlalchemy.exc import IntegrityError
 
 from siembiot.audit import append_audit_event
-from siembiot.auth import Principal, current_principal, require_csrf
+from siembiot.auth import current_principal, require_trusted_origin
 from siembiot.authorization import Action
 from siembiot.config import Settings
 from siembiot.contracts import (
@@ -27,6 +27,7 @@ from siembiot.domains.network_adapter import HTTPSVerificationService, NetworkBr
 from siembiot.domains.normalization import DomainValidationError, normalize_domain
 from siembiot.domains.service import challenge_response, domain_response
 from siembiot.errors import AppError
+from siembiot.identity import Principal
 from siembiot.organizations import authorize
 
 
@@ -99,7 +100,7 @@ def build_domain_router() -> APIRouter:
         organization_id: UUID,
         body: DomainCreate,
         request: Request,
-        principal: Principal = Depends(require_csrf),
+        principal: Principal = Depends(require_trusted_origin),
     ) -> DomainResponse:
         try:
             normalized = normalize_domain(body.domain)
@@ -199,7 +200,7 @@ def build_domain_router() -> APIRouter:
         domain_id: UUID,
         body: DomainChallengeCreate,
         request: Request,
-        principal: Principal = Depends(require_csrf),
+        principal: Principal = Depends(require_trusted_origin),
     ) -> DomainChallengeCreatedResponse:
         settings = _settings(request)
         token, digest = new_challenge_token()
@@ -287,7 +288,7 @@ def build_domain_router() -> APIRouter:
         domain_id: UUID,
         challenge_id: UUID,
         request: Request,
-        principal: Principal = Depends(require_csrf),
+        principal: Principal = Depends(require_trusted_origin),
     ) -> Response:
         with _database(request).tenant_connection(principal.user_id, organization_id) as connection:
             authorize(connection, request, principal, organization_id, Action.DOMAIN_VERIFY)
@@ -343,7 +344,7 @@ def build_domain_router() -> APIRouter:
         domain_id: UUID,
         challenge_id: UUID,
         request: Request,
-        principal: Principal = Depends(require_csrf),
+        principal: Principal = Depends(require_trusted_origin),
     ) -> DomainResponse:
         failure: AppError | None = None
         result = None

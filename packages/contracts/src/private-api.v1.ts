@@ -4,57 +4,6 @@
  */
 
 export interface paths {
-    "/api/v1/auth/callback": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Callback */
-        get: operations["callback_api_v1_auth_callback_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/login": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Login */
-        get: operations["login_api_v1_auth_login_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/logout": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Logout */
-        post: operations["logout_api_v1_auth_logout_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/emergency-controls": {
         parameters: {
             query?: never;
@@ -407,7 +356,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Session */
+        /**
+         * Session
+         * @description Report who the upstream authentication layer says the caller is.
+         */
         get: operations["session_api_v1_session_get"];
         put?: never;
         post?: never;
@@ -784,17 +736,6 @@ export interface components {
             /** Status */
             status: string;
         };
-        /** LogoutResponse */
-        LogoutResponse: {
-            /**
-             * Contract Version
-             * @default v1
-             * @constant
-             */
-            contract_version: "v1";
-            /** Logout Url */
-            logout_url: string | null;
-        };
         /** MembershipResponse */
         MembershipResponse: {
             /**
@@ -920,13 +861,6 @@ export interface components {
              * @constant
              */
             contract_version: "v1";
-            /** Csrf Token */
-            csrf_token: string;
-            /**
-             * Expires At
-             * Format: date-time
-             */
-            expires_at: string;
             user: components["schemas"]["UserResponse"];
         };
         /** UserResponse */
@@ -959,108 +893,12 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    callback_api_v1_auth_callback_get: {
-        parameters: {
-            query: {
-                state: string;
-                code: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    login_api_v1_auth_login_get: {
-        parameters: {
-            query?: {
-                return_path?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    logout_api_v1_auth_logout_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                "__Host-siembiot_session"?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LogoutResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     activate_global_api_v1_emergency_controls_post: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: {
-                "__Host-siembiot_session"?: string | null;
-            };
+            cookie?: never;
         };
         requestBody: {
             content: {
@@ -1095,9 +933,7 @@ export interface operations {
             path: {
                 control_id: string;
             };
-            cookie?: {
-                "__Host-siembiot_session"?: string | null;
-            };
+            cookie?: never;
         };
         requestBody: {
             content: {
@@ -1150,9 +986,7 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: {
-                "__Host-siembiot_session"?: string | null;
-            };
+            cookie?: never;
         };
         requestBody: {
             content: {
@@ -1185,9 +1019,7 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: {
-                "__Host-siembiot_session"?: string | null;
-            };
+            cookie?: never;
         };
         requestBody?: never;
         responses: {
@@ -1200,15 +1032,6 @@ export interface operations {
                     "application/json": components["schemas"]["OrganizationResponse"][];
                 };
             };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
         };
     };
     create_organization_api_v1_organizations_post: {
@@ -1216,9 +1039,7 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: {
-                "__Host-siembiot_session"?: string | null;
-            };
+            cookie?: never;
         };
         requestBody: {
             content: {
@@ -1253,9 +1074,7 @@ export interface operations {
             path: {
                 organization_id: string;
             };
-            cookie?: {
-                "__Host-siembiot_session"?: string | null;
-            };
+            cookie?: never;
         };
         requestBody?: never;
         responses: {
@@ -1288,9 +1107,7 @@ export interface operations {
             path: {
                 organization_id: string;
             };
-            cookie?: {
-                "__Host-siembiot_session"?: string | null;
-            };
+            cookie?: never;
         };
         requestBody?: never;
         responses: {
@@ -1321,9 +1138,7 @@ export interface operations {
             path: {
                 organization_id: string;
             };
-            cookie?: {
-                "__Host-siembiot_session"?: string | null;
-            };
+            cookie?: never;
         };
         requestBody?: never;
         responses: {
@@ -1354,9 +1169,7 @@ export interface operations {
             path: {
                 organization_id: string;
             };
-            cookie?: {
-                "__Host-siembiot_session"?: string | null;
-            };
+            cookie?: never;
         };
         requestBody: {
             content: {
@@ -1392,9 +1205,7 @@ export interface operations {
                 organization_id: string;
                 authorization_id: string;
             };
-            cookie?: {
-                "__Host-siembiot_session"?: string | null;
-            };
+            cookie?: never;
         };
         requestBody?: never;
         responses: {
@@ -1426,9 +1237,7 @@ export interface operations {
                 organization_id: string;
                 authorization_id: string;
             };
-            cookie?: {
-                "__Host-siembiot_session"?: string | null;
-            };
+            cookie?: never;
         };
         requestBody: {
             content: {
@@ -1463,9 +1272,7 @@ export interface operations {
             path: {
                 organization_id: string;
             };
-            cookie?: {
-                "__Host-siembiot_session"?: string | null;
-            };
+            cookie?: never;
         };
         requestBody?: never;
         responses: {
@@ -1496,9 +1303,7 @@ export interface operations {
             path: {
                 organization_id: string;
             };
-            cookie?: {
-                "__Host-siembiot_session"?: string | null;
-            };
+            cookie?: never;
         };
         requestBody: {
             content: {
@@ -1534,9 +1339,7 @@ export interface operations {
                 organization_id: string;
                 domain_id: string;
             };
-            cookie?: {
-                "__Host-siembiot_session"?: string | null;
-            };
+            cookie?: never;
         };
         requestBody?: never;
         responses: {
@@ -1568,9 +1371,7 @@ export interface operations {
                 organization_id: string;
                 domain_id: string;
             };
-            cookie?: {
-                "__Host-siembiot_session"?: string | null;
-            };
+            cookie?: never;
         };
         requestBody: {
             content: {
@@ -1607,9 +1408,7 @@ export interface operations {
                 domain_id: string;
                 challenge_id: string;
             };
-            cookie?: {
-                "__Host-siembiot_session"?: string | null;
-            };
+            cookie?: never;
         };
         requestBody?: never;
         responses: {
@@ -1640,9 +1439,7 @@ export interface operations {
                 domain_id: string;
                 challenge_id: string;
             };
-            cookie?: {
-                "__Host-siembiot_session"?: string | null;
-            };
+            cookie?: never;
         };
         requestBody?: never;
         responses: {
@@ -1673,9 +1470,7 @@ export interface operations {
             path: {
                 organization_id: string;
             };
-            cookie?: {
-                "__Host-siembiot_session"?: string | null;
-            };
+            cookie?: never;
         };
         requestBody?: never;
         responses: {
@@ -1706,9 +1501,7 @@ export interface operations {
             path: {
                 organization_id: string;
             };
-            cookie?: {
-                "__Host-siembiot_session"?: string | null;
-            };
+            cookie?: never;
         };
         requestBody: {
             content: {
@@ -1744,9 +1537,7 @@ export interface operations {
                 organization_id: string;
                 control_id: string;
             };
-            cookie?: {
-                "__Host-siembiot_session"?: string | null;
-            };
+            cookie?: never;
         };
         requestBody: {
             content: {
@@ -1781,9 +1572,7 @@ export interface operations {
             path: {
                 organization_id: string;
             };
-            cookie?: {
-                "__Host-siembiot_session"?: string | null;
-            };
+            cookie?: never;
         };
         requestBody: {
             content: {
@@ -1818,9 +1607,7 @@ export interface operations {
             path: {
                 organization_id: string;
             };
-            cookie?: {
-                "__Host-siembiot_session"?: string | null;
-            };
+            cookie?: never;
         };
         requestBody?: never;
         responses: {
@@ -1852,9 +1639,7 @@ export interface operations {
                 organization_id: string;
                 membership_id: string;
             };
-            cookie?: {
-                "__Host-siembiot_session"?: string | null;
-            };
+            cookie?: never;
         };
         requestBody?: never;
         responses: {
@@ -1884,9 +1669,7 @@ export interface operations {
                 organization_id: string;
                 membership_id: string;
             };
-            cookie?: {
-                "__Host-siembiot_session"?: string | null;
-            };
+            cookie?: never;
         };
         requestBody: {
             content: {
@@ -1919,9 +1702,7 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: {
-                "__Host-siembiot_session"?: string | null;
-            };
+            cookie?: never;
         };
         requestBody?: never;
         responses: {
@@ -1932,15 +1713,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SessionResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

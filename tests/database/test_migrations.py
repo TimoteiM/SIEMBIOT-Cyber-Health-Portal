@@ -28,10 +28,8 @@ EXPECTED_TABLES = {
     "memberships",
     "network_operations",
     "normalized_observations",
-    "oidc_login_transactions",
     "organizations",
     "score_snapshots",
-    "sessions",
     "support_access_grants",
     "scope_manifests",
     "users",
@@ -45,7 +43,7 @@ def seed_tenant(owner_url: str) -> tuple[str, str]:
     slug = f"tenant-{organization_id[:12]}"
     with psycopg.connect(owner_url) as owner:
         owner.execute(
-            "INSERT INTO users (id, oidc_issuer, oidc_subject, email, display_name) "
+            "INSERT INTO users (id, identity_issuer, identity_subject, email, display_name) "
             "VALUES (%s, %s, %s, %s, %s)",
             (user_id, "https://idp.example.test", user_id, f"{user_id}@example.test", "Test User"),
         )
@@ -133,7 +131,8 @@ def test_platform_admin_requires_explicit_grant_and_phishing_resistant_mfa(
     platform_user_id = str(uuid4())
     with psycopg.connect(postgres_database["owner_url"]) as owner:
         owner.execute(
-            "INSERT INTO users (id, oidc_issuer, oidc_subject, email, display_name, platform_role) "
+            "INSERT INTO users "
+            "(id, identity_issuer, identity_subject, email, display_name, platform_role) "
             "VALUES (%s, 'https://idp.example.test', %s, %s, 'Support', 'platform_admin')",
             (platform_user_id, platform_user_id, f"{platform_user_id}@example.test"),
         )
@@ -165,7 +164,7 @@ def test_global_audit_events_are_actor_isolated(postgres_database: dict[str, str
     with psycopg.connect(postgres_database["owner_url"]) as owner:
         for user_id in (first_user_id, second_user_id):
             owner.execute(
-                "INSERT INTO users (id, oidc_issuer, oidc_subject, email, display_name) "
+                "INSERT INTO users (id, identity_issuer, identity_subject, email, display_name) "
                 "VALUES (%s, 'https://idp.example.test', %s, %s, 'Audit actor')",
                 (user_id, user_id, f"{user_id}@example.test"),
             )
