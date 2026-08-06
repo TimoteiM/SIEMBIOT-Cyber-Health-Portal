@@ -742,6 +742,94 @@
         "title": "DomainCreate",
         "type": "object"
       },
+      "DomainFindingsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "assessment_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assessment Id"
+          },
+          "band": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Band"
+          },
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "coverage_percentage": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverage Percentage"
+          },
+          "domain_id": {
+            "format": "uuid",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/FindingResponse"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "methodology_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Methodology Version"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/FindingSummaryResponse"
+          }
+        },
+        "required": [
+          "domain_id",
+          "summary"
+        ],
+        "title": "DomainFindingsResponse",
+        "type": "object"
+      },
       "DomainResponse": {
         "additionalProperties": false,
         "properties": {
@@ -992,6 +1080,233 @@
           "created_at"
         ],
         "title": "EmergencyControlResponse",
+        "type": "object"
+      },
+      "FindingConfidenceResponse": {
+        "additionalProperties": false,
+        "description": "Three separate confidences, never averaged into one reassuring number.\n\nAttribution, source and freshness fail independently and mean different things: a\nfinding can rest on excellent evidence about an asset that may not be yours. A\nsingle blended figure would hide exactly the distinction a reader needs.",
+        "properties": {
+          "attribution": {
+            "title": "Attribution",
+            "type": "number"
+          },
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "freshness": {
+            "title": "Freshness",
+            "type": "number"
+          },
+          "source": {
+            "title": "Source",
+            "type": "number"
+          }
+        },
+        "required": [
+          "attribution",
+          "source",
+          "freshness"
+        ],
+        "title": "FindingConfidenceResponse",
+        "type": "object"
+      },
+      "FindingResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "check_id": {
+            "title": "Check Id",
+            "type": "string"
+          },
+          "check_version": {
+            "title": "Check Version",
+            "type": "string"
+          },
+          "confidence": {
+            "$ref": "#/components/schemas/FindingConfidenceResponse"
+          },
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "evidence_count": {
+            "default": 0,
+            "title": "Evidence Count",
+            "type": "integer"
+          },
+          "first_seen_at": {
+            "format": "date-time",
+            "title": "First Seen At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_seen_at": {
+            "format": "date-time",
+            "title": "Last Seen At",
+            "type": "string"
+          },
+          "methodology_version": {
+            "title": "Methodology Version",
+            "type": "string"
+          },
+          "pillar": {
+            "title": "Pillar",
+            "type": "string"
+          },
+          "pillar_letter": {
+            "title": "Pillar Letter",
+            "type": "string"
+          },
+          "rationale_en": {
+            "title": "Rationale En",
+            "type": "string"
+          },
+          "rationale_ro": {
+            "title": "Rationale Ro",
+            "type": "string"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Code"
+          },
+          "references": {
+            "items": {
+              "type": "string"
+            },
+            "title": "References",
+            "type": "array"
+          },
+          "remediation_template": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remediation Template"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "severity": {
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low",
+              "informational"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "open",
+              "resolved",
+              "regressed",
+              "suppressed",
+              "accepted_risk"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "subject_identifier": {
+            "title": "Subject Identifier",
+            "type": "string"
+          },
+          "subject_kind": {
+            "title": "Subject Kind",
+            "type": "string"
+          },
+          "title_en": {
+            "title": "Title En",
+            "type": "string"
+          },
+          "title_ro": {
+            "title": "Title Ro",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "check_id",
+          "check_version",
+          "methodology_version",
+          "pillar",
+          "pillar_letter",
+          "severity",
+          "state",
+          "subject_kind",
+          "subject_identifier",
+          "title_ro",
+          "title_en",
+          "rationale_ro",
+          "rationale_en",
+          "confidence",
+          "first_seen_at",
+          "last_seen_at"
+        ],
+        "title": "FindingResponse",
+        "type": "object"
+      },
+      "FindingSummaryResponse": {
+        "additionalProperties": false,
+        "description": "Counts by severity, so a reader sees the shape before the list.",
+        "properties": {
+          "by_severity": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Severity",
+            "type": "object"
+          },
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "open": {
+            "title": "Open",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "open",
+          "by_severity"
+        ],
+        "title": "FindingSummaryResponse",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -2661,6 +2976,71 @@
         "summary": "Verify Challenge",
         "tags": [
           "domains"
+        ]
+      }
+    },
+    "/api/v1/organizations/{organization_id}/domains/{domain_id}/findings": {
+      "get": {
+        "operationId": "index_api_v1_organizations__organization_id__domains__domain_id__findings_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "domain_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Domain Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Resolved findings are excluded by default: the question is normally what is wrong now, and a list mixing fixed with unfixed reads as longer than the problem actually is.",
+            "in": "query",
+            "name": "include_resolved",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Resolved findings are excluded by default: the question is normally what is wrong now, and a list mixing fixed with unfixed reads as longer than the problem actually is.",
+              "title": "Include Resolved",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DomainFindingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Index",
+        "tags": [
+          "findings"
         ]
       }
     },

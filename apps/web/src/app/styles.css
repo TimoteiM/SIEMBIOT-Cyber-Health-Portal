@@ -583,3 +583,100 @@ details > summary:hover { color: var(--text-primary); }
   .step-list li { grid-template-columns: 1fr; }
   .step-list small { grid-column: 1; }
 }
+
+/* -- findings --------------------------------------------------------------- */
+
+.findings-header {
+  display: grid;
+  gap: 0.9rem;
+  padding-bottom: 0.5rem;
+}
+
+.severity-summary {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.severity-summary li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+}
+.severity-summary strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0 1rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+/*
+  Text inputs are full width by default; a checkbox that inherits that stretches
+  across the row and leaves its own label stranded at the far edge. The same
+  correction `.check-row` already makes.
+*/
+.toggle-row input {
+  width: auto;
+  margin: 0;
+}
+
+.card-list li.finding-card {
+  grid-template-columns: 1fr;
+  gap: 0.55rem;
+  align-items: start;
+}
+.finding-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.finding-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.finding-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.5rem;
+  margin: 0;
+  font-size: 0.85rem;
+}
+.finding-meta div {
+  display: flex;
+  gap: 0.4rem;
+}
+.finding-meta dt {
+  color: var(--text-secondary);
+}
+.finding-meta dt::after {
+  content: ":";
+}
+.finding-meta dd {
+  margin: 0;
+}
+
+/*
+  A confidence caveat is a qualification of the finding above it, not an alarm of its
+  own. It gets a marker and a border so it reads as attached to that finding rather
+  than as a separate, more urgent thing.
+*/
+.finding-confidence {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  border-inline-start: 2px solid var(--border-subtle);
+  padding-inline-start: 0.6rem;
+}

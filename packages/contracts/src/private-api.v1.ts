@@ -356,6 +356,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/organizations/{organization_id}/domains/{domain_id}/findings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Index */
+        get: operations["index_api_v1_organizations__organization_id__domains__domain_id__findings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/organizations/{organization_id}/emergency-controls": {
         parameters: {
             query?: never;
@@ -811,6 +828,33 @@ export interface components {
             /** Domain */
             domain: string;
         };
+        /** DomainFindingsResponse */
+        DomainFindingsResponse: {
+            /** Assessment Id */
+            assessment_id?: string | null;
+            /** Band */
+            band?: string | null;
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /** Coverage Percentage */
+            coverage_percentage?: number | null;
+            /**
+             * Domain Id
+             * Format: uuid
+             */
+            domain_id: string;
+            /** Findings */
+            findings?: components["schemas"]["FindingResponse"][];
+            /** Methodology Version */
+            methodology_version?: string | null;
+            /** Score */
+            score?: number | null;
+            summary: components["schemas"]["FindingSummaryResponse"];
+        };
         /** DomainResponse */
         DomainResponse: {
             /** Canonical Name */
@@ -904,6 +948,118 @@ export interface components {
              * @enum {string}
              */
             scope: "global" | "organization" | "domain" | "operation_class";
+        };
+        /**
+         * FindingConfidenceResponse
+         * @description Three separate confidences, never averaged into one reassuring number.
+         *
+         *     Attribution, source and freshness fail independently and mean different things: a
+         *     finding can rest on excellent evidence about an asset that may not be yours. A
+         *     single blended figure would hide exactly the distinction a reader needs.
+         */
+        FindingConfidenceResponse: {
+            /** Attribution */
+            attribution: number;
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /** Freshness */
+            freshness: number;
+            /** Source */
+            source: number;
+        };
+        /** FindingResponse */
+        FindingResponse: {
+            /** Check Id */
+            check_id: string;
+            /** Check Version */
+            check_version: string;
+            confidence: components["schemas"]["FindingConfidenceResponse"];
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /**
+             * Evidence Count
+             * @default 0
+             */
+            evidence_count: number;
+            /**
+             * First Seen At
+             * Format: date-time
+             */
+            first_seen_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Last Seen At
+             * Format: date-time
+             */
+            last_seen_at: string;
+            /** Methodology Version */
+            methodology_version: string;
+            /** Pillar */
+            pillar: string;
+            /** Pillar Letter */
+            pillar_letter: string;
+            /** Rationale En */
+            rationale_en: string;
+            /** Rationale Ro */
+            rationale_ro: string;
+            /** Reason Code */
+            reason_code?: string | null;
+            /** References */
+            references?: string[];
+            /** Remediation Template */
+            remediation_template?: string | null;
+            /** Resolved At */
+            resolved_at?: string | null;
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "critical" | "high" | "medium" | "low" | "informational";
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "open" | "resolved" | "regressed" | "suppressed" | "accepted_risk";
+            /** Subject Identifier */
+            subject_identifier: string;
+            /** Subject Kind */
+            subject_kind: string;
+            /** Title En */
+            title_en: string;
+            /** Title Ro */
+            title_ro: string;
+        };
+        /**
+         * FindingSummaryResponse
+         * @description Counts by severity, so a reader sees the shape before the list.
+         */
+        FindingSummaryResponse: {
+            /** By Severity */
+            by_severity: {
+                [key: string]: number;
+            };
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /** Open */
+            open: number;
+            /** Total */
+            total: number;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1928,6 +2084,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DomainResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    index_api_v1_organizations__organization_id__domains__domain_id__findings_get: {
+        parameters: {
+            query?: {
+                /** @description Resolved findings are excluded by default: the question is normally what is wrong now, and a list mixing fixed with unfixed reads as longer than the problem actually is. */
+                include_resolved?: boolean;
+            };
+            header?: never;
+            path: {
+                organization_id: string;
+                domain_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomainFindingsResponse"];
                 };
             };
             /** @description Validation Error */

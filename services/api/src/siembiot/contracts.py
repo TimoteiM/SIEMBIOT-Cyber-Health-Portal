@@ -348,3 +348,75 @@ class AssetCandidateDecision(BaseModel):
     #: Deliberately excludes "unreviewed": a decision cannot be un-made, only changed.
     decision: Literal["accepted", "rejected"]
     reason: str | None = Field(default=None, min_length=3, max_length=2000)
+
+
+#: Ordered most to least urgent. The order is part of the contract: a client that
+#: sorts by this list shows the same priority the methodology assigns.
+FINDING_SEVERITIES = Literal["critical", "high", "medium", "low", "informational"]
+FINDING_STATES = Literal["open", "resolved", "regressed", "suppressed", "accepted_risk"]
+
+
+class FindingConfidenceResponse(ContractModel):
+    """Three separate confidences, never averaged into one reassuring number.
+
+    Attribution, source and freshness fail independently and mean different things: a
+    finding can rest on excellent evidence about an asset that may not be yours. A
+    single blended figure would hide exactly the distinction a reader needs.
+    """
+
+    attribution: float
+    source: float
+    freshness: float
+
+
+class FindingResponse(ContractModel):
+    id: UUID
+    check_id: str
+    check_version: str
+    methodology_version: str
+    pillar: str
+    #: Which of the six pillars, as the methodology letters them.
+    pillar_letter: str
+    severity: FINDING_SEVERITIES
+    state: FINDING_STATES
+    subject_kind: str
+    subject_identifier: str
+    #: Why the check reached this result -- the specific condition, not the category.
+    reason_code: str | None = None
+    title_ro: str
+    title_en: str
+    rationale_ro: str
+    rationale_en: str
+    #: Named by the catalog; the templates themselves are not written yet, so this is
+    #: an identifier a reader can look up rather than prose the API invented.
+    remediation_template: str | None = None
+    references: list[str] = Field(default_factory=list)
+    confidence: FindingConfidenceResponse
+    #: How long this has been true. A finding first seen months ago is a different
+    #: conversation from one that appeared yesterday.
+    first_seen_at: datetime
+    last_seen_at: datetime
+    resolved_at: datetime | None = None
+    #: How many observations the conclusion rests on. Not the observations themselves:
+    #: evidence is fetched deliberately, not attached to every list response.
+    evidence_count: int = 0
+
+
+class FindingSummaryResponse(ContractModel):
+    """Counts by severity, so a reader sees the shape before the list."""
+
+    total: int
+    open: int
+    by_severity: dict[str, int]
+
+
+class DomainFindingsResponse(ContractModel):
+    domain_id: UUID
+    assessment_id: UUID | None = None
+    methodology_version: str | None = None
+    #: Absent when no assessment has completed yet -- distinct from a score of zero.
+    score: float | None = None
+    band: str | None = None
+    coverage_percentage: float | None = None
+    summary: FindingSummaryResponse
+    findings: list[FindingResponse] = Field(default_factory=list)

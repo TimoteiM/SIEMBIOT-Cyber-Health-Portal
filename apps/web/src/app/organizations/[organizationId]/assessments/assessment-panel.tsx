@@ -21,6 +21,16 @@ const LIVE_STATES = new Set([
   "report_generation",
 ]);
 
+/** Settled runs. Anything here has whatever findings it is ever going to have. */
+const TERMINAL_STATES = new Set([
+  "completed",
+  "partially_completed",
+  "failed",
+  "cancelled",
+  "expired",
+  "blocked_by_policy",
+]);
+
 const STATE_LABELS: Record<string, string> = {
   draft: "Ciornă",
   awaiting_authorization: "Așteaptă autorizarea",
@@ -319,6 +329,21 @@ export default function AssessmentPanel({ organizationId }: { organizationId: st
                     <p className="muted">Acoperire {assessment.coverage_percentage}%</p>
                   </div>
                 ))}
+
+              {/*
+                A score is not actionable on its own. The link is offered on every
+                settled run, including one below the coverage floor: what little was
+                found there is still worth reading, and is often the reason coverage
+                was low.
+              */}
+              {TERMINAL_STATES.has(assessment.state) && (
+                <a
+                  className="button secondary"
+                  href={`/organizations/${organizationId}/domains/${assessment.domain_id}/findings`}
+                >
+                  Vezi constatările
+                </a>
+              )}
 
               {(assessment.steps ?? []).length > 0 && (
                 <details>
