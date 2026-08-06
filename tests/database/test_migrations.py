@@ -11,7 +11,11 @@ import pytest
 
 EXPECTED_TABLES = {
     "alembic_version",
+    "assessment_step_attempts",
+    "assessment_steps",
     "assessments",
+    "asset_candidate_decisions",
+    "asset_candidates",
     "audit_events",
     "assessment_authorizations",
     "check_evaluations",
