@@ -136,6 +136,389 @@
         "title": "AssessmentAuthorizationResponse",
         "type": "object"
       },
+      "AssessmentCancel": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "AssessmentCancel",
+        "type": "object"
+      },
+      "AssessmentCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "dkim_selectors": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "title": "Dkim Selectors",
+            "type": "array"
+          },
+          "domain_id": {
+            "format": "uuid",
+            "title": "Domain Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "domain_id"
+        ],
+        "title": "AssessmentCreate",
+        "type": "object"
+      },
+      "AssessmentProgressResponse": {
+        "additionalProperties": false,
+        "description": "Progress counted from settled steps, never from elapsed time.",
+        "properties": {
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "failed_steps": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Failed Steps",
+            "type": "array"
+          },
+          "percentage": {
+            "title": "Percentage",
+            "type": "number"
+          },
+          "settled_steps": {
+            "title": "Settled Steps",
+            "type": "integer"
+          },
+          "succeeded_steps": {
+            "title": "Succeeded Steps",
+            "type": "integer"
+          },
+          "total_steps": {
+            "title": "Total Steps",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_steps",
+          "settled_steps",
+          "succeeded_steps",
+          "percentage",
+          "failed_steps"
+        ],
+        "title": "AssessmentProgressResponse",
+        "type": "object"
+      },
+      "AssessmentResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "band": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Band"
+          },
+          "cancellation_requested": {
+            "default": false,
+            "title": "Cancellation Requested",
+            "type": "boolean"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "coverage_percentage": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverage Percentage"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "domain_id": {
+            "format": "uuid",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "methodology_version": {
+            "title": "Methodology Version",
+            "type": "string"
+          },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/AssessmentProgressResponse"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "state": {
+            "enum": [
+              "draft",
+              "awaiting_authorization",
+              "queued",
+              "planning",
+              "collecting",
+              "normalizing",
+              "evaluating",
+              "agent_analysis",
+              "report_generation",
+              "completed",
+              "cancelled",
+              "partially_completed",
+              "failed",
+              "expired",
+              "blocked_by_policy"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/AssessmentStepResponse"
+            },
+            "title": "Steps",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "domain_id",
+          "state",
+          "methodology_version",
+          "created_at",
+          "progress"
+        ],
+        "title": "AssessmentResponse",
+        "type": "object"
+      },
+      "AssessmentStepResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "attempts": {
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "pending",
+              "running",
+              "succeeded",
+              "failed",
+              "skipped",
+              "cancelled",
+              "dead_lettered"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "state",
+          "attempts"
+        ],
+        "title": "AssessmentStepResponse",
+        "type": "object"
+      },
+      "AssetCandidateDecision": {
+        "additionalProperties": false,
+        "properties": {
+          "decision": {
+            "enum": [
+              "accepted",
+              "rejected"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "minLength": 3,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "decision"
+        ],
+        "title": "AssetCandidateDecision",
+        "type": "object"
+      },
+      "AssetCandidateResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "attribution_basis": {
+            "enum": [
+              "authorized_domain",
+              "subdomain_of_authorized_domain",
+              "unrelated_name"
+            ],
+            "title": "Attribution Basis",
+            "type": "string"
+          },
+          "attribution_confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Attribution Confidence",
+            "type": "number"
+          },
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "domain_id": {
+            "format": "uuid",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "first_seen_at": {
+            "format": "date-time",
+            "title": "First Seen At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_seen_at": {
+            "format": "date-time",
+            "title": "Last Seen At",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "observation_count": {
+            "title": "Observation Count",
+            "type": "integer"
+          },
+          "shared_hosting": {
+            "title": "Shared Hosting",
+            "type": "boolean"
+          },
+          "source": {
+            "enum": [
+              "certificate_transparency",
+              "dns",
+              "user_declared",
+              "passive_intelligence"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "unreviewed",
+              "accepted",
+              "rejected"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "domain_id",
+          "name",
+          "source",
+          "attribution_confidence",
+          "attribution_basis",
+          "shared_hosting",
+          "state",
+          "first_seen_at",
+          "last_seen_at",
+          "observation_count"
+        ],
+        "title": "AssetCandidateResponse",
+        "type": "object"
+      },
       "AuditEventResponse": {
         "additionalProperties": false,
         "properties": {
@@ -1323,6 +1706,285 @@
         ]
       }
     },
+    "/api/v1/organizations/{organization_id}/assessments": {
+      "get": {
+        "operationId": "index_api_v1_organizations__organization_id__assessments_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AssessmentResponse"
+                  },
+                  "title": "Response Index Api V1 Organizations  Organization Id  Assessments Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Index",
+        "tags": [
+          "assessments"
+        ]
+      },
+      "post": {
+        "operationId": "create_api_v1_organizations__organization_id__assessments_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssessmentCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssessmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create",
+        "tags": [
+          "assessments"
+        ]
+      }
+    },
+    "/api/v1/organizations/{organization_id}/assessments/{assessment_id}": {
+      "get": {
+        "operationId": "show_api_v1_organizations__organization_id__assessments__assessment_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "assessment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Assessment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssessmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Show",
+        "tags": [
+          "assessments"
+        ]
+      }
+    },
+    "/api/v1/organizations/{organization_id}/assessments/{assessment_id}/cancel": {
+      "post": {
+        "description": "Request cancellation. Work in flight observes it and settles itself.",
+        "operationId": "cancel_api_v1_organizations__organization_id__assessments__assessment_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "assessment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Assessment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssessmentCancel"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssessmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel",
+        "tags": [
+          "assessments"
+        ]
+      }
+    },
+    "/api/v1/organizations/{organization_id}/asset-candidates/{candidate_id}/decision": {
+      "post": {
+        "description": "Accept or reject a candidate.\n\nAccepting decides what may be assessed, so it is attributable and audited.",
+        "operationId": "decide_api_v1_organizations__organization_id__asset_candidates__candidate_id__decision_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "candidate_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Candidate Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetCandidateDecision"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetCandidateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Decide",
+        "tags": [
+          "assets"
+        ]
+      }
+    },
     "/api/v1/organizations/{organization_id}/audit-events": {
       "get": {
         "operationId": "list_audit_events_api_v1_organizations__organization_id__audit_events_get",
@@ -1742,6 +2404,63 @@
         "summary": "Get Domain",
         "tags": [
           "domains"
+        ]
+      }
+    },
+    "/api/v1/organizations/{organization_id}/domains/{domain_id}/asset-candidates": {
+      "get": {
+        "operationId": "index_api_v1_organizations__organization_id__domains__domain_id__asset_candidates_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "domain_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Domain Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AssetCandidateResponse"
+                  },
+                  "title": "Response Index Api V1 Organizations  Organization Id  Domains  Domain Id  Asset Candidates Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Index",
+        "tags": [
+          "assets"
         ]
       }
     },

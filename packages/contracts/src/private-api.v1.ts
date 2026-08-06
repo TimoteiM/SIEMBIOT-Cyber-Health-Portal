@@ -107,6 +107,83 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/organizations/{organization_id}/assessments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Index */
+        get: operations["index_api_v1_organizations__organization_id__assessments_get"];
+        put?: never;
+        /** Create */
+        post: operations["create_api_v1_organizations__organization_id__assessments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/assessments/{assessment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Show */
+        get: operations["show_api_v1_organizations__organization_id__assessments__assessment_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/assessments/{assessment_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel
+         * @description Request cancellation. Work in flight observes it and settles itself.
+         */
+        post: operations["cancel_api_v1_organizations__organization_id__assessments__assessment_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/asset-candidates/{candidate_id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decide
+         * @description Accept or reject a candidate.
+         *
+         *     Accepting decides what may be assessed, so it is attributable and audited.
+         */
+        post: operations["decide_api_v1_organizations__organization_id__asset_candidates__candidate_id__decision_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/organizations/{organization_id}/audit-events": {
         parameters: {
             query?: never;
@@ -203,6 +280,23 @@ export interface paths {
         };
         /** Get Domain */
         get: operations["get_domain_api_v1_organizations__organization_id__domains__domain_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/domains/{domain_id}/asset-candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Index */
+        get: operations["index_api_v1_organizations__organization_id__domains__domain_id__asset_candidates_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -435,6 +529,177 @@ export interface components {
              * Format: date-time
              */
             valid_until: string;
+        };
+        /** AssessmentCancel */
+        AssessmentCancel: {
+            /** Reason */
+            reason: string;
+        };
+        /** AssessmentCreate */
+        AssessmentCreate: {
+            /** Dkim Selectors */
+            dkim_selectors?: string[];
+            /**
+             * Domain Id
+             * Format: uuid
+             */
+            domain_id: string;
+        };
+        /**
+         * AssessmentProgressResponse
+         * @description Progress counted from settled steps, never from elapsed time.
+         */
+        AssessmentProgressResponse: {
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /** Failed Steps */
+            failed_steps: string[];
+            /** Percentage */
+            percentage: number;
+            /** Settled Steps */
+            settled_steps: number;
+            /** Succeeded Steps */
+            succeeded_steps: number;
+            /** Total Steps */
+            total_steps: number;
+        };
+        /** AssessmentResponse */
+        AssessmentResponse: {
+            /** Band */
+            band?: string | null;
+            /**
+             * Cancellation Requested
+             * @default false
+             */
+            cancellation_requested: boolean;
+            /** Completed At */
+            completed_at?: string | null;
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /** Coverage Percentage */
+            coverage_percentage?: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Domain Id
+             * Format: uuid
+             */
+            domain_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Methodology Version */
+            methodology_version: string;
+            /**
+             * Organization Id
+             * Format: uuid
+             */
+            organization_id: string;
+            progress: components["schemas"]["AssessmentProgressResponse"];
+            /** Score */
+            score?: number | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "draft" | "awaiting_authorization" | "queued" | "planning" | "collecting" | "normalizing" | "evaluating" | "agent_analysis" | "report_generation" | "completed" | "cancelled" | "partially_completed" | "failed" | "expired" | "blocked_by_policy";
+            /** Steps */
+            steps?: components["schemas"]["AssessmentStepResponse"][];
+        };
+        /** AssessmentStepResponse */
+        AssessmentStepResponse: {
+            /** Attempts */
+            attempts: number;
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /** Last Error */
+            last_error?: string | null;
+            /** Name */
+            name: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "pending" | "running" | "succeeded" | "failed" | "skipped" | "cancelled" | "dead_lettered";
+        };
+        /** AssetCandidateDecision */
+        AssetCandidateDecision: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "accepted" | "rejected";
+            /** Reason */
+            reason?: string | null;
+        };
+        /** AssetCandidateResponse */
+        AssetCandidateResponse: {
+            /**
+             * Attribution Basis
+             * @enum {string}
+             */
+            attribution_basis: "authorized_domain" | "subdomain_of_authorized_domain" | "unrelated_name";
+            /** Attribution Confidence */
+            attribution_confidence: number;
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /**
+             * Domain Id
+             * Format: uuid
+             */
+            domain_id: string;
+            /**
+             * First Seen At
+             * Format: date-time
+             */
+            first_seen_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Last Seen At
+             * Format: date-time
+             */
+            last_seen_at: string;
+            /** Name */
+            name: string;
+            /** Observation Count */
+            observation_count: number;
+            /** Shared Hosting */
+            shared_hosting: boolean;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "certificate_transparency" | "dns" | "user_declared" | "passive_intelligence";
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "unreviewed" | "accepted" | "rejected";
         };
         /** AuditEventResponse */
         AuditEventResponse: {
@@ -1098,6 +1363,176 @@ export interface operations {
             };
         };
     };
+    index_api_v1_organizations__organization_id__assessments_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssessmentResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_api_v1_organizations__organization_id__assessments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssessmentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssessmentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    show_api_v1_organizations__organization_id__assessments__assessment_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                assessment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssessmentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_api_v1_organizations__organization_id__assessments__assessment_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                assessment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssessmentCancel"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssessmentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decide_api_v1_organizations__organization_id__asset_candidates__candidate_id__decision_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                candidate_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetCandidateDecision"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetCandidateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_audit_events_api_v1_organizations__organization_id__audit_events_get: {
         parameters: {
             query?: {
@@ -1350,6 +1785,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DomainResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    index_api_v1_organizations__organization_id__domains__domain_id__asset_candidates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                domain_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetCandidateResponse"][];
                 };
             };
             /** @description Validation Error */

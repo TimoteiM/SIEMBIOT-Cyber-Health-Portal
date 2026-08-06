@@ -26,6 +26,13 @@ class Action(StrEnum):
     AUTHORIZATION_MANAGE = "authorization.manage"
     EMERGENCY_CONTROL_READ = "emergency_control.read"
     EMERGENCY_CONTROL_MANAGE = "emergency_control.manage"
+    ASSESSMENT_READ = "assessment.read"
+    ASSESSMENT_RUN = "assessment.run"
+    ASSESSMENT_CANCEL = "assessment.cancel"
+    ASSET_READ = "asset.read"
+    # Accepting an asset decides what may be assessed, so it is a scope decision
+    # rather than a reporting one and is held at the same level as domain management.
+    ASSET_DECIDE = "asset.decide"
 
 
 ROLE_ACTIONS: dict[Role, frozenset[Action]] = {
@@ -46,8 +53,15 @@ ROLE_ACTIONS: dict[Role, frozenset[Action]] = {
             Action.AUTHORIZATION_MANAGE,
             Action.EMERGENCY_CONTROL_READ,
             Action.EMERGENCY_CONTROL_MANAGE,
+            Action.ASSESSMENT_READ,
+            Action.ASSESSMENT_RUN,
+            Action.ASSESSMENT_CANCEL,
+            Action.ASSET_READ,
+            Action.ASSET_DECIDE,
         }
     ),
+    # An analyst may run and cancel an assessment within policy and review findings,
+    # but deciding what belongs in scope stays with the roles that manage domains.
     Role.ANALYST: frozenset(
         {
             Action.ORGANIZATION_READ,
@@ -55,6 +69,10 @@ ROLE_ACTIONS: dict[Role, frozenset[Action]] = {
             Action.DOMAIN_READ,
             Action.AUTHORIZATION_READ,
             Action.EMERGENCY_CONTROL_READ,
+            Action.ASSESSMENT_READ,
+            Action.ASSESSMENT_RUN,
+            Action.ASSESSMENT_CANCEL,
+            Action.ASSET_READ,
         }
     ),
     Role.VIEWER_AUDITOR: frozenset(
@@ -65,6 +83,8 @@ ROLE_ACTIONS: dict[Role, frozenset[Action]] = {
             Action.DOMAIN_READ,
             Action.AUTHORIZATION_READ,
             Action.EMERGENCY_CONTROL_READ,
+            Action.ASSESSMENT_READ,
+            Action.ASSET_READ,
         }
     ),
     Role.MATURITY_CONTRIBUTOR: frozenset({Action.ORGANIZATION_READ}),

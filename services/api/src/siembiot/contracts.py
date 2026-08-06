@@ -245,3 +245,94 @@ class NetworkDecisionResponse(ContractModel):
     ]
     operation_class: str
     policy_version: str
+
+
+ASSESSMENT_STATES = Literal[
+    "draft",
+    "awaiting_authorization",
+    "queued",
+    "planning",
+    "collecting",
+    "normalizing",
+    "evaluating",
+    "agent_analysis",
+    "report_generation",
+    "completed",
+    "cancelled",
+    "partially_completed",
+    "failed",
+    "expired",
+    "blocked_by_policy",
+]
+
+STEP_STATES = Literal[
+    "pending", "running", "succeeded", "failed", "skipped", "cancelled", "dead_lettered"
+]
+
+
+class AssessmentCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    domain_id: UUID
+    #: Selectors are never guessed, so an organization that uses DKIM declares them.
+    dkim_selectors: list[str] = Field(default_factory=list, max_length=10)
+
+
+class AssessmentStepResponse(ContractModel):
+    name: str
+    state: STEP_STATES
+    attempts: int
+    last_error: str | None = None
+
+
+class AssessmentProgressResponse(ContractModel):
+    """Progress counted from settled steps, never from elapsed time."""
+
+    total_steps: int
+    settled_steps: int
+    succeeded_steps: int
+    percentage: float
+    failed_steps: list[str]
+
+
+class AssessmentResponse(ContractModel):
+    id: UUID
+    organization_id: UUID
+    domain_id: UUID
+    state: ASSESSMENT_STATES
+    methodology_version: str
+    created_at: datetime
+    completed_at: datetime | None = None
+    cancellation_requested: bool = False
+    progress: AssessmentProgressResponse
+    steps: list[AssessmentStepResponse] = Field(default_factory=list)
+    score: float | None = None
+    band: str | None = None
+    coverage_percentage: float | None = None
+
+
+class AssessmentCancel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    reason: str = Field(min_length=3, max_length=500)
+
+
+class AssetCandidateResponse(ContractModel):
+    id: UUID
+    domain_id: UUID
+    name: str
+    source: Literal["certificate_transparency", "dns", "user_declared", "passive_intelligence"]
+    attribution_confidence: float = Field(ge=0, le=1)
+    attribution_basis: Literal[
+        "authorized_domain", "subdomain_of_authorized_domain", "unrelated_name"
+    ]
+    shared_hosting: bool
+    state: Literal["unreviewed", "accepted", "rejected"]
+    first_seen_at: datetime
+    last_seen_at: datetime
+    observation_count: int
+
+
+class AssetCandidateDecision(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    #: Deliberately excludes "unreviewed": a decision cannot be un-made, only changed.
+    decision: Literal["accepted", "rejected"]
+    reason: str | None = Field(default=None, min_length=3, max_length=2000)

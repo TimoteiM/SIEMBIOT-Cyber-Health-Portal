@@ -8,6 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from siembiot.assessments import build_assessment_router, build_asset_router
 from siembiot.auth import build_auth_router
 from siembiot.config import Settings
 from siembiot.contracts import ErrorBody, ErrorEnvelope, HealthResponse
@@ -108,6 +109,8 @@ def create_app(
     app.include_router(build_authorization_router())
     app.include_router(build_emergency_router())
     app.include_router(build_global_emergency_router())
+    app.include_router(build_assessment_router())
+    app.include_router(build_asset_router())
 
     return app
 
