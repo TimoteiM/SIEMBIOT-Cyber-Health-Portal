@@ -1,0 +1,17 @@
+<!--
+  The same mark the sidebar shows, in the same two brand colours, so a pinned tab and
+  the application agree about what they are. Without it every page logs a 404 for
+  /favicon.ico, and a console that always has an error in it is a console nobody reads.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="SIEMBIOT">
+  <rect width="32" height="32" rx="7" fill="#5880b0" />
+  <text
+    x="16"
+    y="22"
+    text-anchor="middle"
+    font-family="Segoe UI, system-ui, sans-serif"
+    font-size="19"
+    font-weight="800"
+    fill="#f4f6fa"
+  >S</text>
+</svg>

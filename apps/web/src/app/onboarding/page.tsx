@@ -8,6 +8,19 @@ import { ApiError, apiRequest, loadSession } from "../../lib/secure-client";
 
 type Organization = components["schemas"]["OrganizationResponse"];
 
+/**
+ * Mirrors the server's slug rule exactly: it must start and end with a letter or
+ * digit, so a trailing hyphen is invalid. The previous pattern allowed one, which
+ * meant "tarom-" passed in the browser and came back a 422 from the API — the reader
+ * being told nothing was wrong right up until it was.
+ *
+ * The hyphen is escaped because browsers now compile the `pattern` attribute with the
+ * RegExp `v` flag, under which a bare `-` at the end of a character class is a syntax
+ * error rather than a literal. An invalid pattern does not fail safe: the browser
+ * throws while parsing it and the field ends up with no validation at all.
+ */
+const SLUG_PATTERN = "[a-z0-9](?:[a-z0-9\\-]{0,61}[a-z0-9])?";
+
 export default function OnboardingPage() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
@@ -54,7 +67,13 @@ export default function OnboardingPage() {
         <label htmlFor="name">Numele organizației</label>
         <input id="name" name="name" required maxLength={200} autoComplete="organization" />
         <label htmlFor="slug">Identificator scurt</label>
-        <input id="slug" name="slug" required pattern="[a-z0-9][a-z0-9-]{0,62}" />
+        <input
+          id="slug"
+          name="slug"
+          required
+          pattern={SLUG_PATTERN}
+          title="Litere mici, cifre și cratime. Trebuie să înceapă și să se termine cu o literă sau o cifră."
+        />
         <button className="button primary" type="submit" disabled={!ready}>Continuă</button>
       </form>
       <p className="status" role="status" aria-live="polite">{message}</p>
