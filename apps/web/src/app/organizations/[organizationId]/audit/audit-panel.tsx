@@ -3,23 +3,27 @@
 import { useEffect, useState } from "react";
 import type { components } from "@siembiot/contracts/private-api-v1";
 
-import { ApiError, apiRequest, loadSession } from "../../../../lib/secure-client";
+import { useLocalization } from "../../../../lib/i18n/provider";
+import { apiErrorKey } from "../../../../lib/api-errors";
+import type { MessageKey } from "../../../../lib/i18n";
+import { apiRequest, loadSession } from "../../../../lib/secure-client";
 
 type AuditEvent = components["schemas"]["AuditEventResponse"];
 
 export default function AuditPanel({ organizationId }: { organizationId: string }) {
   const [events, setEvents] = useState<AuditEvent[]>([]);
-  const [message, setMessage] = useState("Încărcăm jurnalul…");
+  const [message, setMessage] = useState<MessageKey | null>("audit.loading");
+  const { t, formatDateTime } = useLocalization();
 
   useEffect(() => {
     loadSession()
       .then(() => apiRequest<AuditEvent[]>(`/api/v1/organizations/${organizationId}/audit-events`))
       .then((result) => {
         setEvents(result);
-        setMessage(result.length ? "" : "Nu există evenimente de audit.");
+        setMessage(result.length ? null : "audit.none");
       })
       .catch((error) =>
-        setMessage(error instanceof ApiError ? error.message : "Jurnalul nu a putut fi încărcat."),
+        setMessage(apiErrorKey(error, "audit.loadFailed")),
       );
   }, [organizationId]);
 
@@ -29,7 +33,7 @@ export default function AuditPanel({ organizationId }: { organizationId: string 
       <ol className="audit-list">{events.map((event) => (
         <li key={event.id}><strong>{event.action}</strong><span>{event.outcome}</span><time>{event.occurred_at}</time></li>
       ))}</ol>
-      <p className="status" role="status" aria-live="polite">{message}</p>
+      <p className="status" role="status" aria-live="polite">{message ? t(message) : ""}</p>
     </section>
   );
 }

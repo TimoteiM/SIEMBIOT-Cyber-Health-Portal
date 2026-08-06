@@ -1,43 +1,53 @@
 import type { components } from "@siembiot/contracts/private-api-v1";
 
+import type { MessageKey } from "./i18n";
+
 type OwnershipState = components["schemas"]["DomainResponse"]["ownership_state"];
 type ChallengeMethod = components["schemas"]["DomainChallengeCreate"]["method"];
 
+/**
+ * How a verification state should read, as message keys rather than sentences.
+ *
+ * This module decides *which* state deserves which wording and tone; the words
+ * themselves belong to whoever is reading. Returning finished Romanian sentences from
+ * here is what made the whole file untranslatable -- the decision and the language
+ * were the same value.
+ */
 export type StatePresentation = {
-  title: string;
-  detail: string;
+  titleKey: MessageKey;
+  detailKey: MessageKey;
   tone: "neutral" | "success" | "warning" | "danger";
 };
 
 const PRESENTATIONS: Record<OwnershipState, StatePresentation> = {
   pending: {
-    title: "Verificare în așteptare",
-    detail: "Dovada controlului asupra domeniului nu a fost încă validată.",
+    titleKey: "domainState.pending.title",
+    detailKey: "domainState.pending.detail",
     tone: "neutral",
   },
   verified: {
-    title: "Domeniu verificat",
-    detail: "Serverul a confirmat dovada. Reverificarea periodică rămâne obligatorie.",
+    titleKey: "domainState.verified.title",
+    detailKey: "domainState.verified.detail",
     tone: "success",
   },
   expired: {
-    title: "Verificare expirată",
-    detail: "Creează o provocare nouă pentru a relua verificarea.",
+    titleKey: "domainState.expired.title",
+    detailKey: "domainState.expired.detail",
     tone: "warning",
   },
   failed: {
-    title: "Verificare nereușită",
-    detail: "Bugetul de încercări a fost consumat. Creează o provocare nouă.",
+    titleKey: "domainState.failed.title",
+    detailKey: "domainState.failed.detail",
     tone: "danger",
   },
   revoked: {
-    title: "Acces suspendat",
-    detail: "Dovada a fost revocată; nicio evaluare nu este autorizată.",
+    titleKey: "domainState.revoked.title",
+    detailKey: "domainState.revoked.detail",
     tone: "danger",
   },
   reverification_required: {
-    title: "Reverificare necesară",
-    detail: "Confirmă din nou controlul înainte de orice operațiune ulterioară.",
+    titleKey: "domainState.reverification_required.title",
+    detailKey: "domainState.reverification_required.detail",
     tone: "warning",
   },
 };
@@ -46,9 +56,9 @@ export function ownershipPresentation(state: OwnershipState): StatePresentation 
   return PRESENTATIONS[state];
 }
 
-export function challengeInstructions(method: ChallengeMethod, location: string): string {
-  if (method === "dns_txt") {
-    return `Publică valoarea exactă într-o înregistrare TXT la ${location}.`;
-  }
-  return `Publică valoarea exactă prin HTTPS la ${location}; redirecționările sunt verificate strict.`;
+/** Which instruction applies. The location is interpolated by the caller's translator. */
+export function challengeInstructionKey(method: ChallengeMethod): MessageKey {
+  return method === "dns_txt"
+    ? "domainState.instructionsDns"
+    : "domainState.instructionsHttps";
 }

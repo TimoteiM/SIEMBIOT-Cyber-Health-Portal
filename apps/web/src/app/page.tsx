@@ -1,20 +1,17 @@
-export default function LandingPage() {
+import { translate } from "../lib/i18n";
+import { resolveLocale } from "../lib/i18n/server";
+
+export default async function LandingPage() {
+  const locale = await resolveLocale();
   return (
     <section className="hero" aria-labelledby="landing-title">
-      <p className="eyebrow">Securitate măsurabilă, acces controlat</p>
-      <h1 id="landing-title">Bine ai venit în SIEMBIOT Cyber Health Portal</h1>
-      <p>
-        Autentificarea este asigurată de platforma de identitate a organizației, înainte ca
-        cererea să ajungă la acest portal. Odată autentificat, ești condus direct în spațiul
-        de lucru.
-      </p>
+      <p className="eyebrow">{translate(locale, "landing.eyebrow")}</p>
+      <h1 id="landing-title">{translate(locale, "landing.title")}</h1>
+      <p>{translate(locale, "landing.intro")}</p>
       <a className="button primary" href="/onboarding">
-        Continuă către spațiul de lucru
+        {translate(locale, "landing.enter")}
       </a>
-      <p className="hint">
-        Portalul nu stochează parole și nu emite tokenuri proprii. Drepturile de acces rămân
-        verificate la fiecare cerere, pentru fiecare organizație.
-      </p>
+      <p className="hint">{translate(locale, "landing.note")}</p>
     </section>
   );
 }

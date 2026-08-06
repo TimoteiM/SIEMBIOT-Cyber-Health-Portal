@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import type { components } from "@siembiot/contracts/private-api-v1";
 
-import { ApiError, apiRequest, loadSession } from "../../../../../../lib/secure-client";
+import type { MessageKey, Translator } from "../../../../../../lib/i18n";
+import { useLocalization } from "../../../../../../lib/i18n/provider";
+import { apiErrorKey } from "../../../../../../lib/api-errors";
+import { apiRequest, loadSession } from "../../../../../../lib/secure-client";
 
 type DomainFindings = components["schemas"]["DomainFindingsResponse"];
 type Finding = components["schemas"]["FindingResponse"];
@@ -11,40 +14,6 @@ type Severity = Finding["severity"];
 
 /** Most urgent first. Matches the server's order; the client never re-sorts. */
 const SEVERITY_ORDER: Severity[] = ["critical", "high", "medium", "low", "informational"];
-
-const SEVERITY_LABELS: Record<Severity, string> = {
-  critical: "Critic",
-  high: "Ridicat",
-  medium: "Mediu",
-  low: "Scăzut",
-  informational: "Informativ",
-};
-
-const STATE_LABELS: Record<Finding["state"], string> = {
-  open: "Deschis",
-  regressed: "Reapărut",
-  resolved: "Rezolvat",
-  suppressed: "Suprimat",
-  accepted_risk: "Risc acceptat",
-};
-
-const BAND_LABELS: Record<string, string> = {
-  resilient: "Rezilient",
-  managed: "Gestionat",
-  developing: "În dezvoltare",
-  exposed: "Expus",
-  critical: "Critic",
-  insufficient_coverage: "Dovezi insuficiente",
-};
-
-const PILLAR_LABELS: Record<string, string> = {
-  dns: "DNS și delegare",
-  email: "Poșta electronică",
-  web_tls: "Web și TLS",
-  exposure: "Expunere",
-  hygiene: "Igienă operațională",
-  governance: "Guvernanță",
-};
 
 const COVERAGE_FLOOR_PERCENTAGE = 60;
 const INSUFFICIENT_COVERAGE = "insufficient_coverage";
@@ -60,27 +29,29 @@ function severityTone(severity: Severity): string {
   return "neutral";
 }
 
-function confidenceNote(finding: Finding): string | null {
+function confidenceNote(finding: Finding, t: Translator): string | null {
   const { attribution, source, freshness } = finding.confidence;
   const weakest = Math.min(attribution, source, freshness);
   if (weakest >= 1) return null;
   // Named individually rather than averaged: "we are sure about evidence for an asset
   // that may not be yours" and "this is your asset but the evidence is stale" are
   // different problems, and a single blended number would hide both.
-  if (attribution === weakest) return `Atribuire incertă (${Math.round(attribution * 100)}%)`;
-  if (freshness === weakest) return `Dovadă mai veche (${Math.round(freshness * 100)}%)`;
-  return `Sursă mai puțin sigură (${Math.round(source * 100)}%)`;
+  if (attribution === weakest)
+    return t("findings.confidenceAttribution", { percent: Math.round(attribution * 100) });
+  if (freshness === weakest)
+    return t("findings.confidenceFreshness", { percent: Math.round(freshness * 100) });
+  return t("findings.confidenceSource", { percent: Math.round(source * 100) });
 }
 
 /**
  * How long this has been true, phrased the way somebody would say it. "de 0 zile" is
  * technically correct and reads like a bug; a first sighting today is "azi".
  */
-function seenFor(iso: string): string {
+function seenFor(iso: string, t: Translator): string {
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
-  if (days <= 0) return "azi";
-  if (days === 1) return "de ieri";
-  return `de ${days} zile`;
+  if (days <= 0) return t("findings.seenToday");
+  if (days === 1) return t("findings.seenYesterday");
+  return t("findings.seenDays", { count: days });
 }
 
 export default function FindingsPanel({
@@ -91,8 +62,9 @@ export default function FindingsPanel({
   domainId: string;
 }) {
   const [data, setData] = useState<DomainFindings | null>(null);
-  const [message, setMessage] = useState("Încărcăm constatările…");
+  const [message, setMessage] = useState<MessageKey | null>("findings.loading");
   const [includeResolved, setIncludeResolved] = useState(false);
+  const { t, formatNumber, pick } = useLocalization();
 
   const reload = useCallback(
     async (resolved: boolean) => {
@@ -102,16 +74,14 @@ export default function FindingsPanel({
           `?include_resolved=${resolved}`,
       );
       setData(next);
-      setMessage("");
+      setMessage(null);
     },
     [organizationId, domainId],
   );
 
   useEffect(() => {
     reload(includeResolved).catch((error: unknown) =>
-      setMessage(
-        error instanceof ApiError ? error.message : "Constatările nu au putut fi încărcate.",
-      ),
+      setMessage(apiErrorKey(error, "findings.loadFailed")),
     );
   }, [reload, includeResolved]);
 
@@ -127,8 +97,8 @@ export default function FindingsPanel({
     <section className="panel" aria-labelledby="findings-title">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Constatări</p>
-          <h1 id="findings-title">Ce am găsit</h1>
+          <p className="eyebrow">{t("findings.eyebrow")}</p>
+          <h1 id="findings-title">{t("findings.title")}</h1>
         </div>
       </div>
 
@@ -141,37 +111,39 @@ export default function FindingsPanel({
           */}
           {insufficient ? (
             <div className="assessment-score insufficient">
-              <p className="score-verdict">Dovezi insuficiente pentru un scor</p>
+              <p className="score-verdict">{t("assessments.insufficientTitle")}</p>
               <p className="muted">
-                Am putut evalua doar {data.coverage_percentage}% din verificări, sub
-                pragul de {COVERAGE_FLOOR_PERCENTAGE}%. Lista de mai jos arată ce am
-                găsit, dar nu este completă.
+                {t("findings.insufficientBody", {
+                  percent: formatNumber(data.coverage_percentage ?? 0),
+                  floor: COVERAGE_FLOOR_PERCENTAGE,
+                })}
               </p>
             </div>
           ) : data.score !== null && data.score !== undefined ? (
             <div className="assessment-score">
               <p className="score-verdict">
-                <strong>{data.score}</strong> / 100 ·{" "}
-                {BAND_LABELS[data.band ?? ""] ?? data.band}
+                <strong>{formatNumber(data.score ?? 0)}</strong> / 100 ·{" "}
+                {t(`band.${data.band}` as MessageKey)}
               </p>
               <p className="muted">
-                Acoperire {data.coverage_percentage}%
-                {(data.coverage_percentage ?? 100) < 100 &&
-                  " — restul verificărilor nu au putut fi evaluate"}
+                {(data.coverage_percentage ?? 100) < 100
+                  ? t("findings.coverageRemainder", {
+                      percent: formatNumber(data.coverage_percentage ?? 0),
+                    })
+                  : t("assessments.coverage", {
+                      percent: formatNumber(data.coverage_percentage ?? 0),
+                    })}
               </p>
             </div>
           ) : (
-            <p className="hint">
-              Nicio evaluare finalizată pentru acest domeniu. Pornește una din pagina
-              Evaluări.
-            </p>
+            <p className="hint">{t("findings.noAssessment")}</p>
           )}
 
-          <ul className="severity-summary" aria-label="Constatări pe severitate">
+          <ul className="severity-summary" aria-label={t("findings.bySeverity")}>
             {SEVERITY_ORDER.map((severity) => (
               <li key={severity}>
                 <span className={`badge ${severityTone(severity)}`}>
-                  {SEVERITY_LABELS[severity]}
+                  {t(`severity.${severity}` as MessageKey)}
                 </span>
                 <strong>{data.summary.by_severity[severity] ?? 0}</strong>
               </li>
@@ -186,59 +158,62 @@ export default function FindingsPanel({
           checked={includeResolved}
           onChange={(event) => setIncludeResolved(event.target.checked)}
         />
-        <span>Arată și constatările rezolvate</span>
+        <span>{t("findings.showResolved")}</span>
       </label>
 
       {data && findings.length === 0 && (
         <p className="hint">
           {data.assessment_id
-            ? "Nicio constatare deschisă pentru acest domeniu."
-            : "Nu există încă date pentru acest domeniu."}
+            ? t("findings.none")
+            : t("findings.noData")}
         </p>
       )}
 
       {grouped.map((group) => (
         <section key={group.severity} aria-labelledby={`severity-${group.severity}`}>
           <h2 id={`severity-${group.severity}`}>
-            {SEVERITY_LABELS[group.severity]} ({group.items.length})
+            {t("findings.group", {
+              severity: t(`severity.${group.severity}` as MessageKey),
+              count: group.items.length,
+            })}
           </h2>
           <ul className="card-list">
             {group.items.map((finding) => {
-              const confidence = confidenceNote(finding);
+              const confidence = confidenceNote(finding, t);
               return (
                 <li key={finding.id} className="finding-card">
                   <div className="finding-head">
                     <span className={`badge ${severityTone(finding.severity)}`}>
-                      {SEVERITY_LABELS[finding.severity]}
+                      {t(`severity.${finding.severity}` as MessageKey)}
                     </span>
-                    <h3>{finding.title_ro}</h3>
+                    <h3>{pick(finding.title_ro, finding.title_en)}</h3>
                   </div>
 
-                  <p className="muted">{finding.rationale_ro}</p>
+                  <p className="muted">{pick(finding.rationale_ro, finding.rationale_en)}</p>
 
                   <dl className="finding-meta">
                     <div>
-                      <dt>Pilon</dt>
+                      <dt>{t("findings.pillar")}</dt>
                       <dd>
                         {finding.pillar_letter} ·{" "}
-                        {PILLAR_LABELS[finding.pillar] ?? finding.pillar}
+                        {t(`pillar.${finding.pillar}` as MessageKey)}
                       </dd>
                     </div>
                     <div>
-                      <dt>Stare</dt>
-                      <dd>{STATE_LABELS[finding.state] ?? finding.state}</dd>
+                      <dt>{t("findings.state")}</dt>
+                      <dd>{t(`findingState.${finding.state}` as MessageKey)}</dd>
                     </div>
                     <div>
-                      <dt>Observat</dt>
+                      <dt>{t("findings.seen")}</dt>
                       {/*
                         How long this has been true, not just when we last looked. A
                         weakness present for months is a different conversation from
                         one that appeared yesterday.
                       */}
-                      <dd>{seenFor(finding.first_seen_at)}</dd>
+                      <dd>{seenFor(finding.first_seen_at, t)}</dd>
                     </div>
                     <div>
-                      <dt>Dovezi</dt>
+                      <dt>{t("findings.evidence")}</dt>
                       <dd>{finding.evidence_count}</dd>
                     </div>
                   </dl>
@@ -246,34 +221,36 @@ export default function FindingsPanel({
                   {confidence && <p className="finding-confidence">⚠ {confidence}</p>}
 
                   <details>
-                    <summary>Detalii tehnice</summary>
+                    <summary>{t("findings.technicalDetails")}</summary>
                     <dl className="finding-meta">
                       <div>
-                        <dt>Verificare</dt>
+                        <dt>{t("findings.check")}</dt>
                         <dd>
                           <code>{finding.check_id}</code> v{finding.check_version}
                         </dd>
                       </div>
                       {finding.reason_code && (
                         <div>
-                          <dt>Motiv</dt>
+                          <dt>{t("findings.reason")}</dt>
                           <dd>
                             <code>{finding.reason_code}</code>
                           </dd>
                         </div>
                       )}
                       <div>
-                        <dt>Subiect</dt>
+                        <dt>{t("findings.subject")}</dt>
                         <dd>{finding.subject_identifier}</dd>
                       </div>
                       <div>
-                        <dt>Metodologie</dt>
+                        <dt>{t("findings.methodology")}</dt>
                         <dd>{finding.methodology_version}</dd>
                       </div>
                     </dl>
                     {(finding.references ?? []).length > 0 && (
                       <p className="muted">
-                        Referințe: {(finding.references ?? []).join(", ")}
+                        {t("findings.references", {
+                          list: (finding.references ?? []).join(", "),
+                        })}
                       </p>
                     )}
                     {/*
@@ -284,13 +261,11 @@ export default function FindingsPanel({
                     */}
                     {finding.remediation_template && (
                       <p className="muted">
-                        Îndrumare de remediere: <code>{finding.remediation_template}</code> —
-                        textul complet urmează să fie publicat.
+                        {t("findings.remediationPending", {
+                          template: finding.remediation_template,
+                        })}
                       </p>
                     )}
-                    <p className="muted">
-                      Titlu în engleză: {finding.title_en}
-                    </p>
                   </details>
                 </li>
               );
@@ -300,7 +275,7 @@ export default function FindingsPanel({
       ))}
 
       <p className="status" role="status" aria-live="polite">
-        {message}
+        {message ? t(message) : ""}
       </p>
     </section>
   );

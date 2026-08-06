@@ -680,3 +680,32 @@ details > summary:hover { color: var(--text-primary); }
   border-inline-start: 2px solid var(--border-subtle);
   padding-inline-start: 0.6rem;
 }
+
+/* -- language switcher ------------------------------------------------------ */
+
+.language-switcher {
+  display: inline-flex;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+.language-option {
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.7rem;
+  cursor: pointer;
+}
+.language-option:hover { color: var(--text-primary); }
+/*
+  The active language is announced through aria-pressed and shown through both a
+  background and a weight change, so it is not carried by colour alone.
+*/
+.language-option[aria-pressed="true"] {
+  background: var(--accent-fill);
+  color: var(--text-on-accent);
+  font-weight: 700;
+}

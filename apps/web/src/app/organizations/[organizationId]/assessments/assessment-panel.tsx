@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { components } from "@siembiot/contracts/private-api-v1";
 
-import { ApiError, apiRequest, loadSession } from "../../../../lib/secure-client";
+import type { MessageKey } from "../../../../lib/i18n";
+import { useLocalization } from "../../../../lib/i18n/provider";
+import { apiErrorKey } from "../../../../lib/api-errors";
+import { apiRequest, loadSession } from "../../../../lib/secure-client";
 
 type Assessment = components["schemas"]["AssessmentResponse"];
 type Domain = components["schemas"]["DomainResponse"];
@@ -31,24 +34,6 @@ const TERMINAL_STATES = new Set([
   "blocked_by_policy",
 ]);
 
-const STATE_LABELS: Record<string, string> = {
-  draft: "Ciornă",
-  awaiting_authorization: "Așteaptă autorizarea",
-  queued: "În așteptare",
-  planning: "Planificare",
-  collecting: "Colectare dovezi",
-  normalizing: "Normalizare",
-  evaluating: "Evaluare",
-  agent_analysis: "Analiză asistată",
-  report_generation: "Generare raport",
-  completed: "Finalizată",
-  partially_completed: "Finalizată parțial",
-  cancelled: "Anulată",
-  failed: "Eșuată",
-  expired: "Expirată",
-  blocked_by_policy: "Blocată de politică",
-};
-
 /**
  * Below this much coverage the methodology replaces the band rather than the number,
  * so that a thin assessment cannot be presented as a confident result. Mirrors
@@ -63,31 +48,9 @@ const AUTHORIZED = "authorized_assessment" satisfies AssessmentMode;
 /** Checks in the published catalog. Every one of them is reachable passively. */
 const TOTAL_CHECKS = 22;
 
-const MODE_LABELS: Record<AssessmentMode, string> = {
-  passive_observation: "Observare publică",
-  authorized_assessment: "Evaluare autorizată",
-};
 
 const INSUFFICIENT_COVERAGE = "insufficient_coverage";
 
-const BAND_LABELS: Record<string, string> = {
-  resilient: "Rezilient",
-  managed: "Gestionat",
-  developing: "În dezvoltare",
-  exposed: "Expus",
-  critical: "Critic",
-  [INSUFFICIENT_COVERAGE]: "Dovezi insuficiente",
-};
-
-const STEP_LABELS: Record<string, string> = {
-  pending: "în așteptare",
-  running: "în curs",
-  succeeded: "reușit",
-  failed: "eșuat",
-  skipped: "omis",
-  cancelled: "anulat",
-  dead_lettered: "abandonat",
-};
 
 function toneFor(state: string): string {
   if (state === "completed") return "success";
@@ -107,8 +70,9 @@ function stepTone(state: Step["state"]): string {
 export default function AssessmentPanel({ organizationId }: { organizationId: string }) {
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
-  const [message, setMessage] = useState("Încărcăm evaluările…");
+  const [message, setMessage] = useState<MessageKey | null>("assessments.loading");
   const [busy, setBusy] = useState(false);
+  const { t, formatDateTime, formatNumber } = useLocalization();
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const reload = useCallback(async () => {
@@ -119,12 +83,12 @@ export default function AssessmentPanel({ organizationId }: { organizationId: st
     ]);
     setAssessments(nextAssessments);
     setDomains(nextDomains);
-    setMessage("");
+    setMessage(null);
   }, [organizationId]);
 
   useEffect(() => {
     reload().catch((error: unknown) =>
-      setMessage(error instanceof ApiError ? error.message : "Starea nu a putut fi încărcată."),
+      setMessage(apiErrorKey(error, "assessments.loadFailed")),
     );
   }, [reload]);
 
@@ -141,24 +105,16 @@ export default function AssessmentPanel({ organizationId }: { organizationId: st
 
   async function start(domainId: string, mode: AssessmentMode) {
     setBusy(true);
-    setMessage(
-      mode === PASSIVE
-        ? "Punem observarea în coadă…"
-        : "Punem evaluarea autorizată în coadă…",
-    );
+    setMessage(mode === PASSIVE ? "assessments.queueingPassive" : "assessments.queueingAuthorized");
     try {
       await apiRequest<Assessment>(`/api/v1/organizations/${organizationId}/assessments`, {
         method: "POST",
         body: JSON.stringify({ domain_id: domainId, mode }),
       });
       await reload();
-      setMessage(
-        mode === PASSIVE
-          ? "Observarea a fost pusă în coadă. Citim doar date deja publice."
-          : "Evaluarea autorizată a fost pusă în coadă.",
-      );
+      setMessage(mode === PASSIVE ? "assessments.queuedPassive" : "assessments.queuedAuthorized");
     } catch (error) {
-      setMessage(error instanceof ApiError ? error.message : "Evaluarea nu a putut fi pornită.");
+      setMessage(apiErrorKey(error, "assessments.startFailed"));
     } finally {
       setBusy(false);
     }
@@ -169,12 +125,12 @@ export default function AssessmentPanel({ organizationId }: { organizationId: st
     try {
       await apiRequest<Assessment>(
         `/api/v1/organizations/${organizationId}/assessments/${assessmentId}/cancel`,
-        { method: "POST", body: JSON.stringify({ reason: "Anulată din interfață" }) },
+        { method: "POST", body: JSON.stringify({ reason: t("assessments.cancelReason") }) },
       );
       await reload();
-      setMessage("Anularea a fost cerută; lucrul în curs se oprește la următorul punct sigur.");
+      setMessage("assessments.cancelRequested");
     } catch (error) {
-      setMessage(error instanceof ApiError ? error.message : "Anularea nu a putut fi cerută.");
+      setMessage(apiErrorKey(error, "assessments.cancelFailed"));
     } finally {
       setBusy(false);
     }
@@ -184,12 +140,12 @@ export default function AssessmentPanel({ organizationId }: { organizationId: st
     <section className="panel" aria-labelledby="assessments-title">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Evaluări</p>
-          <h1 id="assessments-title">Evaluări ale suprafeței externe</h1>
+          <p className="eyebrow">{t("assessments.eyebrow")}</p>
+          <h1 id="assessments-title">{t("assessments.title")}</h1>
         </div>
       </div>
 
-      <h2>Pornește o evaluare</h2>
+      <h2>{t("assessments.startHeading")}</h2>
       {/*
         Two modes, offered side by side rather than one gated behind the other,
         because what each does is genuinely different -- and because requiring proof
@@ -198,19 +154,16 @@ export default function AssessmentPanel({ organizationId }: { organizationId: st
         a domain they do not run.
       */}
       <p className="hint">
-        <strong>Observarea publică</strong> citește doar ce publică deja domeniul: DNS,
-        RDAP, Certificate Transparency, certificatul TLS și pagina pe care o vede orice
-        vizitator. Nu cere dovada controlului, pentru că nu cere domeniului nimic în
-        plus față de ce oferă tuturor. Acoperă toate cele {TOTAL_CHECKS} verificări ale
-        metodologiei.
+        <strong>{t("mode.passive_observation")}</strong>{" "}
+        {t("assessments.passiveExplainer", { count: TOTAL_CHECKS })}
       </p>
       <p className="hint">
-        <strong>Evaluarea autorizată</strong> poate trece dincolo de ce vede un
-        vizitator, așa că cere control verificat și o autorizare semnată.
+        <strong>{t("mode.authorized_assessment")}</strong>{" "}
+        {t("assessments.authorizedExplainer")}
       </p>
 
       {domains.length === 0 ? (
-        <p className="hint">Adaugă mai întâi un domeniu.</p>
+        <p className="hint">{t("assessments.noDomains")}</p>
       ) : (
         <ul className="card-list">
           {domains.map((domain) => {
@@ -220,7 +173,7 @@ export default function AssessmentPanel({ organizationId }: { organizationId: st
                 <span>
                   {domain.unicode_display}
                   {!verified && (
-                    <small className="muted"> · control neverificat</small>
+                    <small className="muted"> · {t("assessments.unverified")}</small>
                   )}
                 </span>
                 <span className="run-actions">
@@ -230,7 +183,7 @@ export default function AssessmentPanel({ organizationId }: { organizationId: st
                     disabled={busy}
                     onClick={() => start(domain.id, PASSIVE)}
                   >
-                    Observă public
+                    {t("assessments.observePublic")}
                   </button>
                   <button
                     type="button"
@@ -245,10 +198,10 @@ export default function AssessmentPanel({ organizationId }: { organizationId: st
                     title={
                       verified
                         ? undefined
-                        : "Necesită control verificat asupra domeniului."
+                        : t("assessments.needsVerification")
                     }
                   >
-                    Evaluare autorizată
+                    {t("assessments.authorizedRun")}
                   </button>
                 </span>
               </li>
@@ -257,16 +210,16 @@ export default function AssessmentPanel({ organizationId }: { organizationId: st
         </ul>
       )}
 
-      <h2>Evaluări recente</h2>
+      <h2>{t("assessments.recentHeading")}</h2>
       {assessments.length === 0 ? (
-        <p className="hint">Nicio evaluare încă.</p>
+        <p className="hint">{t("assessments.none")}</p>
       ) : (
         <ul className="card-list">
           {assessments.map((assessment) => (
             <li key={assessment.id} className="assessment-card">
               <div>
                 <span className={`badge ${toneFor(assessment.state)}`}>
-                  {STATE_LABELS[assessment.state] ?? assessment.state}
+                  {t(`state.${assessment.state}` as MessageKey)}
                 </span>
                 <p className="muted">
                   {/*
@@ -274,9 +227,9 @@ export default function AssessmentPanel({ organizationId }: { organizationId: st
                     cannot be read honestly without knowing what the run was permitted
                     to look at.
                   */}
-                  {MODE_LABELS[assessment.mode] ?? assessment.mode} · Metodologia{" "}
-                  {assessment.methodology_version} ·{" "}
-                  {new Date(assessment.created_at).toLocaleString("ro-RO")}
+                  {t(`mode.${assessment.mode}` as MessageKey)} ·{" "}
+                  {t("assessments.methodology", { version: assessment.methodology_version })} ·{" "}
+                  {formatDateTime(assessment.created_at)}
                 </p>
               </div>
 
@@ -291,10 +244,15 @@ export default function AssessmentPanel({ organizationId }: { organizationId: st
                   aria-labelledby={`progress-label-${assessment.id}`}
                 />
                 <p id={`progress-label-${assessment.id}`} className="muted">
-                  {assessment.progress.settled_steps} din {assessment.progress.total_steps} etape
-                  ({assessment.progress.percentage}%)
+                  {t("assessments.progress", {
+                    settled: assessment.progress.settled_steps,
+                    total: assessment.progress.total_steps,
+                    percent: formatNumber(assessment.progress.percentage),
+                  })}
                   {(assessment.progress.failed_steps ?? []).length > 0 &&
-                    ` · ${(assessment.progress.failed_steps ?? []).length} eșuate`}
+                    ` · ${t("assessments.failedSteps", {
+                      count: (assessment.progress.failed_steps ?? []).length,
+                    })}`}
                 </p>
               </div>
 
@@ -310,23 +268,28 @@ export default function AssessmentPanel({ organizationId }: { organizationId: st
                     instead, and the number only as an audit detail.
                   */
                   <div className="assessment-score insufficient">
-                    <p className="score-verdict">Dovezi insuficiente pentru un scor</p>
+                    <p className="score-verdict">{t("assessments.insufficientTitle")}</p>
                     <p className="muted">
-                      Am putut evalua doar {assessment.coverage_percentage}% din verificări.
-                      Sub pragul de {COVERAGE_FLOOR_PERCENTAGE}% rezultatul nu este
-                      reprezentativ, așa că nu îl prezentăm ca scor.
+                      {t("assessments.insufficientBody", {
+                        percent: formatNumber(assessment.coverage_percentage ?? 0),
+                        floor: COVERAGE_FLOOR_PERCENTAGE,
+                      })}
                     </p>
                     <p className="muted small">
-                      Valoare brută, pentru audit: {assessment.score} / 100
+                      {t("assessments.rawScore", { score: formatNumber(assessment.score ?? 0) })}
                     </p>
                   </div>
                 ) : (
                   <div className="assessment-score">
                     <p className="score-verdict">
-                      <strong>{assessment.score}</strong> / 100 ·{" "}
-                      {BAND_LABELS[assessment.band ?? ""] ?? assessment.band}
+                      <strong>{formatNumber(assessment.score ?? 0)}</strong> / 100 ·{" "}
+                      {t(`band.${assessment.band}` as MessageKey)}
                     </p>
-                    <p className="muted">Acoperire {assessment.coverage_percentage}%</p>
+                    <p className="muted">
+                      {t("assessments.coverage", {
+                        percent: formatNumber(assessment.coverage_percentage ?? 0),
+                      })}
+                    </p>
                   </div>
                 ))}
 
@@ -341,18 +304,18 @@ export default function AssessmentPanel({ organizationId }: { organizationId: st
                   className="button secondary"
                   href={`/organizations/${organizationId}/domains/${assessment.domain_id}/findings`}
                 >
-                  Vezi constatările
+                  {t("assessments.viewFindings")}
                 </a>
               )}
 
               {(assessment.steps ?? []).length > 0 && (
                 <details>
-                  <summary>Etape ({(assessment.steps ?? []).length})</summary>
+                  <summary>{t("assessments.steps", { count: (assessment.steps ?? []).length })}</summary>
                   <ul className="step-list">
                     {(assessment.steps ?? []).map((step) => (
                       <li key={step.name}>
                         <span className={`badge ${stepTone(step.state)}`}>
-                          {STEP_LABELS[step.state] ?? step.state}
+                          {t(`step.${step.state}` as MessageKey)}
                         </span>
                         <code>{step.name}</code>
                         {step.last_error && <small className="muted">{step.last_error}</small>}
@@ -369,11 +332,11 @@ export default function AssessmentPanel({ organizationId }: { organizationId: st
                   disabled={busy}
                   onClick={() => cancel(assessment.id)}
                 >
-                  Anulează
+                  {t("assessments.cancel")}
                 </button>
               )}
               {assessment.cancellation_requested && (
-                <p className="muted">Anulare cerută; se oprește la următorul punct sigur.</p>
+                <p className="muted">{t("assessments.cancelPending")}</p>
               )}
             </li>
           ))}
@@ -381,7 +344,7 @@ export default function AssessmentPanel({ organizationId }: { organizationId: st
       )}
 
       <p className="status" role="status" aria-live="polite">
-        {message}
+        {message ? t(message) : ""}
       </p>
     </section>
   );

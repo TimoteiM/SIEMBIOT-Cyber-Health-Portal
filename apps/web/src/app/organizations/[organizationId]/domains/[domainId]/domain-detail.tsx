@@ -3,9 +3,13 @@
 import type { components } from "@siembiot/contracts/private-api-v1";
 import { useCallback, useEffect, useState } from "react";
 
+import { useLocalization } from "../../../../../lib/i18n/provider";
+import { apiErrorKey } from "../../../../../lib/api-errors";
+import type { MessageKey } from "../../../../../lib/i18n";
+import { consentFor } from "../../../../../lib/consent";
 import { ApiError, apiRequest, loadSession } from "../../../../../lib/secure-client";
 import {
-  challengeInstructions,
+  challengeInstructionKey,
   ownershipPresentation,
 } from "../../../../../lib/domain-state";
 
@@ -14,9 +18,6 @@ type Challenge = components["schemas"]["DomainChallengeCreatedResponse"];
 type ChallengeMethod = components["schemas"]["DomainChallengeCreate"]["method"];
 type Authorization = components["schemas"]["AssessmentAuthorizationResponse"];
 type EmergencyControl = components["schemas"]["EmergencyControlResponse"];
-
-const CONSENT_TEXT =
-  "Autorizez exclusiv verificarea pasivă și verificarea proprietății pentru domeniul selectat, în intervalul indicat. Înțeleg că autorizarea poate fi revocată imediat.";
 
 export default function DomainDetail({
   organizationId,
@@ -31,7 +32,8 @@ export default function DomainDetail({
   const [authorizations, setAuthorizations] = useState<Authorization[]>([]);
   const [controls, setControls] = useState<EmergencyControl[]>([]);
   const [consented, setConsented] = useState(false);
-  const [message, setMessage] = useState("Încărcăm starea de securitate…");
+  const [message, setMessage] = useState<MessageKey | null>("domainDetail.loading");
+  const { t, locale, formatDateTime } = useLocalization();
 
   const reload = useCallback(async () => {
     await loadSession();
@@ -45,32 +47,32 @@ export default function DomainDetail({
     setDomain(nextDomain);
     setAuthorizations(nextAuthorizations);
     setControls(nextControls.filter((control) => control.active));
-    setMessage("");
+    setMessage(null);
   }, [domainId, organizationId]);
 
   useEffect(() => {
     reload().catch((error: unknown) =>
-      setMessage(error instanceof ApiError ? error.message : "Starea nu a putut fi încărcată."),
+      setMessage(apiErrorKey(error, "domainDetail.loadFailed")),
     );
   }, [reload]);
 
   async function createChallenge() {
-    setMessage("Creăm o dovadă temporară…");
+    setMessage("domainDetail.creatingChallenge");
     try {
       const created = await apiRequest<Challenge>(
         `/api/v1/organizations/${organizationId}/domains/${domainId}/challenges`,
         { method: "POST", body: JSON.stringify({ method }) },
       );
       setChallenge(created);
-      setMessage("Valoarea secretă este afișată o singură dată în această pagină.");
+      setMessage("domainDetail.secretShownOnce");
     } catch (error) {
-      setMessage(error instanceof ApiError ? error.message : "Dovada nu a putut fi creată.");
+      setMessage(apiErrorKey(error, "domainDetail.challengeFailed"));
     }
   }
 
   async function verifyChallenge() {
     if (!challenge) return;
-    setMessage("Serverul verifică dovada prin canalul selectat…");
+    setMessage("domainDetail.verifying");
     try {
       await apiRequest(
         `/api/v1/organizations/${organizationId}/domains/${domainId}` +
@@ -79,9 +81,9 @@ export default function DomainDetail({
       );
       setChallenge(undefined);
       await reload();
-      setMessage("Domeniul a fost verificat de server.");
+      setMessage("domainDetail.verified");
     } catch (error) {
-      setMessage(error instanceof ApiError ? error.message : "Verificarea nu a reușit.");
+      setMessage(apiErrorKey(error, "domainDetail.verifyFailed"));
     }
   }
 
@@ -89,7 +91,7 @@ export default function DomainDetail({
     if (!consented) return;
     const validFrom = new Date();
     const validUntil = new Date(validFrom.getTime() + 24 * 60 * 60 * 1000);
-    setMessage("Înregistrăm consimțământul și domeniul exact…");
+    setMessage("domainDetail.recordingConsent");
     try {
       await apiRequest(`/api/v1/organizations/${organizationId}/authorizations`, {
         method: "POST",
@@ -97,17 +99,17 @@ export default function DomainDetail({
           domain_ids: [domainId],
           operation_classes: ["dns_verification", "https_verification"],
           policy_version: "scope-v1",
-          consent_version: "ro-v1",
-          consent_text: CONSENT_TEXT,
+          consent_version: consentFor(locale).version,
+          consent_text: consentFor(locale).text,
           valid_from: validFrom.toISOString(),
           valid_until: validUntil.toISOString(),
         }),
       });
       setConsented(false);
       await reload();
-      setMessage("Schița autorizării a fost creată. Activarea rămâne un pas explicit.");
+      setMessage("domainDetail.authorizationDrafted");
     } catch (error) {
-      setMessage(error instanceof ApiError ? error.message : "Autorizarea nu a putut fi creată.");
+      setMessage(apiErrorKey(error, "domainDetail.authorizationFailed"));
     }
   }
 
@@ -117,9 +119,9 @@ export default function DomainDetail({
         method: "POST",
       });
       await reload();
-      setMessage("Autorizarea semnată de server este activă.");
+      setMessage("domainDetail.authorizationActive");
     } catch (error) {
-      setMessage(error instanceof ApiError ? error.message : "Autorizarea nu a putut fi activată.");
+      setMessage(apiErrorKey(error, "domainDetail.activationFailed"));
     }
   }
 
@@ -127,12 +129,12 @@ export default function DomainDetail({
     try {
       await apiRequest(`/api/v1/organizations/${organizationId}/authorizations/${id}/revoke`, {
         method: "POST",
-        body: JSON.stringify({ reason: "Revocare explicită solicitată din portal" }),
+        body: JSON.stringify({ reason: t("domainDetail.revokeReason") }),
       });
       await reload();
-      setMessage("Autorizarea a fost revocată imediat.");
+      setMessage("domainDetail.revoked");
     } catch (error) {
-      setMessage(error instanceof ApiError ? error.message : "Revocarea nu a putut fi aplicată.");
+      setMessage(apiErrorKey(error, "domainDetail.revokeFailed"));
     }
   }
 
@@ -151,57 +153,63 @@ export default function DomainDetail({
     <section className="panel" aria-labelledby="domain-title">
       {controls.length > 0 && (
         <div className="security-banner" role="alert">
-          Operațiunile de rețea sunt suspendate printr-un control de urgență.
+          {t("domainDetail.emergencyActive")}
         </div>
       )}
-      <p className="eyebrow">Domeniu și autorizare</p>
+      <p className="eyebrow">{t("domainDetail.eyebrow")}</p>
       <h1 id="domain-title">{domain.unicode_display}</h1>
       <p className={`state-card ${state.tone}`}>
-        <strong>{state.title}</strong> — {state.detail}
+        <strong>{t(state.titleKey)}</strong> — {t(state.detailKey)}
       </p>
-      <p className="hint">Ținta canonică exactă: {domain.canonical_name}</p>
+      <p className="hint">{t("domainDetail.canonicalTarget", { host: domain.canonical_name })}</p>
 
       <div className="workflow-grid">
         <section aria-labelledby="proof-title">
-          <h2 id="proof-title">1. Dovedește controlul</h2>
-          <label htmlFor="challenge-method">Metodă de verificare</label>
+          <h2 id="proof-title">{t("domainDetail.proofHeading")}</h2>
+          <label htmlFor="challenge-method">{t("domainDetail.method")}</label>
           <select
             id="challenge-method"
             value={method}
             onChange={(event) => setMethod(event.target.value as ChallengeMethod)}
           >
-            <option value="dns_txt">Înregistrare DNS TXT</option>
-            <option value="https_file">Fișier HTTPS fix</option>
+            <option value="dns_txt">{t("domainDetail.methodDns")}</option>
+            <option value="https_file">{t("domainDetail.methodHttps")}</option>
           </select>
           <button className="button secondary" type="button" onClick={createChallenge}>
-            Creează dovada
+            {t("domainDetail.createChallenge")}
           </button>
           {challenge && (
             <div className="secret-panel">
-              <p>{challengeInstructions(challenge.method, challenge.verification_location)}</p>
-              <label htmlFor="verification-token">Valoare afișată o singură dată</label>
+              <p>
+                {t(challengeInstructionKey(challenge.method), {
+                  location: challenge.verification_location,
+                })}
+              </p>
+              <label htmlFor="verification-token">{t("domainDetail.tokenLabel")}</label>
               <output id="verification-token">{challenge.verification_token}</output>
               <p>
-                Expiră la {new Date(challenge.expires_at).toLocaleString("ro-RO")}; mai sunt{" "}
-                {challenge.attempts_remaining} încercări.
+                {t("domainDetail.expiresAttempts", {
+                  expires: formatDateTime(challenge.expires_at),
+                  attempts: challenge.attempts_remaining,
+                })}
               </p>
               <button className="button primary" type="button" onClick={verifyChallenge}>
-                Verifică acum
+                {t("domainDetail.verifyNow")}
               </button>
             </div>
           )}
         </section>
 
         <section aria-labelledby="authorization-title">
-          <h2 id="authorization-title">2. Autorizează explicit</h2>
-          <p>{CONSENT_TEXT}</p>
+          <h2 id="authorization-title">{t("domainDetail.authorizeHeading")}</h2>
+          <p>{consentFor(locale).text}</p>
           <label className="check-row">
             <input
               type="checkbox"
               checked={consented}
               onChange={(event) => setConsented(event.target.checked)}
             />
-            Confirm că am dreptul să autorizez domeniul exact și intervalul de 24 de ore.
+            {t("domainDetail.consentConfirm")}
           </label>
           <button
             className="button secondary"
@@ -209,20 +217,22 @@ export default function DomainDetail({
             disabled={!consented || domain.ownership_state !== "verified"}
             onClick={createAuthorization}
           >
-            Creează schița autorizării
+            {t("domainDetail.createDraft")}
           </button>
           <ul className="authorization-list">
             {authorizations.map((authorization) => (
               <li key={authorization.id}>
-                <strong>{authorization.state}</strong> — expiră la{" "}
-                {new Date(authorization.valid_until).toLocaleString("ro-RO")}
+                <strong>{authorization.state}</strong> —{" "}
+                {t("domainDetail.expiresAt", {
+                  expires: formatDateTime(authorization.valid_until),
+                })}
                 {authorization.state === "draft" && (
                   <button
                     className="button primary"
                     type="button"
                     onClick={() => activateAuthorization(authorization.id)}
                   >
-                    Acceptă și semnează pe server
+                    {t("domainDetail.signOnServer")}
                   </button>
                 )}
                 {authorization.state === "active" && (
@@ -231,7 +241,7 @@ export default function DomainDetail({
                     type="button"
                     onClick={() => revokeAuthorization(authorization.id)}
                   >
-                    Revocă autorizarea
+                    {t("domainDetail.revoke")}
                   </button>
                 )}
               </li>
@@ -240,7 +250,7 @@ export default function DomainDetail({
         </section>
       </div>
       <p className="status" role="status" aria-live="polite">
-        {message}
+        {message ? t(message) : ""}
       </p>
     </section>
   );

@@ -3,7 +3,12 @@
 import { useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
-type NavItem = { href: string; label: string; icon: ReactNode };
+import { useLocalization } from "../lib/i18n/provider";
+import LanguageSwitcher from "./language-switcher";
+
+import type { MessageKey } from "../lib/i18n";
+
+type NavItem = { href: string; labelKey: MessageKey; icon: ReactNode };
 
 function Icon({ path }: { path: string }) {
   return (
@@ -39,11 +44,11 @@ function navItems(organizationId: string | null): NavItem[] {
   if (!organizationId) return [];
   const base = `/organizations/${organizationId}`;
   return [
-    { href: "/onboarding", label: "Prezentare generală", icon: <Icon path={OVERVIEW} /> },
-    { href: `${base}/domains`, label: "Domenii", icon: <Icon path={DOMAINS} /> },
-    { href: `${base}/assessments`, label: "Evaluări", icon: <Icon path={ASSESSMENTS} /> },
-    { href: `${base}/team`, label: "Echipă și roluri", icon: <Icon path={TEAM} /> },
-    { href: `${base}/audit`, label: "Jurnal de audit", icon: <Icon path={AUDIT} /> },
+    { href: "/onboarding", labelKey: "nav.overview", icon: <Icon path={OVERVIEW} /> },
+    { href: `${base}/domains`, labelKey: "nav.domains", icon: <Icon path={DOMAINS} /> },
+    { href: `${base}/assessments`, labelKey: "nav.assessments", icon: <Icon path={ASSESSMENTS} /> },
+    { href: `${base}/team`, labelKey: "nav.team", icon: <Icon path={TEAM} /> },
+    { href: `${base}/audit`, labelKey: "nav.audit", icon: <Icon path={AUDIT} /> },
   ];
 }
 
@@ -54,6 +59,7 @@ function organizationFromPath(pathname: string): string | null {
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "/";
+  const { t } = useLocalization();
   const [collapsed, setCollapsed] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -72,7 +78,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
             </span>
             <span className="top-bar-title">SIEMBIOT Cyber Health Portal</span>
             <span className="top-bar-spacer" />
-            <span className="environment">Portal privat</span>
+            <LanguageSwitcher />
+            <span className="environment">{t("app.privatePortal")}</span>
           </header>
           <main id="main">
             <div className="content">{children}</div>
@@ -84,7 +91,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="app-shell" data-collapsed={collapsed} data-open={open}>
-      <nav className="sidebar" aria-label="Navigare principală">
+      <nav className="sidebar" aria-label={t("app.workspace")}>
         <a className="brand" href="/onboarding">
           <span className="brand-mark" aria-hidden="true">
             S
@@ -92,7 +99,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           <span className="brand-name">SIEMBIOT</span>
         </a>
 
-        <p className="nav-group-label">Spațiu de lucru</p>
+        <p className="nav-group-label">{t("app.workspace")}</p>
         {items.length > 0 ? (
           items.map((item) => (
             <a
@@ -102,13 +109,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
               aria-current={item === current ? "page" : undefined}
             >
               {item.icon}
-              <span className="nav-label">{item.label}</span>
+              <span className="nav-label">{t(item.labelKey)}</span>
             </a>
           ))
         ) : (
-          <p className="nav-empty nav-label">
-            Creează o organizație pentru a debloca domeniile, echipa și jurnalul de audit.
-          </p>
+          <p className="nav-empty nav-label">{t("nav.empty")}</p>
         )}
 
         <div className="sidebar-footer">
@@ -120,7 +125,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           >
             <Icon path={collapsed ? "M7 4l6 6-6 6" : "M13 4l-6 6 6 6"} />
             <span className="nav-label">
-              {collapsed ? "Extinde meniul" : "Restrânge meniul"}
+              {collapsed ? t("app.expandMenu") : t("app.collapseMenu")}
             </span>
           </button>
         </div>
@@ -136,11 +141,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
             aria-controls="main"
           >
             <Icon path="M3 6h14M3 10h14M3 14h14" />
-            <span className="sr-only">Comută navigarea</span>
+            <span className="sr-only">{t("app.toggleNavigation")}</span>
           </button>
-          <span className="top-bar-title">{current?.label ?? "Spațiu de lucru"}</span>
+          <span className="top-bar-title">{current ? t(current.labelKey) : t("app.workspace")}</span>
           <span className="top-bar-spacer" />
-          <span className="environment">Portal privat</span>
+          <LanguageSwitcher />
+          <span className="environment">{t("app.privatePortal")}</span>
         </header>
         <main id="main">
           <div className="content">{children}</div>

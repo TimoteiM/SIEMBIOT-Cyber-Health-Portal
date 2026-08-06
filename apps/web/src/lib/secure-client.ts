@@ -41,7 +41,9 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
       error = undefined;
     }
     throw new ApiError(
-      error?.message ?? "Cererea nu a putut fi finalizată.",
+      // Developer-facing only. Every caller renders a translated sentence from the
+      // error code instead; this is what appears in a stack trace.
+      error?.message ?? "The request could not be completed.",
       response.status,
       error?.code ?? "request_failed",
       error?.request_id,

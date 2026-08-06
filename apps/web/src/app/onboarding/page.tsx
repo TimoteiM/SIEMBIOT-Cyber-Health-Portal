@@ -4,6 +4,9 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { components } from "@siembiot/contracts/private-api-v1";
 
+import { useLocalization } from "../../lib/i18n/provider";
+import { apiErrorKey } from "../../lib/api-errors";
+import type { MessageKey } from "../../lib/i18n";
 import { ApiError, apiRequest, loadSession } from "../../lib/secure-client";
 
 type Organization = components["schemas"]["OrganizationResponse"];
@@ -24,22 +27,22 @@ const SLUG_PATTERN = "[a-z0-9](?:[a-z0-9\\-]{0,61}[a-z0-9])?";
 export default function OnboardingPage() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
-  const [message, setMessage] = useState("Verificăm identitatea…");
+  const [message, setMessage] = useState<MessageKey | null>("onboarding.checkingIdentity");
+  const { t } = useLocalization();
 
   useEffect(() => {
     loadSession()
       .then(() => {
         setReady(true);
-        setMessage("");
+        setMessage(null);
       })
       .catch((error: unknown) => {
         // Authentication happens upstream, so there is no login page to send anyone
         // to. Say what is actually true: the identity did not arrive.
         setMessage(
           error instanceof ApiError && error.status === 401
-            ? "Identitatea nu a fost primită de la platforma de identitate. " +
-                "Reîncarcă pagina sau contactează administratorul."
-            : "Starea nu a putut fi încărcată.",
+            ? "error.identityMissing"
+            : "onboarding.loadFailed",
         );
       });
   }, []);
@@ -47,7 +50,7 @@ export default function OnboardingPage() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    setMessage("Creăm organizația…");
+    setMessage("onboarding.creating");
     try {
       const organization = await apiRequest<Organization>("/api/v1/organizations", {
         method: "POST",
@@ -55,28 +58,28 @@ export default function OnboardingPage() {
       });
       router.push(`/organizations/${organization.id}/team`);
     } catch (error) {
-      setMessage(error instanceof ApiError ? error.message : "Cererea nu a putut fi finalizată.");
+      setMessage(apiErrorKey(error, "error.generic"));
     }
   }
 
   return (
     <section className="panel narrow" aria-labelledby="onboarding-title">
-      <p className="eyebrow">Configurare inițială</p>
-      <h1 id="onboarding-title">Creează spațiul organizației</h1>
+      <p className="eyebrow">{t("onboarding.eyebrow")}</p>
+      <h1 id="onboarding-title">{t("onboarding.title")}</h1>
       <form onSubmit={submit}>
-        <label htmlFor="name">Numele organizației</label>
+        <label htmlFor="name">{t("onboarding.name")}</label>
         <input id="name" name="name" required maxLength={200} autoComplete="organization" />
-        <label htmlFor="slug">Identificator scurt</label>
+        <label htmlFor="slug">{t("onboarding.slug")}</label>
         <input
           id="slug"
           name="slug"
           required
           pattern={SLUG_PATTERN}
-          title="Litere mici, cifre și cratime. Trebuie să înceapă și să se termine cu o literă sau o cifră."
+          title={t("onboarding.slugHint")}
         />
-        <button className="button primary" type="submit" disabled={!ready}>Continuă</button>
+        <button className="button primary" type="submit" disabled={!ready}>{t("onboarding.submit")}</button>
       </form>
-      <p className="status" role="status" aria-live="polite">{message}</p>
+      <p className="status" role="status" aria-live="polite">{message ? t(message) : ""}</p>
     </section>
   );
 }

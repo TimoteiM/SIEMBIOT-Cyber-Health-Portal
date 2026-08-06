@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import type { components } from "@siembiot/contracts/private-api-v1";
 
-import { ApiError, apiRequest, loadSession } from "../../../../../../lib/secure-client";
+import { useLocalization } from "../../../../../../lib/i18n/provider";
+import { apiErrorKey } from "../../../../../../lib/api-errors";
+import type { MessageKey, Values } from "../../../../../../lib/i18n";
+import { apiRequest, loadSession } from "../../../../../../lib/secure-client";
 
 type Candidate = components["schemas"]["AssetCandidateResponse"];
 
@@ -11,13 +14,6 @@ const BASIS_LABELS: Record<Candidate["attribution_basis"], string> = {
   authorized_domain: "Domeniul autorizat",
   subdomain_of_authorized_domain: "Subdomeniu al domeniului autorizat",
   unrelated_name: "Nume fără legătură evidentă",
-};
-
-const SOURCE_LABELS: Record<Candidate["source"], string> = {
-  certificate_transparency: "Certificate Transparency",
-  dns: "DNS",
-  user_declared: "Declarat de organizație",
-  passive_intelligence: "Sursă pasivă",
 };
 
 const STATE_LABELS: Record<Candidate["state"], string> = {
@@ -39,7 +35,15 @@ export default function AssetReviewPanel({
   domainId: string;
 }) {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
-  const [message, setMessage] = useState("Încărcăm candidații…");
+    /*
+    A key plus its values rather than a finished sentence, so a status already on
+    screen re-renders in the new language when the reader switches, instead of being
+    stranded in the one it was written in.
+  */
+  const [message, setMessage] = useState<{ key: MessageKey; values?: Values } | null>({
+    key: "assets.loading",
+  });
+  const { t, formatNumber } = useLocalization();
   const [busy, setBusy] = useState<string | undefined>(undefined);
 
   const reload = useCallback(async () => {
@@ -49,12 +53,12 @@ export default function AssetReviewPanel({
         `/api/v1/organizations/${organizationId}/domains/${domainId}/asset-candidates`,
       ),
     );
-    setMessage("");
+    setMessage(null);
   }, [organizationId, domainId]);
 
   useEffect(() => {
     reload().catch((error: unknown) =>
-      setMessage(error instanceof ApiError ? error.message : "Starea nu a putut fi încărcată."),
+      setMessage({ key: apiErrorKey(error, "assets.loadFailed") }),
     );
   }, [reload]);
 
@@ -66,13 +70,12 @@ export default function AssetReviewPanel({
         { method: "POST", body: JSON.stringify({ decision }) },
       );
       await reload();
-      setMessage(
-        decision === "accepted"
-          ? `${candidate.name} a fost inclus în perimetrul evaluat.`
-          : `${candidate.name} a fost exclus din perimetrul evaluat.`,
-      );
+      setMessage({
+        key: decision === "accepted" ? "assets.accepted" : "assets.rejected",
+        values: { name: candidate.name },
+      });
     } catch (error) {
-      setMessage(error instanceof ApiError ? error.message : "Decizia nu a putut fi salvată.");
+      setMessage({ key: apiErrorKey(error, "assets.decisionFailed") });
     } finally {
       setBusy(undefined);
     }
@@ -83,8 +86,8 @@ export default function AssetReviewPanel({
 
   return (
     <section className="panel" aria-labelledby="assets-title">
-      <p className="eyebrow">Atribuirea activelor</p>
-      <h1 id="assets-title">Candidați descoperiți</h1>
+      <p className="eyebrow">{t("assets.eyebrow")}</p>
+      <h1 id="assets-title">{t("assets.title")}</h1>
       <p>
         Un nume descoperit public este un <strong>candidat</strong>, nu un activ confirmat.
         Nimic nu intră în perimetrul evaluat până când nu accepți explicit.
@@ -92,7 +95,7 @@ export default function AssetReviewPanel({
 
       <h2>De revizuit ({unreviewed.length})</h2>
       {unreviewed.length === 0 ? (
-        <p className="hint">Niciun candidat în așteptare.</p>
+        <p className="hint">{t("assets.none")}</p>
       ) : (
         <ul className="card-list">
           {unreviewed.map((candidate) => (
@@ -100,18 +103,19 @@ export default function AssetReviewPanel({
               <div>
                 <strong>{candidate.name}</strong>
                 <p className="muted">
-                  {SOURCE_LABELS[candidate.source]} ·{" "}
+                  {t(`attribution.${candidate.source}` as MessageKey)} ·{" "}
                   {BASIS_LABELS[candidate.attribution_basis]} · observat de{" "}
                   {candidate.observation_count} ori
                 </p>
               </div>
               <span className={`badge ${confidenceTone(candidate)}`}>
-                încredere {Math.round(candidate.attribution_confidence * 100)}%
+                {t("assets.confidence", {
+                  percent: Math.round(candidate.attribution_confidence * 100),
+                })}
               </span>
               {candidate.shared_hosting && (
                 <p className="muted">
-                  Găzduire partajată: certificatul unui alt client nu spune nimic despre
-                  proprietatea acestui nume.
+                  {t("assets.sharedHosting")}
                 </p>
               )}
               <div className="decision-actions">
@@ -121,7 +125,7 @@ export default function AssetReviewPanel({
                   disabled={busy === candidate.id}
                   onClick={() => decide(candidate, "accepted")}
                 >
-                  Acceptă
+                  {t("assets.accept")}
                 </button>
                 <button
                   type="button"
@@ -142,12 +146,12 @@ export default function AssetReviewPanel({
           <h2>Deja decise ({decided.length})</h2>
           <div className="table-wrap">
             <table>
-              <caption className="sr-only">Candidați deja acceptați sau respinși</caption>
+              <caption className="sr-only">{t("assets.decided")}</caption>
               <thead>
                 <tr>
                   <th scope="col">Nume</th>
                   <th scope="col">Decizie</th>
-                  <th scope="col">Încredere</th>
+                  <th scope="col">{t("assets.confidenceColumn")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -173,7 +177,7 @@ export default function AssetReviewPanel({
       )}
 
       <p className="status" role="status" aria-live="polite">
-        {message}
+        {message ? t(message.key, message.values) : ""}
       </p>
     </section>
   );
