@@ -58,7 +58,7 @@ def client_for(
         settings=Settings(
             environment="test",
             public_base_url="https://portal.example.test",
-            database_url=postgres_database["app_url"].replace(
+            app_database_url=postgres_database["app_url"].replace(
                 "postgresql://", "postgresql+psycopg://"
             ),
         ),

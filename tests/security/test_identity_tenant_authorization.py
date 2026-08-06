@@ -32,7 +32,7 @@ def settings(database_url: str) -> Settings:
     return Settings(
         environment="test",
         public_base_url=BASE_URL,
-        database_url=database_url.replace("postgresql://", "postgresql+psycopg://"),
+        app_database_url=database_url.replace("postgresql://", "postgresql+psycopg://"),
     )
 
 

@@ -53,7 +53,9 @@ def client_for(
     settings = Settings(
         environment="test",
         public_base_url="https://portal.example.test",
-        database_url=postgres_database["app_url"].replace("postgresql://", "postgresql+psycopg://"),
+        app_database_url=postgres_database["app_url"].replace(
+            "postgresql://", "postgresql+psycopg://"
+        ),
         domain_challenge_ttl_seconds=900,
         domain_challenge_create_limit_per_hour=3,
     )

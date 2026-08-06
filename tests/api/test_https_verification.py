@@ -62,7 +62,9 @@ def test_https_challenge_uses_policy_broker_and_exact_token(
     settings = Settings(
         environment="test",
         public_base_url="https://portal.example.test",
-        database_url=postgres_database["app_url"].replace("postgresql://", "postgresql+psycopg://"),
+        app_database_url=postgres_database["app_url"].replace(
+            "postgresql://", "postgresql+psycopg://"
+        ),
     )
     app = create_app(
         settings=settings,
@@ -112,7 +114,9 @@ def test_https_verification_is_blocked_and_recovers_after_kill_switch(
     settings = Settings(
         environment="test",
         public_base_url="https://portal.example.test",
-        database_url=postgres_database["app_url"].replace("postgresql://", "postgresql+psycopg://"),
+        app_database_url=postgres_database["app_url"].replace(
+            "postgresql://", "postgresql+psycopg://"
+        ),
     )
     app = create_app(
         settings=settings,

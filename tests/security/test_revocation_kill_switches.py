@@ -48,7 +48,9 @@ def _client(
     settings = Settings(
         environment="test",
         public_base_url="https://portal.example.test",
-        database_url=postgres_database["app_url"].replace("postgresql://", "postgresql+psycopg://"),
+        app_database_url=postgres_database["app_url"].replace(
+            "postgresql://", "postgresql+psycopg://"
+        ),
     )
     app = create_app(settings=settings, identity_resolver=NullIdentityResolver())
     app.dependency_overrides[current_principal] = lambda: principal
@@ -114,7 +116,7 @@ def test_policy_rereads_database_and_rejects_new_control_without_stale_cache(
     client, settings = _client(postgres_database, organization_id, principal)
     with client:
         domain, challenge = _domain_and_challenge(client, organization_id)
-    database = Database(settings.database_url)
+    database = Database(settings.app_database_url)
     request = VerificationFetchRequest(
         organization_id=organization_id,
         domain_id=UUID(str(domain["id"])),

@@ -17,7 +17,9 @@ def test_org_emergency_controls_are_tenant_scoped_and_audited(
     settings = Settings(
         environment="test",
         public_base_url="https://portal.example.test",
-        database_url=postgres_database["app_url"].replace("postgresql://", "postgresql+psycopg://"),
+        app_database_url=postgres_database["app_url"].replace(
+            "postgresql://", "postgresql+psycopg://"
+        ),
     )
     app = create_app(
         settings=settings,
@@ -56,7 +58,9 @@ def test_global_control_requires_phishing_resistant_platform_admin(
     settings = Settings(
         environment="test",
         public_base_url="https://portal.example.test",
-        database_url=postgres_database["app_url"].replace("postgresql://", "postgresql+psycopg://"),
+        app_database_url=postgres_database["app_url"].replace(
+            "postgresql://", "postgresql+psycopg://"
+        ),
     )
     app = create_app(settings=settings, identity_resolver=NullIdentityResolver())
     app.dependency_overrides[current_principal] = lambda: principal
@@ -91,7 +95,9 @@ def test_read_only_role_cannot_activate_emergency_control(
     settings = Settings(
         environment="test",
         public_base_url="https://portal.example.test",
-        database_url=postgres_database["app_url"].replace("postgresql://", "postgresql+psycopg://"),
+        app_database_url=postgres_database["app_url"].replace(
+            "postgresql://", "postgresql+psycopg://"
+        ),
     )
     app = create_app(settings=settings, identity_resolver=NullIdentityResolver())
     app.dependency_overrides[current_principal] = lambda: principal

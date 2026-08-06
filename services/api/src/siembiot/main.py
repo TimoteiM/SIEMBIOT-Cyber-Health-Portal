@@ -51,7 +51,7 @@ def create_app(
     network_broker_factory: NetworkBrokerFactory | None = None,
 ) -> FastAPI:
     resolved_settings = settings or Settings()
-    database = Database(resolved_settings.database_url)
+    database = Database(resolved_settings.app_database_url)
     resolved_signer = manifest_signer or Ed25519ManifestSigner.generate(
         "dev-ephemeral", development_only=True
     )
@@ -64,6 +64,11 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        # Checked at startup rather than per request: a role that bypasses row-level
+        # security disables tenant isolation without any query failing, so there is no
+        # later moment at which the problem announces itself. Refusing to serve is the
+        # only outcome that cannot be missed.
+        database.verify_least_privilege()
         yield
         database.close()
 
