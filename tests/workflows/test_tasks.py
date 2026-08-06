@@ -142,6 +142,10 @@ def test_tasks_carry_identifiers_rather_than_evidence() -> None:
         "organization_id",
         "domain_id",
         "host",
+        # The mode the run was recorded with. It decides what the platform may do to
+        # the domain, so it travels with the task rather than being defaulted at the
+        # far end, where a scheduling detail would be making that decision.
+        "mode",
         "declared_dkim_selectors",
     }
 

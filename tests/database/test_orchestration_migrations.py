@@ -8,6 +8,7 @@ rather than trusting the in-process implementation.
 
 from __future__ import annotations
 
+import time
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
@@ -17,7 +18,7 @@ from siembiot_worker.workflows.engine import StepRecord
 from siembiot_worker.workflows.graph import StepState
 from siembiot_worker.workflows.lifecycle import AssessmentState, LifecycleError
 from siembiot_worker.workflows.postgres_repository import PostgresWorkflowRepository
-from sqlalchemy import Connection, create_engine
+from sqlalchemy import Connection, create_engine, text
 
 METHODOLOGY = "1.0.0"
 DIGEST = "a" * 64
@@ -472,3 +473,37 @@ def test_orchestration_state_is_invisible_across_tenants(
         app.execute("SELECT set_config('app.user_id', %s, false)", (fixture["user_id"],))
         assert len(app.execute("SELECT id FROM assessment_steps").fetchall()) == 1
         assert len(app.execute("SELECT id FROM asset_candidates").fetchall()) == 1
+
+
+def test_a_contended_lease_is_declined_rather_than_waited_on(
+    postgres_database: dict[str, str],
+) -> None:
+    """A worker that meets a held lease must learn "not mine" promptly.
+
+    Without a lock timeout the loser blocks on the row for as long as the winner's
+    transaction lasts. When a run is dispatched more than once -- which the sweep does
+    by design, because redelivery is meant to be harmless -- that turns a normal race
+    into worker threads parked for the length of somebody else's assessment.
+    """
+    fixture = seed_assessment(postgres_database["owner_url"])
+    assessment = UUID(fixture["assessment_id"])
+    holder, holder_connection = repository(postgres_database["owner_url"], fixture)
+    contender, contender_connection = repository(postgres_database["owner_url"], fixture)
+    expires = datetime.now(UTC) + timedelta(minutes=5)
+    try:
+        # The winner takes the lease and keeps its transaction open, exactly as a
+        # worker part-way through a step would.
+        assert holder.acquire_lease(assessment, "plan", uuid4(), expires) is True
+
+        contender_connection.execute(text("SET lock_timeout = 500"))
+        started = time.monotonic()
+        acquired = contender.acquire_lease(assessment, "plan", uuid4(), expires)
+        elapsed = time.monotonic() - started
+
+        assert acquired is False
+        assert elapsed < 5.0, f"waited {elapsed:.1f}s for a lease another worker holds"
+    finally:
+        holder_connection.rollback()
+        contender_connection.rollback()
+        holder_connection.close()
+        contender_connection.close()

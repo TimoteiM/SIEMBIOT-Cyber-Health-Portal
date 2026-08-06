@@ -544,6 +544,12 @@ export interface components {
              * Format: uuid
              */
             domain_id: string;
+            /**
+             * Mode
+             * @default passive_observation
+             * @enum {string}
+             */
+            mode: "passive_observation" | "authorized_assessment";
         };
         /**
          * AssessmentProgressResponse
@@ -603,6 +609,11 @@ export interface components {
             id: string;
             /** Methodology Version */
             methodology_version: string;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "passive_observation" | "authorized_assessment";
             /**
              * Organization Id
              * Format: uuid

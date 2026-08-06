@@ -167,6 +167,15 @@
             "format": "uuid",
             "title": "Domain Id",
             "type": "string"
+          },
+          "mode": {
+            "default": "passive_observation",
+            "enum": [
+              "passive_observation",
+              "authorized_assessment"
+            ],
+            "title": "Mode",
+            "type": "string"
           }
         },
         "required": [
@@ -286,6 +295,14 @@
             "title": "Methodology Version",
             "type": "string"
           },
+          "mode": {
+            "enum": [
+              "passive_observation",
+              "authorized_assessment"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
           "organization_id": {
             "format": "uuid",
             "title": "Organization Id",
@@ -339,6 +356,7 @@
           "organization_id",
           "domain_id",
           "state",
+          "mode",
           "methodology_version",
           "created_at",
           "progress"

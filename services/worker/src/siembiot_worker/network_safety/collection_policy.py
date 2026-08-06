@@ -188,9 +188,7 @@ def authorize_collection_redirect(
     expected_port = 443 if parsed.scheme == "https" else 80
     if port not in {None, expected_port}:
         raise DestinationPolicyError("forbidden_port")
-    if resolved_host not in authorized_hosts and not follows_provider_redirects(
-        current.operation_class
-    ):
+    if not redirect_target_permitted(current.operation_class, resolved_host, authorized_hosts):
         raise DestinationPolicyError("redirect_not_authorized")
     fixed = _FIXED_PATHS.get(current.operation_class)
     if fixed is not None and current.operation_class is not OperationClass.HTTP_SURFACE:
@@ -219,6 +217,48 @@ PROVIDER_REDIRECT_CLASSES = frozenset({OperationClass.RDAP_QUERY, OperationClass
 
 def follows_provider_redirects(operation_class: OperationClass) -> bool:
     return operation_class in PROVIDER_REDIRECT_CLASSES
+
+
+#: Classes that may follow a redirect deeper into the host they were already pointed at.
+#:
+#: Observing the HTTP surface means observing what a browser would see, and apex-to-www
+#: is the single most common configuration on the web. Refusing it does not make the
+#: platform safer -- it makes it unable to look at most real sites, which then report as
+#: unreachable and score as insufficient evidence.
+SAME_SITE_REDIRECT_CLASSES = frozenset({OperationClass.HTTP_SURFACE})
+
+
+def _is_descendant_host(host: str, ancestor: str) -> bool:
+    """Whether `host` sits under `ancestor` in the DNS tree.
+
+    The leading dot is what makes this a label-boundary test rather than a string
+    prefix test: without it `evil-anaf.ro` would count as living under `anaf.ro`.
+
+    Descendants only, never ancestors. Walking *up* is not safe without consulting the
+    public suffix list -- the parent of `victim.github.io` is `github.io`, which belongs
+    to somebody else entirely.
+    """
+    return host.endswith(f".{ancestor}")
+
+
+def redirect_target_permitted(
+    operation_class: OperationClass, host: str, authorized_hosts: frozenset[str]
+) -> bool:
+    """Whether a redirect may be followed to this host.
+
+    Relaxes only the "must already be an authorized host" rule, and only downward
+    within a host the run was already aimed at. Every other control is untouched: the
+    resolved address must still pass the address policy on every hop, so a redirect can
+    never reach a private, loopback or metadata address; the scheme cannot downgrade;
+    the port must be the standard one; and the hop count is capped.
+    """
+    if host in authorized_hosts:
+        return True
+    if follows_provider_redirects(operation_class):
+        return True
+    if operation_class not in SAME_SITE_REDIRECT_CLASSES:
+        return False
+    return any(_is_descendant_host(host, authorized) for authorized in authorized_hosts)
 
 
 def is_target_owned(operation_class: OperationClass) -> bool:

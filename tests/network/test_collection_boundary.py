@@ -383,3 +383,72 @@ def test_unknown_dns_outcomes_are_not_silently_treated_as_absence() -> None:
         answer = client.query(HOST, "TXT")
         assert answer.is_conclusive is False
         assert answer.records == ()
+
+
+# -- same-site redirects -----------------------------------------------------
+#
+# Observing an HTTP surface means observing what a browser sees, and apex-to-www is the
+# most common configuration on the web. Refusing it does not make the platform safer --
+# it makes it unable to look at most real sites. What follows pins down exactly how far
+# that relaxation goes, because the interesting cases are the ones it must still refuse.
+
+
+def test_a_redirect_deeper_into_the_same_site_is_followed() -> None:
+    destination = https_destination(OperationClass.HTTP_SURFACE, HOST)
+    allowed = authorize_collection_redirect(
+        destination, f"https://www.{HOST}/", authorized_hosts=frozenset({HOST})
+    )
+    assert allowed.host == f"www.{HOST}"
+
+
+def test_a_lookalike_sibling_is_not_the_same_site() -> None:
+    """The classic string-prefix bug: `evil-example.test` is not under `example.test`.
+
+    Matching on a label boundary is the whole difference between following a site's own
+    redirect and following an attacker's.
+    """
+    destination = https_destination(OperationClass.HTTP_SURFACE, HOST)
+    with pytest.raises(DestinationPolicyError) as error:
+        authorize_collection_redirect(
+            destination, f"https://evil-{HOST}/", authorized_hosts=frozenset({HOST})
+        )
+    assert error.value.reason == "redirect_not_authorized"
+
+
+def test_a_redirect_upward_to_a_parent_is_refused() -> None:
+    """Descendants only. Walking up cannot be done safely without the suffix list.
+
+    The parent of `victim.github.io` is `github.io`, which belongs to somebody else
+    entirely -- so "one label shorter" is not a safe direction to travel.
+    """
+    destination = https_destination(OperationClass.HTTP_SURFACE, f"www.{HOST}")
+    with pytest.raises(DestinationPolicyError) as error:
+        authorize_collection_redirect(
+            destination, f"https://{HOST}/", authorized_hosts=frozenset({f"www.{HOST}"})
+        )
+    assert error.value.reason == "redirect_not_authorized"
+
+
+def test_a_same_site_redirect_still_cannot_downgrade_or_change_port() -> None:
+    """The relaxation touches one rule. Everything else applies to every hop."""
+    destination = https_destination(OperationClass.HTTP_SURFACE, HOST)
+    for location, reason in (
+        (f"http://www.{HOST}/", "tls_downgrade"),
+        (f"https://www.{HOST}:8443/", "forbidden_port"),
+        (f"https://user:pass@www.{HOST}/", "credentials"),
+    ):
+        with pytest.raises(DestinationPolicyError) as error:
+            authorize_collection_redirect(destination, location, authorized_hosts=frozenset({HOST}))
+        assert error.value.reason == reason
+
+
+def test_only_the_http_surface_may_follow_a_same_site_redirect() -> None:
+    """TLS inspection and email policy fetches have fixed targets, so they gain nothing
+    from following redirects and would only widen their own reachable set."""
+    destination = https_destination(OperationClass.EMAIL_POLICY_FETCH, f"mta-sts.{HOST}")
+    with pytest.raises(DestinationPolicyError):
+        authorize_collection_redirect(
+            destination,
+            f"https://other.mta-sts.{HOST}/.well-known/mta-sts.txt",
+            authorized_hosts=frozenset({f"mta-sts.{HOST}"}),
+        )

@@ -52,6 +52,12 @@ EXPECTED_STEP_NAMES: tuple[str, ...] = (
     "agent_analysis",
     "report",
 )
+#: Mirrors siembiot_worker.observation.mode.AssessmentMode. Duplicated rather than
+#: imported because the API does not depend on the worker package; the migration's
+#: check constraint is what keeps the two honest.
+PASSIVE_OBSERVATION = "passive_observation"
+AUTHORIZED_ASSESSMENT = "authorized_assessment"
+
 SETTLED_STEP_STATES = frozenset({"succeeded", "failed", "skipped", "cancelled", "dead_lettered"})
 TERMINAL_ASSESSMENT_STATES = frozenset(
     {
@@ -78,7 +84,7 @@ def _assessment_row(connection: Connection, assessment_id: UUID) -> RowMapping |
         connection.execute(
             text(
                 """
-                SELECT a.id, a.organization_id, a.domain_id, a.state,
+                SELECT a.id, a.organization_id, a.domain_id, a.state, a.mode,
                        a.methodology_version, a.created_at, a.completed_at,
                        a.cancellation_requested_at,
                        s.score, s.band, s.coverage_percentage
@@ -161,6 +167,7 @@ def _assessment_response(connection: Connection, row: RowMapping) -> AssessmentR
         organization_id=row["organization_id"],
         domain_id=row["domain_id"],
         state=row["state"],
+        mode=row["mode"],
         methodology_version=row["methodology_version"],
         created_at=row["created_at"],
         completed_at=row["completed_at"],
@@ -203,6 +210,24 @@ def build_assessment_router() -> APIRouter:
             if domain is None:
                 raise AppError(404, "not_found", "The requested resource was not found.")
 
+            # Ownership proof is required by what the run will *do*, not by the fact
+            # that it is a run. A passive observation reads DNS, RDAP, Certificate
+            # Transparency, the TLS handshake and the page a browser would fetch --
+            # nothing the target does not already publish to everyone -- so demanding
+            # proof of control for it would be a ceremony that protects nobody, and
+            # would put the whole methodology out of reach of anyone evaluating a
+            # domain they do not run.
+            #
+            # Authorized assessment keeps every requirement, because it is the mode
+            # that can reach past what a visitor sees.
+            if payload.mode == AUTHORIZED_ASSESSMENT and domain["ownership_state"] != "verified":
+                raise AppError(
+                    409,
+                    "ownership_not_verified",
+                    "An authorized assessment requires verified control of the domain. "
+                    "Passive observation of published data needs no proof of control.",
+                )
+
             # An assessment already in flight for this domain is reused rather than
             # duplicated: two concurrent runs would compete for the same evidence rows.
             existing = connection.execute(
@@ -242,9 +267,10 @@ def build_assessment_router() -> APIRouter:
                 text(
                     """
                     INSERT INTO assessments (
-                        id, organization_id, domain_id, methodology_version, state
+                        id, organization_id, domain_id, methodology_version, state, mode
                     ) VALUES (
-                        :id, :organization_id, :domain_id, :methodology_version, 'queued'
+                        :id, :organization_id, :domain_id, :methodology_version,
+                        'queued', :mode
                     )
                     """
                 ),
@@ -253,6 +279,7 @@ def build_assessment_router() -> APIRouter:
                     "organization_id": organization_id,
                     "domain_id": payload.domain_id,
                     "methodology_version": methodology,
+                    "mode": payload.mode,
                 },
             )
             append_audit_event(
@@ -266,7 +293,10 @@ def build_assessment_router() -> APIRouter:
                 request_id=_request_id(request),
                 correlation_id=request.state.correlation_id,
                 outcome="success",
-                context={"domain_id": str(payload.domain_id)},
+                # The mode is recorded in the audit trail as well as on the row: an
+                # auditor asking "what did this platform do to that domain, and under
+                # what authority" must be able to answer it from the log alone.
+                context={"domain_id": str(payload.domain_id), "mode": payload.mode},
             )
             row = _require_assessment_row(connection, assessment_id)
             return _assessment_response(connection, row)

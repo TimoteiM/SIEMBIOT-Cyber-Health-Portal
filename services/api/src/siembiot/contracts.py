@@ -265,6 +265,11 @@ ASSESSMENT_STATES = Literal[
     "blocked_by_policy",
 ]
 
+#: Passive observation reads only what the target already publishes, so it needs no
+#: proof of control. Authorized assessment can reach past what a visitor sees, and
+#: requires verified control and a signed authorization.
+ASSESSMENT_MODES = Literal["passive_observation", "authorized_assessment"]
+
 STEP_STATES = Literal[
     "pending", "running", "succeeded", "failed", "skipped", "cancelled", "dead_lettered"
 ]
@@ -273,6 +278,10 @@ STEP_STATES = Literal[
 class AssessmentCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     domain_id: UUID
+    #: Defaults to passive observation, the mode that reads only what the target
+    #: already publishes. Defaulting to the wider mode would mean a caller who omitted
+    #: the field got the more intrusive behaviour by accident.
+    mode: ASSESSMENT_MODES = "passive_observation"
     #: Selectors are never guessed, so an organization that uses DKIM declares them.
     dkim_selectors: list[str] = Field(default_factory=list, max_length=10)
 
@@ -299,6 +308,9 @@ class AssessmentResponse(ContractModel):
     organization_id: UUID
     domain_id: UUID
     state: ASSESSMENT_STATES
+    #: How this run was produced. Reported so a result can never be read without
+    #: knowing what it was allowed to look at.
+    mode: ASSESSMENT_MODES
     methodology_version: str
     created_at: datetime
     completed_at: datetime | None = None

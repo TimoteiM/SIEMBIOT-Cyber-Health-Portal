@@ -45,6 +45,19 @@ const STATE_LABELS: Record<string, string> = {
  * `minimum_coverage_percentage` in the policy catalog.
  */
 const COVERAGE_FLOOR_PERCENTAGE = 60;
+
+type AssessmentMode = Assessment["mode"];
+const PASSIVE = "passive_observation" satisfies AssessmentMode;
+const AUTHORIZED = "authorized_assessment" satisfies AssessmentMode;
+
+/** Checks in the published catalog. Every one of them is reachable passively. */
+const TOTAL_CHECKS = 22;
+
+const MODE_LABELS: Record<AssessmentMode, string> = {
+  passive_observation: "Observare publică",
+  authorized_assessment: "Evaluare autorizată",
+};
+
 const INSUFFICIENT_COVERAGE = "insufficient_coverage";
 
 const BAND_LABELS: Record<string, string> = {
@@ -116,16 +129,24 @@ export default function AssessmentPanel({ organizationId }: { organizationId: st
     return () => clearTimeout(timer.current);
   }, [assessments, reload]);
 
-  async function start(domainId: string) {
+  async function start(domainId: string, mode: AssessmentMode) {
     setBusy(true);
-    setMessage("Punem evaluarea în coadă…");
+    setMessage(
+      mode === PASSIVE
+        ? "Punem observarea în coadă…"
+        : "Punem evaluarea autorizată în coadă…",
+    );
     try {
       await apiRequest<Assessment>(`/api/v1/organizations/${organizationId}/assessments`, {
         method: "POST",
-        body: JSON.stringify({ domain_id: domainId }),
+        body: JSON.stringify({ domain_id: domainId, mode }),
       });
       await reload();
-      setMessage("Evaluarea a fost pusă în coadă.");
+      setMessage(
+        mode === PASSIVE
+          ? "Observarea a fost pusă în coadă. Citim doar date deja publice."
+          : "Evaluarea autorizată a fost pusă în coadă.",
+      );
     } catch (error) {
       setMessage(error instanceof ApiError ? error.message : "Evaluarea nu a putut fi pornită.");
     } finally {
@@ -149,8 +170,6 @@ export default function AssessmentPanel({ organizationId }: { organizationId: st
     }
   }
 
-  const verified = domains.filter((domain) => domain.ownership_state === "verified");
-
   return (
     <section className="panel" aria-labelledby="assessments-title">
       <div className="section-heading">
@@ -161,25 +180,70 @@ export default function AssessmentPanel({ organizationId }: { organizationId: st
       </div>
 
       <h2>Pornește o evaluare</h2>
-      {verified.length === 0 ? (
-        <p className="hint">
-          Nu există domenii verificate. Verifică mai întâi controlul asupra unui domeniu.
-        </p>
+      {/*
+        Two modes, offered side by side rather than one gated behind the other,
+        because what each does is genuinely different -- and because requiring proof
+        of control for reading published data would be a ceremony that protects
+        nobody while putting the whole methodology out of reach of anyone evaluating
+        a domain they do not run.
+      */}
+      <p className="hint">
+        <strong>Observarea publică</strong> citește doar ce publică deja domeniul: DNS,
+        RDAP, Certificate Transparency, certificatul TLS și pagina pe care o vede orice
+        vizitator. Nu cere dovada controlului, pentru că nu cere domeniului nimic în
+        plus față de ce oferă tuturor. Acoperă toate cele {TOTAL_CHECKS} verificări ale
+        metodologiei.
+      </p>
+      <p className="hint">
+        <strong>Evaluarea autorizată</strong> poate trece dincolo de ce vede un
+        vizitator, așa că cere control verificat și o autorizare semnată.
+      </p>
+
+      {domains.length === 0 ? (
+        <p className="hint">Adaugă mai întâi un domeniu.</p>
       ) : (
         <ul className="card-list">
-          {verified.map((domain) => (
-            <li key={domain.id}>
-              <span>{domain.unicode_display}</span>
-              <button
-                type="button"
-                className="button primary"
-                disabled={busy}
-                onClick={() => start(domain.id)}
-              >
-                Evaluează
-              </button>
-            </li>
-          ))}
+          {domains.map((domain) => {
+            const verified = domain.ownership_state === "verified";
+            return (
+              <li key={domain.id} className="domain-run-row">
+                <span>
+                  {domain.unicode_display}
+                  {!verified && (
+                    <small className="muted"> · control neverificat</small>
+                  )}
+                </span>
+                <span className="run-actions">
+                  <button
+                    type="button"
+                    className="button primary"
+                    disabled={busy}
+                    onClick={() => start(domain.id, PASSIVE)}
+                  >
+                    Observă public
+                  </button>
+                  <button
+                    type="button"
+                    className="button secondary"
+                    disabled={busy || !verified}
+                    onClick={() => start(domain.id, AUTHORIZED)}
+                    /*
+                      Disabled controls explain themselves. A button that is simply
+                      inert teaches nothing, and the reason here is the whole point of
+                      the distinction.
+                    */
+                    title={
+                      verified
+                        ? undefined
+                        : "Necesită control verificat asupra domeniului."
+                    }
+                  >
+                    Evaluare autorizată
+                  </button>
+                </span>
+              </li>
+            );
+          })}
         </ul>
       )}
 
@@ -195,7 +259,13 @@ export default function AssessmentPanel({ organizationId }: { organizationId: st
                   {STATE_LABELS[assessment.state] ?? assessment.state}
                 </span>
                 <p className="muted">
-                  Metodologia {assessment.methodology_version} ·{" "}
+                  {/*
+                    The mode sits next to the result, not in a detail panel: a score
+                    cannot be read honestly without knowing what the run was permitted
+                    to look at.
+                  */}
+                  {MODE_LABELS[assessment.mode] ?? assessment.mode} · Metodologia{" "}
+                  {assessment.methodology_version} ·{" "}
                   {new Date(assessment.created_at).toLocaleString("ro-RO")}
                 </p>
               </div>

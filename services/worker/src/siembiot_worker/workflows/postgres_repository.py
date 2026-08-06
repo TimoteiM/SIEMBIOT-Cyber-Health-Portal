@@ -24,10 +24,20 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import Connection, text
+from sqlalchemy.exc import OperationalError
 
 from siembiot_worker.workflows.engine import StepRecord
 from siembiot_worker.workflows.graph import StepState
 from siembiot_worker.workflows.lifecycle import AssessmentState, assert_transition
+
+#: PostgreSQL's SQLSTATE for `lock_timeout`. Matched on the code rather than on the
+#: message text, which is localized and would silently stop matching.
+LOCK_NOT_AVAILABLE = "55P03"
+
+
+def _is_lock_timeout(error: OperationalError) -> bool:
+    sqlstate = getattr(error.orig, "sqlstate", None)
+    return sqlstate == LOCK_NOT_AVAILABLE
 
 
 class PostgresWorkflowRepository:
@@ -177,7 +187,24 @@ class PostgresWorkflowRepository:
 
         Written as one conditional statement so two workers racing here cannot both
         succeed: the database serializes them and the loser matches zero rows.
+
+        Serializing means the loser waits for a row lock, so the caller sets a
+        `lock_timeout`. Timing out is not an error here -- it means another worker is
+        already holding this step, which is exactly what "did not acquire" describes.
+        Letting the exception escape would turn a normal race into a failed run, and
+        waiting without a timeout would park this worker for as long as the other one
+        takes.
         """
+        try:
+            return self._try_acquire_lease(assessment_id, step_name, owner, expires_at)
+        except OperationalError as error:
+            if _is_lock_timeout(error):
+                return False
+            raise
+
+    def _try_acquire_lease(
+        self, assessment_id: UUID, step_name: str, owner: UUID, expires_at: datetime
+    ) -> bool:
         inserted = self._connection.execute(
             text(
                 """

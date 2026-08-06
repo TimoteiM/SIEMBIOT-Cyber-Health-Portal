@@ -30,7 +30,9 @@ class Tenant:
     principal: Principal
 
 
-def seed(owner_url: str, *, role: str = "organization_owner") -> Tenant:
+def seed(
+    owner_url: str, *, role: str = "organization_owner", ownership: str = "verified"
+) -> Tenant:
     organization_id, user_id, domain_id = uuid4(), uuid4(), uuid4()
     with psycopg.connect(owner_url) as owner:
         owner.execute(
@@ -56,8 +58,8 @@ def seed(owner_url: str, *, role: str = "organization_owner") -> Tenant:
         owner.execute(
             "INSERT INTO domains (id, organization_id, canonical_name, unicode_display, "
             "registrable_domain, ownership_state, created_by_user_id) "
-            "VALUES (%s, %s, 'example.test', 'example.test', 'example.test', 'verified', %s)",
-            (str(domain_id), str(organization_id), str(user_id)),
+            "VALUES (%s, %s, 'example.test', 'example.test', 'example.test', %s, %s)",
+            (str(domain_id), str(organization_id), ownership, str(user_id)),
         )
     return Tenant(
         organization_id=organization_id,
@@ -379,3 +381,100 @@ def test_an_invented_decision_is_rejected_by_the_contract(
             json={"decision": decision},
         )
     assert response.status_code == 422
+
+
+# -- assessment modes --------------------------------------------------------
+
+
+def test_passive_observation_needs_no_proof_of_control(
+    postgres_database: dict[str, str],
+) -> None:
+    """The point of the mode.
+
+    Passive observation reads DNS, RDAP, Certificate Transparency, the TLS handshake
+    and the page any visitor sees. Requiring proof of control for that would be a
+    ceremony that protects nobody, while putting the methodology out of reach of
+    anyone evaluating a domain they do not run -- a regulator, a journalist, or
+    somebody deciding whether to trust a supplier.
+    """
+    tenant = seed(postgres_database["owner_url"], ownership="pending")
+    with client_for(postgres_database, tenant) as client:
+        response = client.post(
+            f"/api/v1/organizations/{tenant.organization_id}/assessments",
+            json={"domain_id": str(tenant.domain_id), "mode": "passive_observation"},
+        )
+    assert response.status_code == 201
+    assert response.json()["mode"] == "passive_observation"
+
+
+def test_an_authorized_assessment_still_requires_verified_control(
+    postgres_database: dict[str, str],
+) -> None:
+    """The wider mode keeps every requirement it had."""
+    tenant = seed(postgres_database["owner_url"], ownership="pending")
+    with client_for(postgres_database, tenant) as client:
+        response = client.post(
+            f"/api/v1/organizations/{tenant.organization_id}/assessments",
+            json={"domain_id": str(tenant.domain_id), "mode": "authorized_assessment"},
+        )
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "ownership_not_verified"
+
+
+def test_omitting_the_mode_gets_the_narrower_one(postgres_database: dict[str, str]) -> None:
+    """A caller who says nothing must not be given the more intrusive behaviour."""
+    tenant = seed(postgres_database["owner_url"])
+    with client_for(postgres_database, tenant) as client:
+        response = client.post(
+            f"/api/v1/organizations/{tenant.organization_id}/assessments",
+            json={"domain_id": str(tenant.domain_id)},
+        )
+    assert response.status_code == 201
+    assert response.json()["mode"] == "passive_observation"
+
+
+def test_an_unrecognised_mode_is_refused(postgres_database: dict[str, str]) -> None:
+    tenant = seed(postgres_database["owner_url"])
+    with client_for(postgres_database, tenant) as client:
+        response = client.post(
+            f"/api/v1/organizations/{tenant.organization_id}/assessments",
+            json={"domain_id": str(tenant.domain_id), "mode": "authorized"},
+        )
+    assert response.status_code == 422
+
+
+def test_the_mode_is_recorded_in_the_audit_trail(postgres_database: dict[str, str]) -> None:
+    """An auditor must be able to answer "under what authority" from the log alone."""
+    tenant = seed(postgres_database["owner_url"], ownership="pending")
+    with client_for(postgres_database, tenant) as client:
+        client.post(
+            f"/api/v1/organizations/{tenant.organization_id}/assessments",
+            json={"domain_id": str(tenant.domain_id), "mode": "passive_observation"},
+        )
+    with psycopg.connect(postgres_database["owner_url"]) as owner:
+        context = owner.execute(
+            "SELECT context FROM audit_events WHERE action = 'assessment.queued' "
+            "AND organization_id = %s",
+            (str(tenant.organization_id),),
+        ).fetchone()
+    assert context is not None
+    assert context[0]["mode"] == "passive_observation"
+
+
+def test_an_authorized_run_cannot_exist_without_an_authorization(
+    postgres_database: dict[str, str],
+) -> None:
+    """Enforced by the database, not by whichever code path created the row.
+
+    Without this the mode column would be a label rather than a guarantee: any future
+    caller could write 'authorized_assessment' with nothing backing it.
+    """
+    tenant = seed(postgres_database["owner_url"])
+    with psycopg.connect(postgres_database["owner_url"]) as owner:
+        with pytest.raises(psycopg.errors.CheckViolation):
+            owner.execute(
+                "INSERT INTO assessments (id, organization_id, domain_id, "
+                "methodology_version, state, mode) "
+                "VALUES (%s, %s, %s, %s, 'queued', 'authorized_assessment')",
+                (str(uuid4()), str(tenant.organization_id), str(tenant.domain_id), METHODOLOGY),
+            )

@@ -479,6 +479,28 @@ tbody tr:hover { background: var(--surface-raised); }
   align-items: start;
 }
 
+.card-list li.domain-run-row {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+.run-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+/*
+  A disabled action still has to read as an explanation rather than as a dead
+  control, so it keeps its outline and text weight and loses only its emphasis.
+*/
+.run-actions .button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (max-width: 760px) {
+  .card-list li.domain-run-row { grid-template-columns: 1fr; }
+}
+
 .assessment-score {
   display: grid;
   gap: 0.15rem;

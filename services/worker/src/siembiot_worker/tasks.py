@@ -25,6 +25,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
+from siembiot_worker.observation.mode import AssessmentMode
 from siembiot_worker.observation.runtime import build_observation_runtime
 from siembiot_worker.policy.catalog import load_catalog
 from siembiot_worker.workflows.engine import WorkflowEngine
@@ -62,25 +63,72 @@ def database_url() -> str:
     return url.replace("postgresql://", "postgresql+psycopg://")
 
 
-@contextmanager
-def _tenant_connection(organization_id: UUID) -> Iterator[Any]:
-    """A connection scoped to one tenant, so row-level security applies.
+#: How long to wait for a row lock before giving up. A worker that finds a step locked
+#: has met another worker already doing it, so the useful answer is "not mine" arriving
+#: promptly -- not a thread parked for the length of somebody else's run.
+LOCK_TIMEOUT_MS = 2000
+
+
+def _tenant_engine() -> Any:
+    from sqlalchemy import create_engine
+
+    return create_engine(database_url(), pool_pre_ping=True)
+
+
+def _scope_to_tenant(connection: Any, organization_id: UUID) -> None:
+    """Bind a connection to one tenant, so row-level security applies to it.
 
     The worker is not exempt from tenant isolation. `app_is_worker_for` grants it
     nothing beyond the organization named here, so a bug that reached for another
     tenant's rows would find none -- rather than the isolation guarantee resting on
     this file being correct.
-    """
-    from sqlalchemy import create_engine, text
 
-    engine = create_engine(database_url(), pool_pre_ping=True)
-    with engine.begin() as connection:
-        connection.execute(
-            text("SELECT set_config('app.organization_id', :value, true)"),
-            {"value": str(organization_id)},
-        )
+    `false` rather than `true` for the local flag: under autocommit there is no
+    surrounding transaction for a local setting to belong to, so it has to persist for
+    the session.
+    """
+    from sqlalchemy import text
+
+    connection.execute(
+        text("SELECT set_config('app.organization_id', :value, false)"),
+        {"value": str(organization_id)},
+    )
+    connection.execute(text(f"SET lock_timeout = {LOCK_TIMEOUT_MS}"))
+
+
+@contextmanager
+def _workflow_connection(engine: Any, organization_id: UUID) -> Iterator[Any]:
+    """A connection that commits each step as it settles.
+
+    Deliberately *not* one transaction around the whole run. The engine's leases and
+    idempotency keys exist precisely because work is handed between processes, and
+    neither means anything to another worker until it is committed: an uncommitted
+    lease is invisible, so a second worker would block on the row rather than see that
+    the step is taken.
+
+    It is also what makes progress durable. A run wrapped in a single transaction loses
+    everything it did if the process dies at minute nine -- which is the exact failure
+    the durable engine was built to survive.
+    """
+    connection = engine.connect().execution_options(isolation_level="AUTOCOMMIT")
+    try:
+        _scope_to_tenant(connection, organization_id)
         yield connection
-    engine.dispose()
+    finally:
+        connection.close()
+
+
+@contextmanager
+def _evidence_transaction(engine: Any, organization_id: UUID) -> Iterator[Any]:
+    """Evidence is written atomically: a report is a set of rows or it is nothing.
+
+    The opposite call to the one above, and for the opposite reason. Observations,
+    evaluations, the score snapshot and the findings describe one another; half of them
+    is not a partial report, it is an incoherent one.
+    """
+    with engine.begin() as connection:
+        _scope_to_tenant(connection, organization_id)
+        yield connection
 
 
 def run_assessment(
@@ -89,6 +137,7 @@ def run_assessment(
     domain_id: UUID,
     host: str,
     *,
+    mode: AssessmentMode = AssessmentMode.PASSIVE_OBSERVATION,
     declared_dkim_selectors: tuple[str, ...] = (),
 ) -> str:
     """Drive one assessment as far as it can go right now.
@@ -102,32 +151,44 @@ def run_assessment(
         assessment_id=assessment_id,
         host=host,
         catalog=catalog,
-        runtime=build_observation_runtime(),
+        # The mode comes from the row, which the API wrote under a check constraint
+        # requiring an authorization for the wider mode. Defaulting here instead would
+        # let a scheduling bug decide what the platform is allowed to do to a domain.
+        runtime=build_observation_runtime(mode=mode),
         clock=lambda: datetime.now(UTC),
         declared_dkim_selectors=declared_dkim_selectors,
     )
 
-    with _tenant_connection(organization_id) as connection:
-        workflow = PostgresWorkflowRepository(connection, organization_id)
-        engine = WorkflowEngine(workflow, build_handlers(context))
-        state = engine.run(assessment_id, organization_id)
+    database = _tenant_engine()
+    try:
+        with _workflow_connection(database, organization_id) as connection:
+            workflow = PostgresWorkflowRepository(connection, organization_id)
+            engine = WorkflowEngine(workflow, build_handlers(context))
+            state = engine.run(assessment_id, organization_id)
 
         # Evidence is written whenever there is any, not only on a clean finish, so a
         # partially completed run keeps what it managed to collect.
         if context.observations:
-            evidence = EvidenceRepository(connection, organization_id, domain_id)
-            persist_assessment(
-                evidence,
-                assessment_id=assessment_id,
-                domain_id=domain_id,
-                catalog=catalog,
-                observations=context.observations,
-                evaluations=context.evaluations,
-                snapshot=context.snapshot,
-                findings=context.findings,
-                asset_candidates=context.asset_candidates,
-                observed_at=datetime.now(UTC),
-            )
+            with _evidence_transaction(database, organization_id) as connection:
+                evidence = EvidenceRepository(connection, organization_id, domain_id)
+                persist_assessment(
+                    evidence,
+                    assessment_id=assessment_id,
+                    domain_id=domain_id,
+                    catalog=catalog,
+                    observations=context.observations,
+                    evaluations=context.evaluations,
+                    snapshot=context.snapshot,
+                    findings=context.findings,
+                    asset_candidates=context.asset_candidates,
+                    observed_at=datetime.now(UTC),
+                )
+    finally:
+        # In a finally block because the run above can raise: an engine left behind on
+        # the error path holds its pooled connections open, and a worker that fails
+        # repeatedly would exhaust the server's connection slots rather than just
+        # failing repeatedly.
+        database.dispose()
     return str(state)
 
 
@@ -192,11 +253,15 @@ def build_celery_app() -> Any:
         organization_id: str,
         domain_id: str,
         host: str,
+        mode: str = AssessmentMode.PASSIVE_OBSERVATION.value,
         declared_dkim_selectors: list[str] | None = None,
     ) -> str:
         """Celery retries nothing: the engine owns retry policy and backoff.
 
         Letting both retry would double the attempt budget and hide the real one.
+
+        An unrecognised mode is refused rather than coerced: the alternative is a
+        typo silently widening what the platform may do to somebody's domain.
         """
         del self
         return run_assessment(
@@ -204,6 +269,7 @@ def build_celery_app() -> Any:
             UUID(organization_id),
             UUID(domain_id),
             host,
+            mode=AssessmentMode(mode),
             declared_dkim_selectors=tuple(declared_dkim_selectors or ()),
         )
 
@@ -222,6 +288,7 @@ def build_celery_app() -> Any:
                 str(row["organization_id"]),
                 str(row["domain_id"]),
                 row["host"],
+                row["mode"],
             )
         return len(due)
 

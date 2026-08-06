@@ -253,6 +253,7 @@ def test_the_scheduler_returns_scheduling_metadata_only(postgres_database: dict[
             "organization_id",
             "domain_id",
             "host",
+            "mode",
         ]
 
 
