@@ -206,8 +206,48 @@ def test_a_collector_that_fails_contributes_nothing_rather_than_a_substitute() -
     # Certificate Transparency has no configured source in these fixtures.
     drive(engine, assessment, engine_clock)
     assert context.collection["ct"].status is CollectionStatus.NOT_APPLICABLE
-    assert repository.load_steps(assessment)["collect.ct"].state is StepState.FAILED
     assert context.snapshot is not None
+    # Nothing is invented in its place; the gap shows up as reduced coverage.
+    assert not [
+        observation
+        for observation in context.observations
+        if observation.observation_type.startswith("ct")
+    ]
+
+
+def test_a_step_that_does_not_apply_is_skipped_rather_than_failed() -> None:
+    """`not_applicable` is an answer, not an error.
+
+    Recording it as a failure would drag a run in which nothing went wrong down to
+    `partially_completed`, sending the reader looking for a problem that does not
+    exist -- and it would blur the line between proven absence and inconclusive
+    evidence that the whole methodology depends on.
+    """
+    engine, repository, context, assessment, engine_clock = build("strong.example.test")
+    drive(engine, assessment, engine_clock)
+
+    steps = repository.load_steps(assessment)
+    assert steps["collect.ct"].state is StepState.SKIPPED
+    assert steps["collect.ct"].last_error == "no_ct_entries"  # the reason survives
+    # This host also has no registry entry -- likewise an answer, not a fault.
+    assert steps["collect.rdap"].state is StepState.SKIPPED
+
+    # And a skip does not itself make the run partial. `strong.example.test` still
+    # reports partial here, but only because collect.tls genuinely failed: swap that
+    # one failure for a success and the skips leave a clean, complete run.
+    settled = {name: record.state for name, record in steps.items()}
+    settled["collect.tls"] = StepState.SUCCEEDED
+    assert DEFAULT_GRAPH.outcome(settled) is AssessmentState.COMPLETED
+
+
+def test_a_skipped_step_is_settled_and_not_retried_on_redelivery() -> None:
+    """A second delivery must not re-run it hoping for a different answer."""
+    engine, repository, context, assessment, engine_clock = build("strong.example.test")
+    drive(engine, assessment, engine_clock)
+    attempts = repository.load_steps(assessment)["collect.ct"].attempts
+
+    engine.run(assessment, context.organization_id)
+    assert repository.load_steps(assessment)["collect.ct"].attempts == attempts
 
 
 def test_normalization_refuses_to_proceed_with_no_evidence_at_all() -> None:

@@ -98,6 +98,8 @@ class StepOutcome:
     result: dict[str, Any] = field(default_factory=dict)
     error: str | None = None
     retryable: bool = True
+    #: Settled without having done anything, and without anything being wrong.
+    skipped: bool = False
 
     @classmethod
     def ok(cls, **result: Any) -> StepOutcome:
@@ -111,6 +113,19 @@ class StepOutcome:
     def fail(cls, error: str) -> StepOutcome:
         """A permanent failure. Retrying it would only waste provider budget."""
         return cls(False, error=error, retryable=False)
+
+    @classmethod
+    def skip(cls, reason: str) -> StepOutcome:
+        """Settled, and nothing went wrong: this step had nothing to do.
+
+        Distinct from `fail` on purpose. A step that does not apply -- a domain with no
+        certificate transparency history, a check whose precondition is absent -- has
+        produced a real answer. Recording it as a failure would report a run that
+        worked as `partially_completed`, telling the reader something was wrong when
+        nothing was, and blurring the line between proven absence and inconclusive
+        evidence that the whole methodology rests on.
+        """
+        return cls(False, error=reason, retryable=False, skipped=True)
 
 
 class WorkflowRepository(Protocol):
@@ -308,6 +323,20 @@ class WorkflowEngine:
                     result=outcome.result,
                 )
                 payload.update(outcome.result)
+                return True
+
+            if outcome.skipped:
+                # Settled, so the key is recorded: a redelivery must not run it again
+                # in the hope of a different answer.
+                self._repository.record_completed_key(key, assessment_id, step.name)
+                self._settle(
+                    assessment_id,
+                    step,
+                    StepState.SKIPPED,
+                    attempts=attempt,
+                    key=key,
+                    error=outcome.error,
+                )
                 return True
 
             self._handle_failure(assessment_id, step, attempt, key, outcome)

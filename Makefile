@@ -38,6 +38,23 @@ test-adapters:
 observe:
 	python -m uv run --frozen python scripts/observe_domain.py $(DOMAIN)
 
+# The queue worker. Run `make beat-serve` alongside it -- the scheduler is a separate
+# process because Celery refuses --beat on Windows, and separating them is what you
+# want in production anyway: workers scale out, the scheduler must not. Exactly one
+# scheduler should run. A second would enqueue every due run twice; harmless, since the
+# engine deduplicates, but twice the load for nothing.
+#
+# A thread pool, not prefork: collection is waiting on DNS, TLS and HTTP, so threads fit
+# the work, each task opens its own database connection, and it is the one pool that
+# behaves identically on Windows and Linux.
+worker-serve:
+	python -m uv run --frozen --env-file .env celery -A siembiot_worker.celery_app worker \
+		--queues assessments --pool threads --concurrency 4 --loglevel info
+
+beat-serve:
+	python -m uv run --frozen --env-file .env celery -A siembiot_worker.celery_app beat \
+		--loglevel info
+
 policy-validate:
 	python -m uv run --frozen pytest tests/policy/test_evaluation.py -q
 
@@ -81,4 +98,4 @@ web-serve:
 	corepack pnpm --filter @siembiot/web dev
 
 migrate:
-	python -m uv run --frozen alembic -c services/api/alembic.ini upgrade head
+	python -m uv run --frozen --env-file .env alembic -c services/api/alembic.ini upgrade head

@@ -40,3 +40,7 @@ data/
 
 # Isolated implementation worktrees
 .worktrees/
+
+# The scheduler's local state. Regenerated on start, and meaningless on another
+# machine: it records when this beat process last fired, not what work exists.
+celerybeat-schedule*

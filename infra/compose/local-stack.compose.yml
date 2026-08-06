@@ -16,6 +16,7 @@ services:
       POSTGRES_USER: siembiot_owner
       POSTGRES_PASSWORD: ${SIEMBIOT_POSTGRES_OWNER_PASSWORD:?set in local .env}
       SIEMBIOT_POSTGRES_APP_PASSWORD: ${SIEMBIOT_POSTGRES_APP_PASSWORD:?set in local .env}
+      SIEMBIOT_POSTGRES_WORKER_PASSWORD: ${SIEMBIOT_POSTGRES_WORKER_PASSWORD:?set in local .env}
     ports:
       - "127.0.0.1:${SIEMBIOT_POSTGRES_PORT:-5432}:5432"
     volumes:
@@ -23,6 +24,22 @@ services:
       - ./postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U siembiot_owner -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  # The queue carries identifiers, never evidence, so a compromised broker does not
+  # leak findings. It is bound to loopback and left without persistence deliberately:
+  # a lost message costs nothing, because the periodic sweep re-enqueues any run that
+  # is still due. PostgreSQL, not Redis, is the source of truth for what has happened.
+  redis:
+    image: redis@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:${SIEMBIOT_REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 2s
       timeout: 3s
       retries: 30

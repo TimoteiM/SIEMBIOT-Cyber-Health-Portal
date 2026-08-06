@@ -105,11 +105,19 @@ class AssessmentContext:
 
 
 def _collection_outcome(name: str, result: CollectionResult) -> StepOutcome:
-    """Translate a collection result, distinguishing transient from permanent."""
+    """Translate a collection result into three genuinely different outcomes.
+
+    Transient and permanent failures are distinguished so a retry budget is not spent
+    on something that cannot succeed. `not_applicable` is distinguished from both:
+    nothing went wrong, so it must not degrade the run to `partially_completed` and
+    report a problem the reader would go looking for and never find.
+    """
     if result.usable:
         return StepOutcome.ok(**{f"{name}_status": str(result.status)})
     reason = result.reason_code or "collection_failed"
-    if result.status is CollectionStatus.NOT_APPLICABLE or reason in PERMANENT_COLLECTION_REASONS:
+    if result.status is CollectionStatus.NOT_APPLICABLE:
+        return StepOutcome.skip(reason)
+    if reason in PERMANENT_COLLECTION_REASONS:
         return StepOutcome.fail(reason)
     return StepOutcome.retry(reason)
 

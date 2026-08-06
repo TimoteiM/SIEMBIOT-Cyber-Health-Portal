@@ -10,6 +10,7 @@ requires-python = "==3.13.*"
 license = "MIT"
 dependencies = [
     "alembic==1.16.5",
+    "celery[redis]==5.5.3",
     "cryptography==50.0.0",
     "dnspython==2.8.0",
     "fastapi==0.116.1",
@@ -46,13 +47,33 @@ select = ["E", "F", "I", "N", "S", "UP"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S101"]
-"services/api/migrations/versions/*.py" = ["E501"]
+# S608 flags SQL built by interpolation. Migrations are hand-authored DDL that never
+# sees a request, and the only values interpolated are module constants -- kept as
+# constants so a table list and the policies over it cannot drift apart. The rule still
+# applies everywhere a query can be reached by user input.
+"services/api/migrations/versions/*.py" = ["E501", "S608"]
 
 [tool.mypy]
 python_version = "3.13"
 strict = true
 files = ["scripts", "tests", "services/worker/src"]
 mypy_path = ["services/api/src", "services/worker/src"]
+
+# Celery ships no type information, so its decorators erase the signatures of the
+# functions they wrap. The exemption is scoped to the one module that touches the
+# broker; everything the correctness of a run depends on lives below it and is still
+# checked strictly.
+[[tool.mypy.overrides]]
+module = "celery.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "siembiot_worker.tasks"
+disallow_untyped_decorators = false
+
+[[tool.mypy.overrides]]
+module = "siembiot_worker.celery_app"
+disallow_any_explicit = false
 
 [tool.setuptools.packages.find]
 where = ["services/api/src", "services/worker/src"]
