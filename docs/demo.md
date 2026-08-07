@@ -44,11 +44,16 @@ because publishing requires a named person to have approved it, and forging that
 signature is exactly what the interlock exists to prevent. Without the flag everything
 else still works and the observatory stays empty.
 
-## 3. Run the API and the web application
+## 3. Run the API, the web application, the worker and the scheduler
+
+Four processes. The API answers requests, the web application serves the interface,
+the worker runs assessments, and the scheduler turns cadences into runs. Skipping
+either of the last two is the quietest failure in this list: everything looks fine
+until you start an assessment and it never moves.
 
 ```bash
 # The API. Note the empty gateway secret -- see below.
-SIEMBIOT_IDENTITY_GATEWAY_SECRET= \
+SIEMBIOT_IDENTITY_GATEWAY_SECRET="" \
 SIEMBIOT_ENV=development \
 SIEMBIOT_APP_DATABASE_URL="postgresql+psycopg://siembiot_app:$SIEMBIOT_POSTGRES_APP_PASSWORD@127.0.0.1:$SIEMBIOT_POSTGRES_PORT/siembiot" \
 SIEMBIOT_PUBLIC_DATABASE_URL="postgresql+psycopg://siembiot_public:$SIEMBIOT_POSTGRES_PUBLIC_PASSWORD@127.0.0.1:$SIEMBIOT_POSTGRES_PORT/siembiot" \
@@ -65,12 +70,30 @@ SIEMBIOT_DEV_IDENTITY_NAME="Elena Marinescu" \
 corepack pnpm dev --port 3100
 ```
 
-> **`SIEMBIOT_IDENTITY_GATEWAY_SECRET=` is not a typo, and leaving it out is the one
+> **`SIEMBIOT_IDENTITY_GATEWAY_SECRET=""` is not a typo, and leaving it out is the one
 > thing most likely to cost you twenty minutes.** The root `.env` sets that secret for
 > the production-like stack. The API reads `.env` directly, so if the secret is present
 > it builds the *trusted gateway* resolver and ignores the development identity headers
 > the web application injects — and every authenticated page answers 401 with nothing in
 > the logs to explain why. Local development has no gateway, so the secret must be empty.
+
+```bash
+# The worker, which is what actually runs assessments.
+make worker-serve
+
+# The scheduler, in a fourth terminal. Celery refuses --beat on Windows, and one
+# scheduler is what you want in production regardless.
+make beat-serve
+```
+
+> **Without the worker, pressing "Observă public" appears to do nothing.** The run is
+> created and queued, the page shows `0 din 13 etape (0%)`, and it stays there — which
+> looks like a broken button and is actually an empty queue. Nothing errors, because
+> nothing went wrong: the API's job ends at enqueuing. Beat re-sweeps every thirty
+> seconds, so starting the worker later picks up a run that has been sitting there.
+>
+> The seeded institution's screens do not need the worker — its assessments are already
+> written. You need it the moment you assess a real domain.
 
 Sign in as `demo-it` (Andrei Dobre) instead to see the same workspace as a security
 admin rather than an owner.

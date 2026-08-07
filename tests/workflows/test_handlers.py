@@ -347,3 +347,96 @@ def test_no_check_is_left_unevaluated(host: str) -> None:
     drive(engine, assessment, engine_clock)
     assert {item.check_id for item in context.evaluations} == CATALOG.check_ids
     assert all(Result(item.result) for item in context.evaluations)
+
+
+# -- evidence that outlives the process that collected it --------------------
+
+
+def test_a_resumed_run_recollects_evidence_it_lost_with_the_previous_execution() -> None:
+    """The bug this exists for cost a real assessment half its coverage.
+
+    Collection results live in `AssessmentContext.collection`, which is memory belonging
+    to one execution. Step records are durable, so a step that succeeded is never offered
+    again -- and on a resumed execution its result is simply gone. On a Romanian
+    municipal site one HTTP retry sent the run round again: DNS, email and TLS were
+    skipped as already-succeeded, and the run finished having normalized nothing but
+    HTTP. No step failed. The only symptom was a smaller coverage number.
+
+    Simulated the way it actually happens: a run that already collected everything, then
+    a second execution whose memory is empty but whose step records are not.
+    """
+    engine, repository, context, assessment, engine_clock = build("strong.example.test")
+    drive(engine, assessment, engine_clock)
+    # Whatever this fixture actually collected -- asserted from the durable records
+    # rather than a hardcoded list, so the test says "everything that succeeded is
+    # recovered" rather than "these four are".
+    collected = {
+        name.removeprefix("collect.")
+        for name, record in repository.load_steps(assessment).items()
+        if name.startswith("collect.") and record.state is StepState.SUCCEEDED
+    }
+    assert {"dns", "email", "http"} <= collected
+
+    resumed = AssessmentContext(
+        organization_id=context.organization_id,
+        assessment_id=assessment,
+        host=context.host,
+        catalog=CATALOG,
+        runtime=build_runtime(context.host, hardened=True),
+        clock=context.clock,
+        declared_dkim_selectors=("selector1",),
+    )
+    assert resumed.collection == {}, "a fresh execution starts with no evidence in memory"
+
+    # The real repository, because the recovery turns on what it says already succeeded.
+    step = StepContext(
+        assessment_id=assessment,
+        organization_id=resumed.organization_id,
+        step=DEFAULT_GRAPH.by_name("normalize"),
+        attempt=1,
+        payload={},
+        deadline=NOW,
+        _repository=repository,
+    )
+    outcome = build_handlers(resumed)["normalize"](step)
+
+    assert outcome.succeeded, outcome.error
+    assert collected <= set(resumed.collection), "a collector that succeeded was not recovered"
+    kinds = {observation.observation_type.split(".")[0] for observation in resumed.observations}
+    assert collected <= kinds, "recovered evidence did not reach normalization"
+
+
+def test_recovery_leaves_skipped_collectors_skipped() -> None:
+    """Recovery is for evidence that was lost, not for steps the run decided against.
+
+    A collector the graph skipped -- a domain absent from the registry, say -- must not
+    be quietly re-run under cover of another step's retry.
+    """
+    engine, repository, context, assessment, engine_clock = build("strong.example.test")
+    drive(engine, assessment, engine_clock)
+    records = repository.load_steps(assessment)
+    skipped = {name for name, record in records.items() if record.state is StepState.SKIPPED}
+    assert skipped, "this fixture is expected to skip at least one collector"
+
+    resumed = AssessmentContext(
+        organization_id=context.organization_id,
+        assessment_id=assessment,
+        host=context.host,
+        catalog=CATALOG,
+        runtime=build_runtime(context.host, hardened=True),
+        clock=context.clock,
+        declared_dkim_selectors=("selector1",),
+    )
+    step = StepContext(
+        assessment_id=assessment,
+        organization_id=resumed.organization_id,
+        step=DEFAULT_GRAPH.by_name("normalize"),
+        attempt=1,
+        payload={},
+        deadline=NOW,
+        _repository=repository,
+    )
+    build_handlers(resumed)["normalize"](step)
+
+    for name in skipped:
+        assert name.removeprefix("collect.") not in resumed.collection

@@ -171,6 +171,19 @@ class StepContext:
         if self._repository.is_cancellation_requested(self.assessment_id):
             raise StepCancelled()
 
+    def succeeded_steps(self) -> frozenset[str]:
+        """Steps this run has already completed, including in earlier executions.
+
+        A handler needs this to tell "never ran" from "ran in a process that has since
+        gone away". The two look identical from inside one execution, and treating the
+        second as the first is how a resumed run silently loses evidence.
+        """
+        return frozenset(
+            name
+            for name, record in self._repository.load_steps(self.assessment_id).items()
+            if record.state is StepState.SUCCEEDED
+        )
+
     def expired(self, now: datetime) -> bool:
         return now >= self.deadline
 

@@ -155,3 +155,86 @@ def test_a_chunk_not_terminated_by_crlf_is_refused() -> None:
     raw = b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhelloXX0\r\n\r\n"
     with pytest.raises(NetworkTransportError, match="malformed_response"):
         fetch(raw)
+
+
+# -- repeated header fields --------------------------------------------------
+#
+# These exist because the transport once refused any repeated header except Set-Cookie,
+# and that rule made the product unusable against a large part of its own audience.
+# `apavil.ro` sends three `Link` headers, as every WordPress site does; both HTTP and
+# HTTPS were refused, the page was recorded unreachable, and the assessment finished at
+# 5.6% coverage with no score. Nothing errored -- it simply reported that a working
+# municipal website could not be reached.
+
+
+def test_a_repeated_list_header_is_read_rather_than_refused() -> None:
+    """RFC 9110: a list-valued field may be sent as several lines.
+
+    Three `Link` headers is the shape that broke a real Romanian municipal site.
+    """
+    raw = response(
+        "HTTP/1.1 200 OK",
+        "Content-Length: 2",
+        'Link: <https://example.com/wp-json/>; rel="https://api.w.org/"',
+        'Link: <https://example.com/>; rel="shortlink"',
+        "Link: <https://example.com/feed>; rel=alternate",
+        "",
+        "ok",
+    )
+    assert fetch(raw) == b"ok"
+
+
+def test_every_value_of_a_repeated_header_is_kept() -> None:
+    """Keeping only the first would silently drop cookies, which the checks read.
+
+    A page setting a session cookie without `Secure` and a second cookie with it must
+    not be able to hide the first behind the second.
+    """
+    transport = BoundedHTTPTransport(
+        connector=FakeConnector(
+            FakeStream(
+                [
+                    response(
+                        "HTTP/1.1 200 OK",
+                        "Content-Length: 2",
+                        "Set-Cookie: a=1; Path=/",
+                        "Set-Cookie: b=2; Secure",
+                        "",
+                        "ok",
+                    )
+                ]
+            )
+        )
+    )
+    result = transport.get(
+        VerificationDestination.https("example.com"), "8.8.8.8", NetworkBudget(), lambda _: None
+    )
+    cookies = [value for name, value in result.raw_headers if name == "set-cookie"]
+    assert cookies == ["a=1; Path=/", "b=2; Secure"]
+
+
+@pytest.mark.parametrize(
+    ("header", "first", "second"),
+    [
+        ("Content-Length", "2", "9"),
+        ("Transfer-Encoding", "chunked", "identity"),
+        ("Location", "https://a.example.com/", "https://b.example.com/"),
+    ],
+)
+def test_a_repeated_singleton_header_is_still_refused(header: str, first: str, second: str) -> None:
+    """The narrower rule that replaced the broad one.
+
+    Two content lengths let two parties disagree about where the message ends; two
+    locations let them disagree about where the client goes next. Neither is a list, and
+    neither has a safe interpretation, so both are still refused.
+    """
+    raw = response(
+        "HTTP/1.1 200 OK",
+        f"{header}: {first}",
+        f"{header}: {second}",
+        "",
+        "ok",
+    )
+    with pytest.raises(NetworkTransportError) as caught:
+        fetch(raw)
+    assert caught.value.reason == "duplicate_header"

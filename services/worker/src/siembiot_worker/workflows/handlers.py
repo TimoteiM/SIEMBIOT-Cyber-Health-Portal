@@ -122,6 +122,19 @@ def _collection_outcome(name: str, result: CollectionResult) -> StepOutcome:
     return StepOutcome.retry(reason)
 
 
+#: Every collector, and the operation class it runs under. Declared once: the step
+#: registration below and the recovery path in `normalize` both read it, so a collector
+#: added later cannot be registered and then quietly left out of recovery.
+COLLECTOR_OPERATIONS: dict[str, OperationClass] = {
+    "dns": OperationClass.DNS_QUERY,
+    "email": OperationClass.DNS_QUERY,
+    "tls": OperationClass.TLS_INSPECTION,
+    "http": OperationClass.HTTP_SURFACE,
+    "rdap": OperationClass.RDAP_QUERY,
+    "ct": OperationClass.CT_QUERY,
+}
+
+
 def build_handlers(context: AssessmentContext) -> dict[str, StepHandler]:
     """Bind the step graph to real work over one assessment context."""
 
@@ -136,30 +149,33 @@ def build_handlers(context: AssessmentContext) -> dict[str, StepHandler]:
             planned_checks=coverage,
         )
 
+    def collect_one(name: str, operation_class: OperationClass) -> CollectionResult:
+        """Run one collector. Pure with respect to the run: it reads public data only."""
+        request = context.runtime.request(operation_class, context.host)
+        if name == "dns":
+            return DNSResilienceCollector(context.broker, context.clock).collect(request)
+        if name == "email":
+            return EmailTrustCollector(context.broker, context.clock).collect(
+                request, declared_dkim_selectors=context.declared_dkim_selectors
+            )
+        if name == "tls":
+            return TLSCertificateCollector(context.broker, context.clock).collect(
+                request, probe_protocols=context.probe_tls_protocols
+            )
+        if name == "http":
+            return HTTPSurfaceCollector(context.broker, context.clock).collect(request)
+        if name == "rdap":
+            return RDAPCollector(context.broker, context.rdap_endpoint, context.clock).collect(
+                request
+            )
+        return CertificateTransparencyCollector(
+            context.broker, context.ct_source, context.clock
+        ).collect(request)
+
     def collect(name: str, operation_class: OperationClass) -> StepHandler:
         def run(step: StepContext) -> StepOutcome:
             step.check_cancelled()
-            request = context.runtime.request(operation_class, context.host)
-            if name == "dns":
-                result = DNSResilienceCollector(context.broker, context.clock).collect(request)
-            elif name == "email":
-                result = EmailTrustCollector(context.broker, context.clock).collect(
-                    request, declared_dkim_selectors=context.declared_dkim_selectors
-                )
-            elif name == "tls":
-                result = TLSCertificateCollector(context.broker, context.clock).collect(
-                    request, probe_protocols=context.probe_tls_protocols
-                )
-            elif name == "http":
-                result = HTTPSurfaceCollector(context.broker, context.clock).collect(request)
-            elif name == "rdap":
-                result = RDAPCollector(
-                    context.broker, context.rdap_endpoint, context.clock
-                ).collect(request)
-            else:
-                result = CertificateTransparencyCollector(
-                    context.broker, context.ct_source, context.clock
-                ).collect(request)
+            result = collect_one(name, operation_class)
             context.collection[name] = result
             return _collection_outcome(name, result)
 
@@ -173,6 +189,7 @@ def build_handlers(context: AssessmentContext) -> dict[str, StepHandler]:
         rather than as a result.
         """
         step.check_cancelled()
+        _recover_lost_collections(step)
         shared: dict[str, Any] = {
             "organization_id": context.organization_id,
             "assessment_id": context.assessment_id,
@@ -211,6 +228,31 @@ def build_handlers(context: AssessmentContext) -> dict[str, StepHandler]:
         )
         context.observations = tuple(observations)
         return StepOutcome.ok(observation_count=len(context.observations))
+
+    def _recover_lost_collections(step: StepContext) -> None:
+        """Re-collect anything that succeeded in an execution that has since ended.
+
+        Collection results live in `context.collection`, which is memory belonging to one
+        execution of the run. The step *records* are durable, so a step that succeeded
+        stays succeeded and is never offered again -- and on a resumed execution its
+        result is simply gone.
+
+        That combination silently drops evidence. Found on a real Romanian municipal
+        site: one HTTP retry sent the run round again, DNS, email and TLS were skipped as
+        already-succeeded, and the run finished `completed` having normalized nothing but
+        HTTP. Coverage fell from most of the surface to half of it and no step failed, so
+        the only symptom was a smaller number.
+
+        Re-collecting is safe: every collector is a read of public data, and the run has
+        not yet normalized anything. The alternative -- normalizing whatever happens to
+        be in memory -- produces a confident coverage figure that describes this process
+        rather than the domain.
+        """
+        succeeded = step.succeeded_steps()
+        for name, operation_class in COLLECTOR_OPERATIONS.items():
+            if name in context.collection or f"collect.{name}" not in succeeded:
+                continue
+            context.collection[name] = collect_one(name, operation_class)
 
     def evaluate(step: StepContext) -> StepOutcome:
         step.check_cancelled()
@@ -278,12 +320,10 @@ def build_handlers(context: AssessmentContext) -> dict[str, StepHandler]:
 
     return {
         "plan": plan,
-        "collect.dns": collect("dns", OperationClass.DNS_QUERY),
-        "collect.email": collect("email", OperationClass.DNS_QUERY),
-        "collect.tls": collect("tls", OperationClass.TLS_INSPECTION),
-        "collect.http": collect("http", OperationClass.HTTP_SURFACE),
-        "collect.rdap": collect("rdap", OperationClass.RDAP_QUERY),
-        "collect.ct": collect("ct", OperationClass.CT_QUERY),
+        **{
+            f"collect.{name}": collect(name, operation_class)
+            for name, operation_class in COLLECTOR_OPERATIONS.items()
+        },
         "normalize": normalize,
         "evaluate": evaluate,
         "score": score,

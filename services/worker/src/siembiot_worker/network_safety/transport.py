@@ -20,7 +20,23 @@ class NetworkTransportError(RuntimeError):
 
 
 SAFE_METHODS = frozenset({"GET", "HEAD"})
-REPEATABLE_HEADERS = frozenset({"set-cookie"})
+
+#: Headers that must appear exactly once, and where a second value is refused.
+#:
+#: This used to be the other way round -- an allowlist of `{"set-cookie"}`, with every
+#: other repeat refused as `duplicate_header`. The reasoning was request smuggling, which
+#: is real, but the rule was far wider than the danger and it made the product unusable
+#: against a large part of its own audience: `apavil.ro` sends three `Link` headers, as
+#: every WordPress site does, so both HTTP and HTTPS were refused, the page was recorded
+#: as unreachable, and the run finished at 5.6% coverage with no score. Nothing errored.
+#: The assessment simply reported that a working municipal website could not be reached.
+#:
+#: RFC 9110 is explicit that list-valued fields may be sent as several lines and mean the
+#: concatenation. So the refusal now covers only the fields where two values genuinely
+#: change what the message *is*: where it ends, and where it sends the client next.
+#: Disagreeing framing is additionally caught as `ambiguous_framing` below, so the
+#: smuggling protection is unchanged.
+SINGLETON_HEADERS = frozenset({"content-length", "transfer-encoding", "location"})
 #: Slack for chunk size lines and trailers when bounding raw bytes read.
 MAX_CHUNK_OVERHEAD_BYTES = 16_384
 
@@ -168,7 +184,7 @@ class BoundedHTTPTransport:
             if not name or name.strip() != name:
                 raise NetworkTransportError("malformed_response")
             lowered = name.lower()
-            if lowered in headers and lowered not in REPEATABLE_HEADERS:
+            if lowered in headers and lowered in SINGLETON_HEADERS:
                 raise NetworkTransportError("duplicate_header")
             raw_headers.append((lowered, value.strip()))
             headers.setdefault(lowered, value.strip())
