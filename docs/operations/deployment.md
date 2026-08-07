@@ -148,6 +148,35 @@ python scripts/backup.py restore artifacts/backups/<name> --into siembiot
 Then set the role passwords, run `prod-migrate` if the schema has moved on since, and
 `make smoke`.
 
+## Monitoring
+
+`GET /metrics` on the API, in Prometheus exposition format. Rules with a stated reason
+for every threshold are in [`infra/observability/alerts.yml`](../../infra/observability/alerts.yml).
+
+**Nothing in a scrape identifies a tenant or a target.** That is the design constraint,
+not a consequence: a metrics endpoint is scraped on a timer and stored in a system with
+its own, usually looser, access rules. A label carrying an organization id would quietly
+export the customer list; one carrying a hostname would export the list of domains under
+assessment. Every label comes from a set the schema already constrains.
+
+Ingress should still not expose the path — but the endpoint is built so that exposure
+would be an embarrassment rather than a breach, because relying on a proxy rule alone
+leaves the customer list one misconfiguration away from being published.
+
+The counts come from `app_operational_metrics`, a `SECURITY DEFINER` function, for a
+reason worth knowing before changing it. The API runs as a role row-level security
+applies to, so querying the tables directly returned **zero for everything** — not an
+error, because row-level security hides rows rather than refusing. A monitoring system
+would have recorded a healthy, idle platform indefinitely. Silent zeros are worse than a
+failed scrape: a failed scrape is visible.
+
+The signal to watch first is `siembiot_oldest_unsettled_assessment_seconds`. A count of
+queued runs cannot tell a busy platform from a stuck one; the age of the oldest can.
+
+A failed scrape reports `siembiot_metrics_scrape_ok 0` rather than returning an error,
+because a monitoring system that receives nothing looks exactly like one watching a
+quiet, healthy platform.
+
 ## What is not here yet
 
 Stated rather than implied, because a runbook that omits its gaps reads as complete:
@@ -158,8 +187,10 @@ Stated rather than implied, because a runbook that omits its gaps reads as compl
 - **No point-in-time recovery.** A dump loses everything since it was taken. For
   evidence that is tolerable; for the audit trail it may not be, and that is a decision
   somebody should make deliberately.
-- **No metrics, dashboards or alerting.** Logs are structured and redacted, but nothing
-  aggregates them and nothing pages anybody.
+- **Nothing scrapes the metrics and nothing routes the alerts.** The endpoint and the
+  rules exist and are tested; no Prometheus is deployed, and no alert reaches a person.
+- **No log aggregation.** Logs are structured and redacted but stay on each host.
+- **No dashboards.** The metrics support them; none are defined.
 - **No TLS termination or identity gateway** in this stack. Both are assumed to be in
   front of it; the API's identity resolver is built for exactly that arrangement.
 - **No retention or deletion policy.** Evidence accumulates indefinitely.

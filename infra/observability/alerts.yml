@@ -1,0 +1,133 @@
+# Alert rules.
+#
+# Every threshold below is a judgement, and each is written with the reason attached so
+# a future operator can disagree with the reasoning rather than guess at the number.
+#
+# The organising principle: page for things that are wrong and will not fix themselves,
+# warn for things that need a human this week, and stay silent about everything else. A
+# rule that fires often enough to be ignored is worse than no rule, because it teaches
+# people that this file does not mean anything.
+#
+# Nothing here can identify a tenant or a target: the metrics carry no such label, by
+# design. An alert says the platform is unwell, and finding out for whom is the next
+# step rather than something shouted into a chat channel.
+
+groups:
+  - name: siembiot-availability
+    interval: 30s
+    rules:
+      - alert: MetricsScrapeFailing
+        expr: siembiot_metrics_scrape_ok == 0
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "The API cannot read the database"
+          description: >-
+            The scrape endpoint answered but could not query. This is deliberately not a
+            failed scrape: a monitoring system that receives nothing looks the same as
+            one watching a quiet, healthy platform, so the failure is reported as a
+            number instead. Five minutes because a brief connection blip during a
+            restart is not worth waking anybody.
+
+      - alert: ApiDown
+        expr: up{job="siembiot-api"} == 0
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: "The API is not answering"
+          description: >-
+            Two minutes rather than five: unlike a database blip, an API that has
+            stopped answering is not going to recover by being left alone, and the
+            readiness probe has already removed it from rotation.
+
+  - name: siembiot-work-flow
+    interval: 1m
+    rules:
+      - alert: AssessmentsNotProgressing
+        expr: siembiot_oldest_unsettled_assessment_seconds > 3600
+        for: 15m
+        labels:
+          severity: page
+        annotations:
+          summary: "The oldest unsettled assessment is over an hour old"
+          description: >-
+            The clearest single signal that work has stopped flowing. A count of queued
+            runs cannot tell a busy platform from a stuck one; the age of the oldest can.
+            An hour is generous -- a healthy run settles in minutes -- and the fifteen
+            minute delay stops one slow target from paging anybody.
+            Look at the worker first: `docker compose logs worker`.
+
+      - alert: SchedulerNotDispatching
+        expr: siembiot_schedules_due > 0
+        for: 30m
+        labels:
+          severity: page
+        annotations:
+          summary: "Schedules are due and nothing is starting them"
+          description: >-
+            The scheduler sweeps every ten minutes, so anything still due after thirty
+            has been passed over three times. Sustained above zero means beat is not
+            running, or is running somewhere it cannot reach the database. Silence here
+            is the dangerous failure: a domain that quietly stops being monitored looks
+            exactly like a domain with nothing wrong.
+
+      - alert: WorkBeingAbandoned
+        expr: increase(siembiot_assessment_steps{state="dead_lettered"}[1h]) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Steps are being dead-lettered"
+          description: >-
+            A dead-lettered step has exhausted its retries; the run keeps its other
+            evidence and reports reduced coverage. A few an hour is ordinary -- targets
+            go down. More than five suggests something systemic: egress blocked, DNS
+            broken, or a collector failing against a class of target rather than one.
+
+  - name: siembiot-integrity
+    interval: 5m
+    rules:
+      - alert: VerificationsLapsing
+        expr: siembiot_domains{ownership_state="reverification_required"} > 10
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Domain verifications are lapsing faster than they are renewed"
+          description: >-
+            Authorized assessment stops for these domains until somebody re-verifies;
+            passive observation continues, because it never needed proof of control. Not
+            a page: nothing is broken and no data is at risk. It does mean customers are
+            silently losing the deeper assessment they expect, which is worth somebody's
+            week rather than their night.
+
+      - alert: NetworkRefusalMixChanged
+        expr: >-
+          increase(siembiot_network_operations{reason_code="forbidden_address"}[1h]) > 20
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Unusual number of destinations refused as forbidden addresses"
+          description: >-
+            The address policy refusing a destination is the safety boundary working, so
+            a steady trickle is health rather than trouble. A spike is worth a look: it
+            can mean a target resolving to private space, a DNS problem, or somebody
+            enrolling domains that point somewhere they should not. Investigate before
+            changing the threshold -- this rule guards the control that keeps the
+            platform from being used to reach internal networks.
+
+      - alert: EmergencyControlActive
+        expr: increase(siembiot_network_operations{reason_code="emergency_control_active"}[15m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Collection is being refused by an emergency control"
+          description: >-
+            Somebody has pulled a kill switch, or one is still on after an incident.
+            Fires immediately and with no delay because the interesting case is the
+            second one: a control left active is silent, and the only evidence is
+            assessments quietly refusing to run.
