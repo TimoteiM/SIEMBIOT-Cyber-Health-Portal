@@ -52,6 +52,11 @@ select = ["E", "F", "I", "N", "S", "UP"]
 # constants so a table list and the policies over it cannot drift apart. The rule still
 # applies everywhere a query can be reached by user input.
 "services/api/migrations/versions/*.py" = ["E501", "S608"]
+# The smoke test drives a local stack from an operator's shell. S310 flags urlopen,
+# whose URLs here are two module constants, both http and both loopback. S603/S607 flag
+# invoking `docker` from PATH, which is deliberate: an operator's docker may be
+# anywhere, and a hardcoded path would make the script work on exactly one machine.
+"scripts/smoke_test.py" = ["S310", "S603", "S607"]
 
 [tool.mypy]
 python_version = "3.13"

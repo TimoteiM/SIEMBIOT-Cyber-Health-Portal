@@ -1,0 +1,21 @@
+# Everything a build does not need, and several things it must not have.
+#
+# .env is the important one: it holds database credentials and the gateway secret, and
+# a build context that includes it puts them in an image layer whether or not any
+# instruction copies them.
+.env
+.env.*
+!.env.example
+
+.git
+.venv
+node_modules
+**/node_modules
+**/.next
+**/__pycache__
+**/*.pyc
+.worktrees
+artifacts
+data
+*.log
+celerybeat-schedule*

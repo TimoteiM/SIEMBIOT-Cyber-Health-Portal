@@ -11,5 +11,10 @@ no broker installed at all.
 from __future__ import annotations
 
 from siembiot_worker.tasks import build_celery_app
+from siembiot_worker.telemetry import configure_logging
+
+# Before the application is built, so anything the construction logs is structured
+# too rather than arriving as unformatted text ahead of the formatter.
+configure_logging()
 
 app = build_celery_app()

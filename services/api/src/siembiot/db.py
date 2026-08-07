@@ -12,8 +12,16 @@ class LeastPrivilegeError(RuntimeError):
 
 
 class Database:
-    def __init__(self, url: str) -> None:
-        self.engine: Engine = create_engine(url, pool_pre_ping=True)
+    def __init__(self, url: str, connect_timeout_seconds: int = 10) -> None:
+        # A bounded connect timeout so a misconfigured deployment fails in seconds
+        # rather than minutes. Startup verifies the connected role, and without this a
+        # wrong host makes the API hang -- which reads as a broken service rather than
+        # as the configuration mistake it is.
+        self.engine: Engine = create_engine(
+            url,
+            pool_pre_ping=True,
+            connect_args={"connect_timeout": connect_timeout_seconds},
+        )
 
     def verify_least_privilege(self) -> None:
         """Refuse to serve as a role that row-level security cannot constrain.
@@ -70,6 +78,22 @@ class Database:
                 {"user_id": str(user_id)},
             )
             yield connection
+
+    def is_reachable(self) -> bool:
+        """Whether a query can be executed right now.
+
+        Swallows the exception on purpose: the caller is a readiness probe, and the
+        useful answer is a boolean an orchestrator can act on. The reason belongs in
+        the logs, which the connection failure already writes.
+        """
+        from sqlalchemy.exc import SQLAlchemyError
+
+        try:
+            with self.engine.connect() as connection:
+                connection.execute(text("SELECT 1"))
+        except SQLAlchemyError:
+            return False
+        return True
 
     def close(self) -> None:
         self.engine.dispose()

@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -11,7 +11,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from siembiot.assessments import build_assessment_router, build_asset_router
 from siembiot.auth import build_auth_router
 from siembiot.config import Settings
-from siembiot.contracts import ErrorBody, ErrorEnvelope, HealthResponse
+from siembiot.contracts import ErrorBody, ErrorEnvelope, HealthResponse, ReadinessResponse
 from siembiot.db import Database
 from siembiot.domains.authorization_router import build_authorization_router
 from siembiot.domains.dns_verification import BoundedTXTResolver, TXTResolver
@@ -108,7 +108,20 @@ def create_app(
 
     @app.get("/api/v1/health", response_model=HealthResponse, tags=["system"])
     def health() -> HealthResponse:
+        """Liveness. Touches nothing, so a dependency outage cannot restart the fleet."""
         return HealthResponse()
+
+    @app.get("/api/v1/ready", response_model=ReadinessResponse, tags=["system"])
+    def ready(response: Response) -> ReadinessResponse:
+        """Readiness. Answers whether this replica can serve a request right now.
+
+        Returns 503 when it cannot, because an orchestrator reads the status code, and
+        a body saying `ready: false` behind a 200 would keep traffic arriving.
+        """
+        database_reachable = database.is_reachable()
+        if not database_reachable:
+            response.status_code = 503
+        return ReadinessResponse(ready=database_reachable, checks={"database": database_reachable})
 
     app.include_router(build_auth_router())
     app.include_router(build_organization_router())

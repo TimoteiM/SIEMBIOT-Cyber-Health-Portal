@@ -1487,6 +1487,7 @@
       },
       "HealthResponse": {
         "additionalProperties": false,
+        "description": "Liveness: this process is running and not wedged.\n\nDeliberately answers without touching the database. A liveness probe that fails\nduring a database outage makes an orchestrator restart every replica, which does\nnot fix the database and does delay recovery once it returns.",
         "properties": {
           "contract_version": {
             "const": "v1",
@@ -1850,6 +1851,34 @@
           "created_at"
         ],
         "title": "OrganizationResponse",
+        "type": "object"
+      },
+      "ReadinessResponse": {
+        "additionalProperties": false,
+        "description": "Readiness: this process can serve a request right now.\n\nSeparate from liveness because the two answers have different consequences. Not\nready removes a replica from rotation; not alive restarts it. Confusing them turns\na recoverable dependency outage into a restart loop.",
+        "properties": {
+          "checks": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Checks",
+            "type": "object"
+          },
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "ready": {
+            "title": "Ready",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ready"
+        ],
+        "title": "ReadinessResponse",
         "type": "object"
       },
       "RemediationResponse": {
@@ -2360,6 +2389,7 @@
     },
     "/api/v1/health": {
       "get": {
+        "description": "Liveness. Touches nothing, so a dependency outage cannot restart the fleet.",
         "operationId": "health_api_v1_health_get",
         "responses": {
           "200": {
@@ -4076,6 +4106,28 @@
         "summary": "Change Membership",
         "tags": [
           "organizations"
+        ]
+      }
+    },
+    "/api/v1/ready": {
+      "get": {
+        "description": "Readiness. Answers whether this replica can serve a request right now.\n\nReturns 503 when it cannot, because an orchestrator reads the status code, and\na body saying `ready: false` behind a 200 would keep traffic arriving.",
+        "operationId": "ready_api_v1_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ready",
+        "tags": [
+          "system"
         ]
       }
     },

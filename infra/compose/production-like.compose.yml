@@ -1,0 +1,193 @@
+# A production-like stack: the real images, run the way they are meant to run.
+#
+# Not production. There is no TLS termination, no identity gateway, no secret manager,
+# and the passwords come from a local .env. What it does reproduce is everything that
+# tends to be discovered late: read-only root filesystems, dropped capabilities,
+# non-root users, separate database roles per service, and a scheduler that is a
+# distinct deployment rather than a flag.
+#
+# `local-stack.compose.yml` remains the file for day-to-day work, where the application
+# runs on the host and only its infrastructure is containerised. This one exists to
+# answer "does it actually run like that", which is a different question and one that
+# is much cheaper to ask now than after a deployment.
+#
+#   docker compose -f infra/compose/production-like.compose.yml --env-file .env up -d
+#   python scripts/smoke_test.py
+
+# An explicit project name. Both compose files live in infra/compose, so both would
+# otherwise default to the directory name and this stack would adopt -- and tear down --
+# the containers and volumes the development stack is using.
+name: siembiot-prod-like
+
+x-hardening: &hardening
+  # A container that cannot write to its own filesystem cannot be persistently
+  # modified by anything that gets into it. Every service here is built to need
+  # nothing but /tmp.
+  read_only: true
+  tmpfs:
+    - /tmp:size=64m,mode=1777
+  security_opt:
+    # Without this a process can gain privileges through a setuid binary that happened
+    # to survive into the base image.
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgres@sha256:f3bd19c606e442c3d7bdfa8002e03fe260a1023351e0ea4598032022b68dd6e3
+    environment:
+      POSTGRES_DB: ${SIEMBIOT_POSTGRES_DB:-siembiot}
+      POSTGRES_USER: siembiot_owner
+      POSTGRES_PASSWORD: ${SIEMBIOT_POSTGRES_OWNER_PASSWORD:?set in local .env}
+      SIEMBIOT_POSTGRES_APP_PASSWORD: ${SIEMBIOT_POSTGRES_APP_PASSWORD:?set in local .env}
+      SIEMBIOT_POSTGRES_WORKER_PASSWORD: ${SIEMBIOT_POSTGRES_WORKER_PASSWORD:?set in local .env}
+    volumes:
+      - production-postgres:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    # Not published. Nothing outside this network has any business reaching the
+    # database directly, and a port mapping is the easiest way for that to stop being
+    # true without anybody deciding it.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U siembiot_owner -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  redis:
+    image: redis@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    # Started directly as the redis user. The image's entrypoint otherwise starts as
+    # root and calls setpriv to drop down, which needs CAP_SETUID and CAP_SETGID -- so
+    # with capabilities dropped it fails before redis ever runs. Starting unprivileged
+    # reaches the same place without needing the privilege to get there.
+    user: redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    <<: *hardening
+
+  # Migrations run as their own one-shot job, not from the API's startup.
+  #
+  # An API that migrates on boot races itself the moment there is more than one
+  # replica, and it needs the owner role to do it -- which would put a superuser
+  # credential in the environment of the process that serves requests, undoing the
+  # separation the whole schema depends on.
+  #
+  #   docker compose -f infra/compose/production-like.compose.yml --profile migrate   #     --env-file .env run --rm migrate
+  migrate:
+    profiles: ["migrate"]
+    build:
+      context: ../..
+      dockerfile: infra/images/api.Dockerfile
+    image: siembiot/api:${SIEMBIOT_IMAGE_TAG:-dev}
+    entrypoint: ["alembic", "-c", "/app/services/api/alembic.ini", "upgrade", "head"]
+    environment:
+      # The owner, and only here. This container exists for the length of one
+      # migration and then goes away.
+      SIEMBIOT_DATABASE_URL: postgresql+psycopg://siembiot_owner:${SIEMBIOT_POSTGRES_OWNER_PASSWORD}@postgres:5432/${SIEMBIOT_POSTGRES_DB:-siembiot}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: "no"
+
+  api:
+    <<: *hardening
+    build:
+      context: ../..
+      dockerfile: infra/images/api.Dockerfile
+    image: siembiot/api:${SIEMBIOT_IMAGE_TAG:-dev}
+    environment:
+      SIEMBIOT_ENV: production
+      # The application role, never the owner. The owner is a superuser and superusers
+      # bypass row-level security even where it is FORCEd, so serving from it would
+      # switch off tenant isolation entirely and silently.
+      SIEMBIOT_APP_DATABASE_URL: postgresql+psycopg://siembiot_app:${SIEMBIOT_POSTGRES_APP_PASSWORD}@postgres:5432/${SIEMBIOT_POSTGRES_DB:-siembiot}
+      SIEMBIOT_PUBLIC_BASE_URL: ${SIEMBIOT_PUBLIC_BASE_URL:-http://localhost:3000}
+      # Required outside development. The API refuses to start without it, which is the
+      # intended behaviour: a missing gateway secret means identity headers would be
+      # trusted from anyone who could reach the port.
+      SIEMBIOT_IDENTITY_GATEWAY_SECRET: ${SIEMBIOT_IDENTITY_GATEWAY_SECRET:?required outside development}
+      SIEMBIOT_LOG_LEVEL: ${SIEMBIOT_LOG_LEVEL:-INFO}
+    ports:
+      - "127.0.0.1:${SIEMBIOT_API_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    <<: *hardening
+    build:
+      context: ../..
+      dockerfile: infra/images/worker.Dockerfile
+    image: siembiot/worker:${SIEMBIOT_IMAGE_TAG:-dev}
+    environment:
+      SIEMBIOT_ENV: production
+      # Its own role, not the API's. Migration 0009 lets this one write inside a tenant
+      # without a human membership, and that permission must stay out of the API's
+      # reach.
+      SIEMBIOT_WORKER_DATABASE_URL: postgresql+psycopg://siembiot_worker:${SIEMBIOT_POSTGRES_WORKER_PASSWORD}@postgres:5432/${SIEMBIOT_POSTGRES_DB:-siembiot}
+      SIEMBIOT_REDIS_URL: redis://redis:6379/0
+      SIEMBIOT_LOG_LEVEL: ${SIEMBIOT_LOG_LEVEL:-INFO}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # The one service that should scale horizontally. Collection is IO-bound and
+    # duplicate delivery is already safe.
+    deploy:
+      replicas: ${SIEMBIOT_WORKER_REPLICAS:-1}
+
+  beat:
+    <<: *hardening
+    build:
+      context: ../..
+      dockerfile: infra/images/beat.Dockerfile
+    image: siembiot/beat:${SIEMBIOT_IMAGE_TAG:-dev}
+    environment:
+      SIEMBIOT_ENV: production
+      SIEMBIOT_WORKER_DATABASE_URL: postgresql+psycopg://siembiot_worker:${SIEMBIOT_POSTGRES_WORKER_PASSWORD}@postgres:5432/${SIEMBIOT_POSTGRES_DB:-siembiot}
+      SIEMBIOT_REDIS_URL: redis://redis:6379/0
+      SIEMBIOT_LOG_LEVEL: ${SIEMBIOT_LOG_LEVEL:-INFO}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Exactly one. Two schedulers would enqueue every due assessment twice: harmless,
+    # because the engine deduplicates, but twice the load against other people's
+    # infrastructure for nothing.
+    deploy:
+      replicas: 1
+
+  web:
+    <<: *hardening
+    build:
+      context: ../..
+      dockerfile: infra/images/web.Dockerfile
+      args:
+        # Baked in at build time; see the note in web.Dockerfile. Setting it in the
+        # environment below would look right and do nothing.
+        SIEMBIOT_API_BASE_URL: http://api:8000
+    image: siembiot/web:${SIEMBIOT_IMAGE_TAG:-dev}
+    environment:
+      NODE_ENV: production
+    ports:
+      - "127.0.0.1:${SIEMBIOT_WEB_PORT:-3000}:3000"
+    depends_on:
+      - api
+
+volumes:
+  production-postgres:

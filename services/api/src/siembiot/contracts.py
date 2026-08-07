@@ -13,7 +13,28 @@ class ContractModel(BaseModel):
 
 
 class HealthResponse(ContractModel):
+    """Liveness: this process is running and not wedged.
+
+    Deliberately answers without touching the database. A liveness probe that fails
+    during a database outage makes an orchestrator restart every replica, which does
+    not fix the database and does delay recovery once it returns.
+    """
+
     status: Literal["ok"] = "ok"
+
+
+class ReadinessResponse(ContractModel):
+    """Readiness: this process can serve a request right now.
+
+    Separate from liveness because the two answers have different consequences. Not
+    ready removes a replica from rotation; not alive restarts it. Confusing them turns
+    a recoverable dependency outage into a restart loop.
+    """
+
+    ready: bool
+    #: Named so an operator reading a failed probe knows which dependency to look at,
+    #: without needing to correlate against logs.
+    checks: dict[str, bool] = Field(default_factory=dict)
 
 
 class ErrorBody(BaseModel):

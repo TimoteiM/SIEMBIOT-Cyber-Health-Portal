@@ -18,6 +18,7 @@ Concretely:
 
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -33,6 +34,7 @@ from siembiot_worker.scheduling import (
     due_schedules,
     expire_stale_verifications,
 )
+from siembiot_worker.telemetry import log_event
 from siembiot_worker.workflows.engine import WorkflowEngine
 from siembiot_worker.workflows.evidence_repository import EvidenceRepository, persist_assessment
 from siembiot_worker.workflows.handlers import AssessmentContext, build_handlers
@@ -51,6 +53,8 @@ SWEEP_INTERVAL_SECONDS = 30.0
 #: minutes rather than thirty seconds because the shortest cadence offered is daily:
 #: checking more often would only ask the same question repeatedly and get "not yet".
 SCHEDULE_INTERVAL_SECONDS = 600.0
+
+log = logging.getLogger("siembiot.worker")
 
 
 def broker_url() -> str:
@@ -247,7 +251,7 @@ def start_due_schedules() -> int:
         with engine.begin() as connection:
             expired = expire_stale_verifications(connection)
         if expired:
-            print(f"expired verification on {expired} domain(s)")
+            log_event(log, "verification expired", domains=expired)
 
         with engine.begin() as connection:
             pending = due_schedules(connection)

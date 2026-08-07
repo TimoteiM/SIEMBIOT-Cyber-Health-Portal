@@ -53,8 +53,9 @@ EXPECTED_STEP_NAMES: tuple[str, ...] = (
     "report",
 )
 #: Mirrors siembiot_worker.observation.mode.AssessmentMode. Duplicated rather than
-#: imported because the API does not depend on the worker package; the migration's
-#: check constraint is what keeps the two honest.
+#: imported so that a request handler does not pull in the collection machinery to name
+#: two strings; the migration's check constraint is what keeps the two honest. The API
+#: does import the worker package elsewhere, for the shared network-safety boundary.
 PASSIVE_OBSERVATION = "passive_observation"
 AUTHORIZED_ASSESSMENT = "authorized_assessment"
 

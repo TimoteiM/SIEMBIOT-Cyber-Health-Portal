@@ -126,6 +126,71 @@ def build_checks(root: Path | None = None) -> tuple[Check, ...]:
     )
 
 
+def check_images(root: Path) -> list[str]:
+    """Container images must be reproducible and must not run as root.
+
+    This gate used to refuse any Dockerfile at all, because images were Milestone 10
+    work and an image appearing early would have been unreviewed. Now that they exist,
+    refusing them would only teach people to delete the check, so it states the
+    invariants instead:
+
+    *Bases pinned by digest.* A tag is a moving target. Pinning by tag makes a build
+    reproducible right up until somebody republishes the tag, which is also how an
+    unnoticed base change reaches production.
+
+    *A non-root user, declared last.* A `USER` line above a later `COPY --chown` or
+    `RUN` still ends up running as root, so the position matters as much as the
+    presence. Checked by requiring it in the final stage.
+
+    An image without a Dockerfile here is not a failure -- the repository may
+    legitimately have none -- but one that exists must meet both.
+    """
+    problems: list[str] = []
+    dockerfiles = sorted(root.glob("infra/images/*.Dockerfile"))
+    stray = [
+        path
+        for path in root.glob("**/Dockerfile*")
+        if "node_modules" not in path.parts and ".git" not in path.parts
+    ]
+    for path in stray:
+        problems.append(
+            f"{path.relative_to(root)}: container images belong in infra/images/*.Dockerfile "
+            "so they are reviewed together"
+        )
+
+    for path in dockerfiles:
+        name = path.relative_to(root)
+        lines = path.read_text(encoding="utf-8").splitlines()
+        directives = [line.strip() for line in lines if line.strip()]
+
+        for line in directives:
+            if line.upper().startswith("FROM ") and "@sha256:" not in line:
+                problems.append(f"{name}: base image is not pinned by digest: {line}")
+            if line.upper().startswith("COPY --FROM=") and "@sha256:" not in line:
+                # A COPY --from that names an image rather than a build stage brings in
+                # an unpinned artefact by the back door.
+                source = line.split("=", 1)[1].split()[0]
+                if not any(
+                    directive.upper().startswith("FROM ")
+                    and f" AS {source}".upper() in directive.upper()
+                    for directive in directives
+                ):
+                    problems.append(f"{name}: unpinned image in COPY --from: {source}")
+
+        # The final stage is what actually runs, so that is where USER has to appear.
+        starts = [
+            index for index, line in enumerate(directives) if line.upper().startswith("FROM ")
+        ]
+        final = directives[starts[-1] :] if starts else directives
+        users = [line for line in final if line.upper().startswith("USER ")]
+        if not users:
+            problems.append(f"{name}: final stage has no USER, so it runs as root")
+        elif users[-1].split()[1].split(":")[0] in {"root", "0"}:
+            problems.append(f"{name}: final stage runs as root")
+
+    return problems
+
+
 def find_secret_candidates(files: list[Path]) -> list[Path]:
     candidates: list[Path] = []
     for path in files:
@@ -189,8 +254,8 @@ def verify_internal_gate(name: str, root: Path) -> list[str]:
             for path in required
             if not path.is_file()
         ]
-    if name == "images" and any(root.glob("**/Dockerfile*")):
-        return ["container images were introduced before Milestone 10"]
+    if name == "images":
+        return check_images(root)
     if name == "sbom":
         manifests = (root / "uv.lock", root / "pnpm-lock.yaml")
         return [f"SBOM input missing: {path.name}" for path in manifests if not path.is_file()]

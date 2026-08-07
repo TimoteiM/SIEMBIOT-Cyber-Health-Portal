@@ -1,6 +1,7 @@
 .PHONY: bootstrap check contracts-check api-test web-test e2e-auth db-up db-down migrate \
 	test-domain test-network-safety test-collectors test-adapters providers-check fixture-stack \
-	policy-validate test-normalization test-scoring methodology-reproduce observe
+	policy-validate test-normalization test-scoring methodology-reproduce observe \
+	worker-serve beat-serve prod-up prod-down prod-migrate smoke
 
 bootstrap:
 	python scripts/bootstrap.py
@@ -54,6 +55,24 @@ worker-serve:
 beat-serve:
 	python -m uv run --frozen --env-file .env celery -A siembiot_worker.celery_app beat \
 		--loglevel info
+
+# The production-like stack: the real images, hardened the way they are meant to run.
+# Distinct project name from the development stack, which shares this directory.
+PROD_COMPOSE = docker compose -f infra/compose/production-like.compose.yml --env-file .env
+
+prod-migrate:
+	$(PROD_COMPOSE) --profile migrate run --rm migrate
+
+prod-up:
+	$(PROD_COMPOSE) up -d --build
+
+prod-down:
+	$(PROD_COMPOSE) down
+
+# Proves the stack serves, rather than merely started: a container that reached
+# "running" has only proved that its entrypoint resolved.
+smoke:
+	python scripts/smoke_test.py
 
 policy-validate:
 	python -m uv run --frozen pytest tests/policy/test_evaluation.py -q

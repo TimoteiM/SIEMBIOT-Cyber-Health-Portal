@@ -45,7 +45,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Health */
+        /**
+         * Health
+         * @description Liveness. Touches nothing, so a dependency outage cannot restart the fleet.
+         */
         get: operations["health_api_v1_health_get"];
         put?: never;
         post?: never;
@@ -493,6 +496,29 @@ export interface paths {
         head?: never;
         /** Change Membership */
         patch: operations["change_membership_api_v1_organizations__organization_id__memberships__membership_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/ready": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ready
+         * @description Readiness. Answers whether this replica can serve a request right now.
+         *
+         *     Returns 503 when it cannot, because an orchestrator reads the status code, and
+         *     a body saying `ready: false` behind a 200 would keep traffic arriving.
+         */
+        get: operations["ready_api_v1_ready_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/session": {
@@ -1183,7 +1209,14 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
-        /** HealthResponse */
+        /**
+         * HealthResponse
+         * @description Liveness: this process is running and not wedged.
+         *
+         *     Deliberately answers without touching the database. A liveness probe that fails
+         *     during a database outage makes an orchestrator restart every replica, which does
+         *     not fix the database and does delay recovery once it returns.
+         */
         HealthResponse: {
             /**
              * Contract Version
@@ -1392,6 +1425,28 @@ export interface components {
             name: string;
             /** Slug */
             slug: string;
+        };
+        /**
+         * ReadinessResponse
+         * @description Readiness: this process can serve a request right now.
+         *
+         *     Separate from liveness because the two answers have different consequences. Not
+         *     ready removes a replica from rotation; not alive restarts it. Confusing them turns
+         *     a recoverable dependency outage into a restart loop.
+         */
+        ReadinessResponse: {
+            /** Checks */
+            checks?: {
+                [key: string]: boolean;
+            };
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /** Ready */
+            ready: boolean;
         };
         /**
          * RemediationResponse
@@ -2723,6 +2778,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ready_api_v1_ready_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReadinessResponse"];
                 };
             };
         };

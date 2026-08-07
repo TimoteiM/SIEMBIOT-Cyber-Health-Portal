@@ -61,6 +61,10 @@ loadRootEnvironment();
 const apiBaseUrl = process.env.SIEMBIOT_API_BASE_URL ?? "http://127.0.0.1:8000";
 
 const config: NextConfig = {
+  // Emits a server bundle with only the dependencies it actually reaches, so the
+  // production image carries no build toolchain. A development toolchain shipped to
+  // production is a toolchain available to whoever gets in.
+  output: "standalone",
   async rewrites() {
     return [{ source: "/api/:path*", destination: `${apiBaseUrl}/api/:path*` }];
   },
