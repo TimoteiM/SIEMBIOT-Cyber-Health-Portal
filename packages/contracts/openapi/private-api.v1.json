@@ -974,6 +974,76 @@
         "title": "AuthorizationRevoke",
         "type": "object"
       },
+      "ConsentResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "consented": {
+            "title": "Consented",
+            "type": "boolean"
+          },
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "domain_id": {
+            "format": "uuid",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "granted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Granted At"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          }
+        },
+        "required": [
+          "domain_id",
+          "consented"
+        ],
+        "title": "ConsentResponse",
+        "type": "object"
+      },
+      "ConsentWithdrawal": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "title": "ConsentWithdrawal",
+        "type": "object"
+      },
       "DomainChallengeCreate": {
         "additionalProperties": false,
         "properties": {
@@ -4314,6 +4384,173 @@
         "summary": "Index",
         "tags": [
           "history"
+        ]
+      }
+    },
+    "/api/v1/organizations/{organization_id}/domains/{domain_id}/publication": {
+      "delete": {
+        "description": "Withdraw consent and take the profile down in the same transaction.\n\nThe deletion is not scheduled, queued or flagged. If this call returns, the\nprofile is gone -- which is the only version of this promise that can be made\nhonestly, because anything asynchronous has a window during which the answer to\n\"is our data still public\" is yes.",
+        "operationId": "withdraw_api_v1_organizations__organization_id__domains__domain_id__publication_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "domain_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Domain Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsentWithdrawal"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Withdraw",
+        "tags": [
+          "publication"
+        ]
+      },
+      "get": {
+        "operationId": "show_api_v1_organizations__organization_id__domains__domain_id__publication_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "domain_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Domain Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Show",
+        "tags": [
+          "publication"
+        ]
+      },
+      "put": {
+        "description": "Agree to publication. Publishes nothing by itself.\n\nHeld at `DOMAIN_MANAGE` rather than a reporting permission: this decides what\nthe world sees about the institution, which is the same weight of decision as\ndeciding what may be assessed.",
+        "operationId": "grant_api_v1_organizations__organization_id__domains__domain_id__publication_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "domain_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Domain Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Grant",
+        "tags": [
+          "publication"
         ]
       }
     },

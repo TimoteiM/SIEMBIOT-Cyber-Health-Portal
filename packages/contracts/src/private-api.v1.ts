@@ -393,6 +393,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/organizations/{organization_id}/domains/{domain_id}/publication": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Show */
+        get: operations["show_api_v1_organizations__organization_id__domains__domain_id__publication_get"];
+        /**
+         * Grant
+         * @description Agree to publication. Publishes nothing by itself.
+         *
+         *     Held at `DOMAIN_MANAGE` rather than a reporting permission: this decides what
+         *     the world sees about the institution, which is the same weight of decision as
+         *     deciding what may be assessed.
+         */
+        put: operations["grant_api_v1_organizations__organization_id__domains__domain_id__publication_put"];
+        post?: never;
+        /**
+         * Withdraw
+         * @description Withdraw consent and take the profile down in the same transaction.
+         *
+         *     The deletion is not scheduled, queued or flagged. If this call returns, the
+         *     profile is gone -- which is the only version of this promise that can be made
+         *     honestly, because anything asynchronous has a window during which the answer to
+         *     "is our data still public" is yes.
+         */
+        delete: operations["withdraw_api_v1_organizations__organization_id__domains__domain_id__publication_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/organizations/{organization_id}/domains/{domain_id}/roadmap": {
         parameters: {
             query?: never;
@@ -1064,6 +1098,31 @@ export interface components {
         AuthorizationRevoke: {
             /** Reason */
             reason: string;
+        };
+        /** ConsentResponse */
+        ConsentResponse: {
+            /** Consented */
+            consented: boolean;
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /**
+             * Domain Id
+             * Format: uuid
+             */
+            domain_id: string;
+            /** Granted At */
+            granted_at?: string | null;
+            /** Published At */
+            published_at?: string | null;
+        };
+        /** ConsentWithdrawal */
+        ConsentWithdrawal: {
+            /** Reason */
+            reason?: string | null;
         };
         /** DomainChallengeCreate */
         DomainChallengeCreate: {
@@ -2809,6 +2868,106 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DomainHistoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    show_api_v1_organizations__organization_id__domains__domain_id__publication_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                domain_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    grant_api_v1_organizations__organization_id__domains__domain_id__publication_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                domain_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    withdraw_api_v1_organizations__organization_id__domains__domain_id__publication_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                domain_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConsentWithdrawal"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsentResponse"];
                 };
             };
             /** @description Validation Error */

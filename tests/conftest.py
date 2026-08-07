@@ -20,6 +20,7 @@ OWNER_URL = "postgresql://siembiot_owner:placeholder@127.0.0.1:55432/siembiot_te
 OWNER_ALEMBIC_URL = "postgresql+psycopg://siembiot_owner:placeholder@127.0.0.1:55432/siembiot_test"
 APP_URL = "postgresql://siembiot_app:placeholder@127.0.0.1:55432/siembiot_test"
 WORKER_URL = "postgresql://siembiot_worker:placeholder@127.0.0.1:55432/siembiot_test"
+PUBLIC_URL = "postgresql://siembiot_public:placeholder@127.0.0.1:55432/siembiot_test"
 
 
 def run(command: list[str], env: dict[str, str] | None = None) -> None:
@@ -63,7 +64,17 @@ def postgres_database() -> Iterator[dict[str, str]]:
 
         with psycopg.connect(OWNER_URL, autocommit=True) as owner:
             owner.execute("ALTER ROLE siembiot_worker PASSWORD 'placeholder'")
+            # Migration 0015 creates siembiot_public the same way and for the same
+            # reason. It is connected as in the publication tests, because "the public
+            # role cannot reach tenant data" is a claim worth proving against the real
+            # database rather than reading off the grants.
+            owner.execute("ALTER ROLE siembiot_public PASSWORD 'placeholder'")
 
-        yield {"owner_url": OWNER_URL, "app_url": APP_URL, "worker_url": WORKER_URL}
+        yield {
+            "owner_url": OWNER_URL,
+            "app_url": APP_URL,
+            "worker_url": WORKER_URL,
+            "public_url": PUBLIC_URL,
+        }
     finally:
         run([*compose, "down", "--volumes", "--remove-orphans"], test_env)

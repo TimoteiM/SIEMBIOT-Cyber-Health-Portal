@@ -709,3 +709,23 @@ class MaturityResponse(ContractModel):
     #: Answers claiming a practice is in place where the assessment observes otherwise.
     contradicted_count: int = 0
     sections: list[SectionResponse] = Field(default_factory=list)
+
+
+# -- publication -------------------------------------------------------------
+
+
+class ConsentWithdrawal(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    #: Optional. Somebody withdrawing consent does not owe an explanation, and demanding
+    #: one is friction on exactly the action that must never have friction.
+    reason: str | None = Field(default=None, min_length=1, max_length=1000)
+
+
+class ConsentResponse(ContractModel):
+    domain_id: UUID
+    consented: bool
+    granted_at: datetime | None = None
+    #: Whether anything is on a public page right now. Reported separately from consent
+    #: rather than inferred from it: consent is permission, and this is fact. Somebody
+    #: asking "are we published" is asking the second question.
+    published_at: datetime | None = None
