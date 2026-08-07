@@ -130,7 +130,21 @@ def test_a_published_profile_is_readable_with_no_session(
 
     assert body["registrable_domain"] == host
     assert body["band"] == "managed"
-    assert body["checks"] == [{"check_id": "B.dmarc_enforced", "result": "pass"}]
+    # The title comes from the versioned catalogue rather than being stored beside the
+    # result, so a public page needs no copy of the catalogue to render a sentence.
+    # Compared against the catalogue rather than against a literal: a copy of the wording
+    # here would be a second place it lives, and the two would drift.
+    from siembiot.check_metadata import load_check_metadata  # noqa: PLC0415
+
+    expected = load_check_metadata()["B.dmarc_enforced"]
+    assert body["checks"] == [
+        {
+            "check_id": "B.dmarc_enforced",
+            "result": "pass",
+            "title_ro": expected.title_ro,
+            "title_en": expected.title_en,
+        }
+    ]
     # Traceable to the rules that produced it, so a dispute has something to point at.
     assert body["methodology_version"] == "1.0.0"
     assert body["policy_digest"] == DIGEST

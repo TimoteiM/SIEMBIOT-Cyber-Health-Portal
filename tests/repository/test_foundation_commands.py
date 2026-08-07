@@ -38,6 +38,7 @@ class FoundationCommandContractTests(unittest.TestCase):
                 "contracts",
                 "diff",
                 "docs",
+                "i18n",
                 "format",
                 "images",
                 "lint",

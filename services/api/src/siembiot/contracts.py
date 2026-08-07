@@ -764,6 +764,12 @@ class PublishedCheckResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
     check_id: str
     result: PUBLISHED_RESULTS
+    #: From the versioned policy catalogue, which is itself published. Carried here so a
+    #: public page does not need its own copy of the catalogue to render a sentence --
+    #: two copies of a title drift, and the drift shows up as a public page describing a
+    #: check differently from the methodology that produced it.
+    title_ro: str
+    title_en: str
 
 
 class ObservatoryProfileResponse(ContractModel):

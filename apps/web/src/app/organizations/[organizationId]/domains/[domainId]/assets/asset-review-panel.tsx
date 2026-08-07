@@ -10,16 +10,16 @@ import { apiRequest, loadSession } from "../../../../../../lib/secure-client";
 
 type Candidate = components["schemas"]["AssetCandidateResponse"];
 
-const BASIS_LABELS: Record<Candidate["attribution_basis"], string> = {
-  authorized_domain: "Domeniul autorizat",
-  subdomain_of_authorized_domain: "Subdomeniu al domeniului autorizat",
-  unrelated_name: "Nume fără legătură evidentă",
+const BASIS_KEYS: Record<Candidate["attribution_basis"], MessageKey> = {
+  authorized_domain: "assets.basis.authorized_domain",
+  subdomain_of_authorized_domain: "assets.basis.subdomain",
+  unrelated_name: "assets.basis.unrelated",
 };
 
-const STATE_LABELS: Record<Candidate["state"], string> = {
-  unreviewed: "Nerevizuit",
-  accepted: "Acceptat",
-  rejected: "Respins",
+const STATE_KEYS: Record<Candidate["state"], MessageKey> = {
+  unreviewed: "assets.state.unreviewed",
+  accepted: "assets.state.accepted",
+  rejected: "assets.state.rejected",
 };
 
 function confidenceTone(candidate: Candidate): string {
@@ -88,12 +88,9 @@ export default function AssetReviewPanel({
     <section className="panel" aria-labelledby="assets-title">
       <p className="eyebrow">{t("assets.eyebrow")}</p>
       <h1 id="assets-title">{t("assets.title")}</h1>
-      <p>
-        Un nume descoperit public este un <strong>candidat</strong>, nu un activ confirmat.
-        Nimic nu intră în perimetrul evaluat până când nu accepți explicit.
-      </p>
+      <p>{t("assets.intro")}</p>
 
-      <h2>De revizuit ({unreviewed.length})</h2>
+      <h2>{t("assets.toReview", { count: unreviewed.length })}</h2>
       {unreviewed.length === 0 ? (
         <p className="hint">{t("assets.none")}</p>
       ) : (
@@ -104,8 +101,8 @@ export default function AssetReviewPanel({
                 <strong>{candidate.name}</strong>
                 <p className="muted">
                   {t(`attribution.${candidate.source}` as MessageKey)} ·{" "}
-                  {BASIS_LABELS[candidate.attribution_basis]} · observat de{" "}
-                  {candidate.observation_count} ori
+                  {t(BASIS_KEYS[candidate.attribution_basis])} ·{" "}
+                  {t("assets.observedTimes", { count: candidate.observation_count })}
                 </p>
               </div>
               <span className={`badge ${confidenceTone(candidate)}`}>
@@ -133,7 +130,7 @@ export default function AssetReviewPanel({
                   disabled={busy === candidate.id}
                   onClick={() => decide(candidate, "rejected")}
                 >
-                  Respinge
+                  {t("assets.reject")}
                 </button>
               </div>
             </li>
@@ -143,14 +140,14 @@ export default function AssetReviewPanel({
 
       {decided.length > 0 && (
         <>
-          <h2>Deja decise ({decided.length})</h2>
+          <h2>{t("assets.decidedHeading", { count: decided.length })}</h2>
           <div className="table-wrap">
             <table>
               <caption className="sr-only">{t("assets.decided")}</caption>
               <thead>
                 <tr>
-                  <th scope="col">Nume</th>
-                  <th scope="col">Decizie</th>
+                  <th scope="col">{t("assets.nameColumn")}</th>
+                  <th scope="col">{t("assets.decisionColumn")}</th>
                   <th scope="col">{t("assets.confidenceColumn")}</th>
                 </tr>
               </thead>
@@ -164,7 +161,7 @@ export default function AssetReviewPanel({
                           candidate.state === "accepted" ? "success" : "neutral"
                         }`}
                       >
-                        {STATE_LABELS[candidate.state]}
+                        {t(STATE_KEYS[candidate.state])}
                       </span>
                     </td>
                     <td>{Math.round(candidate.attribution_confidence * 100)}%</td>

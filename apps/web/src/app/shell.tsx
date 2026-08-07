@@ -41,6 +41,19 @@ const MATURITY = "M6 3h8l2 2v12H4V5l2-2Zm1 5.5 1.5 1.5L12 6.5M7 13h6";
  */
 const PUBLIC_ROUTES = new Set(["/"]);
 
+/**
+ * The observatory is readable by anybody, so it gets no workspace chrome either. Matched
+ * as a prefix rather than an exact path because a profile page carries a domain name.
+ */
+const PUBLIC_PREFIXES = ["/observatory"];
+
+function isPublicRoute(pathname: string): boolean {
+  return (
+    PUBLIC_ROUTES.has(pathname) ||
+    PUBLIC_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+  );
+}
+
 function navItems(organizationId: string | null): NavItem[] {
   if (!organizationId) return [];
   const base = `/organizations/${organizationId}`;
@@ -65,7 +78,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [open, setOpen] = useState(false);
 
-  const isPublic = PUBLIC_ROUTES.has(pathname);
+  const isPublic = isPublicRoute(pathname);
   const organizationId = organizationFromPath(pathname);
   const items = navItems(organizationId);
   const current = items.find((item) => pathname.startsWith(item.href));

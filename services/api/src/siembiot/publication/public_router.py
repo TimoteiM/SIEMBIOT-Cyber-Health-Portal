@@ -14,11 +14,13 @@ already open.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import cast
 
 from fastapi import APIRouter, Query, Request
 from sqlalchemy import text
 
+from siembiot.check_metadata import CheckMetadata, load_check_metadata
 from siembiot.contracts import (
     PUBLISHED_BANDS,
     PUBLISHED_RESULTS,
@@ -45,6 +47,18 @@ from siembiot.errors import AppError
 #: this small, and making it cacheable later should be a decision somebody takes
 #: deliberately, with the latency it reintroduces written down.
 MAX_PAGE_SIZE = 100
+
+
+def _title(metadata: Mapping[str, CheckMetadata], check_id: str) -> tuple[str, str]:
+    """The catalogue's own wording, falling back to the identifier.
+
+    A check published under a methodology whose catalogue no longer describes it should
+    still render: the identifier is worse than a sentence and much better than a blank.
+    """
+    entry = metadata.get(check_id)
+    if entry is None:
+        return check_id, check_id
+    return entry.title_ro, entry.title_en
 
 
 def _database(request: Request) -> Database:
@@ -169,6 +183,7 @@ def build_public_router() -> APIRouter:
                 .all()
             )
 
+        metadata = load_check_metadata(str(row["methodology_version"]))
         return ObservatoryProfileResponse(
             registrable_domain=str(row["registrable_domain"]),
             band=cast("PUBLISHED_BANDS | None", row["band"]),
@@ -183,6 +198,8 @@ def build_public_router() -> APIRouter:
                     # The column is constrained to exactly these three by a CHECK; the
                     # cast records that the database is the authority, not this line.
                     result=cast(PUBLISHED_RESULTS, check["result"]),
+                    title_ro=_title(metadata, str(check["check_id"]))[0],
+                    title_en=_title(metadata, str(check["check_id"]))[1],
                 )
                 for check in checks
             ],

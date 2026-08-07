@@ -1904,6 +1904,10 @@ export interface components {
              * @enum {string}
              */
             result: "pass" | "fail" | "warning";
+            /** Title En */
+            title_en: string;
+            /** Title Ro */
+            title_ro: string;
         };
         /** QuestionResponse */
         QuestionResponse: {

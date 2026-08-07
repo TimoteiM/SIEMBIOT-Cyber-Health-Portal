@@ -901,3 +901,27 @@ details > summary:hover { color: var(--text-primary); }
   letter of the article than the one being cited.
 */
 .maturity-reference { font-size: 0.8125rem; }
+
+/* -- the public observatory ------------------------------------------------- */
+
+/*
+  Wider and quieter than the workspace. A visitor here is reading one institution's page,
+  not operating a tool, and the chrome that helps an operator is noise to them.
+*/
+.observatory { max-width: 46rem; margin: 2rem auto; }
+.observatory h1 { overflow-wrap: anywhere; }
+.observatory-verdict {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+}
+.observatory-list li,
+.observatory-checks li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+.observatory-checks li { justify-content: flex-start; }
+.observatory-list a { font-weight: 500; }

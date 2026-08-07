@@ -2575,11 +2575,21 @@
             ],
             "title": "Result",
             "type": "string"
+          },
+          "title_en": {
+            "title": "Title En",
+            "type": "string"
+          },
+          "title_ro": {
+            "title": "Title Ro",
+            "type": "string"
           }
         },
         "required": [
           "check_id",
-          "result"
+          "result",
+          "title_ro",
+          "title_en"
         ],
         "title": "PublishedCheckResponse",
         "type": "object"

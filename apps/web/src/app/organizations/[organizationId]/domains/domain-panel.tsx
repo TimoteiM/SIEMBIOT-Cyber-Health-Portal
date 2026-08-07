@@ -54,16 +54,16 @@ export default function DomainPanel({ organizationId }: { organizationId: string
       <div className="section-heading">
         <div>
           <p className="eyebrow">{t("domains.eyebrow")}</p>
-          <h1 id="domains-title">Domenii verificate</h1>
+          <h1 id="domains-title">{t("domains.title")}</h1>
           <p>{t("domains.intro")}</p>
         </div>
         <a className="button secondary" href={`/organizations/${organizationId}/audit`}>
-          Vezi auditul
+          {t("domains.viewAudit")}
         </a>
       </div>
 
       <form className="inline-form" onSubmit={addDomain}>
-        <label htmlFor="domain-name">Nume de domeniu</label>
+        <label htmlFor="domain-name">{t("domains.field")}</label>
         <input
           id="domain-name"
           inputMode="url"
@@ -78,7 +78,7 @@ export default function DomainPanel({ organizationId }: { organizationId: string
         </button>
       </form>
 
-      <ul className="card-list" aria-label="Domenii">
+      <ul className="card-list" aria-label={t("domains.title")}>
         {domains.map((domain) => {
           const state = ownershipPresentation(domain.ownership_state);
           return (

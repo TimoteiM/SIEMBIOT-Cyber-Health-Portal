@@ -298,6 +298,30 @@ const ro = {
   "publication.withdrawn": "Profilul public a fost eliminat.",
   "publication.changeFailed": "Setarea de publicare nu a putut fi modificată.",
 
+  // -- observatorul public --------------------------------------------------
+  "observatory.eyebrow": "Observatorul public",
+  "observatory.title": "Ce publică instituțiile despre propria igienă cibernetică",
+  "observatory.intro":
+    "Profilurile de mai jos aparțin organizațiilor care au ales să le facă publice. Fiecare arată banda de rezultat, acoperirea evaluării și verificările pe care metodologia le clasifică drept publicabile.",
+  "observatory.consentNotice":
+    "Nimic nu apare aici fără acordul explicit al organizației și fără control verificat asupra domeniului. Acordul poate fi retras oricând, iar profilul dispare imediat.",
+  "observatory.empty":
+    "Nu este publicat niciun profil. Aceasta este starea normală: publicarea necesită atât acordul unei organizații, cât și un aviz de publicare înregistrat.",
+  "observatory.unavailable": "Observatorul nu este disponibil momentan.",
+  "observatory.count": "{count} profiluri publicate",
+  "observatory.coverage": "Acoperire {percent}%",
+  "observatory.observed": "Observat la {when}.",
+  "observatory.checksHeading": "Verificări publicate",
+  "observatory.notice":
+    "O evaluare externă de igienă, bazată pe observarea publică și neintruzivă. Nu este o garanție de securitate, un audit, o certificare sau o determinare de conformitate NIS2.",
+  "observatory.methodology": "Metodologia {version}, catalog {digest}.",
+  "observatory.disputeNotice":
+    "Dacă un rezultat vi se pare greșit, organizația care deține domeniul poate retrage publicarea oricând din propriul spațiu de lucru.",
+
+  "result.pass": "Trecut",
+  "result.warning": "Atenție",
+  "result.fail": "Eșuat",
+
   "severity.critical": "Critic",
   "severity.high": "Ridicat",
   "severity.medium": "Mediu",
@@ -328,6 +352,7 @@ const ro = {
   "domains.loadFailed": "Domeniile nu au putut fi încărcate.",
   "domains.adding": "Validăm și înregistrăm domeniul…",
   "domains.addFailed": "Domeniul nu a putut fi adăugat.",
+  "domains.viewAudit": "Vezi auditul",
 
   "domainState.pending.title": "Verificare în așteptare",
   "domainState.pending.detail": "Dovada controlului asupra domeniului nu a fost încă validată.",
@@ -397,6 +422,16 @@ const ro = {
   "assets.confidence": "încredere {percent}%",
   "assets.confidenceColumn": "Încredere",
   "assets.sharedHosting": "Găzduire partajată: certificatul unui alt client nu spune nimic despre organizația ta.",
+  "assets.basis.authorized_domain": "Domeniul autorizat",
+  "assets.basis.subdomain": "Subdomeniu al domeniului autorizat",
+  "assets.basis.unrelated": "Nume fără legătură evidentă",
+  "assets.state.unreviewed": "Nerevizuit",
+  "assets.state.accepted": "Acceptat",
+  "assets.state.rejected": "Respins",
+  "assets.observedTimes": "observat de {count} ori",
+  "assets.decidedHeading": "Deja decise ({count})",
+  "assets.nameColumn": "Nume",
+  "assets.decisionColumn": "Decizie",
 
   "attribution.shared_certificate": "Certificat partajat",
   "attribution.unrelated_name": "Nume fără legătură evidentă",
@@ -697,6 +732,30 @@ const en: Messages = {
   "publication.withdrawn": "The public profile was removed.",
   "publication.changeFailed": "The publication setting could not be changed.",
 
+  // -- the public observatory -----------------------------------------------
+  "observatory.eyebrow": "The public observatory",
+  "observatory.title": "What institutions publish about their own cyber hygiene",
+  "observatory.intro":
+    "The profiles below belong to organisations that chose to make them public. Each shows the result band, the assessment's coverage, and the checks the methodology classifies as publishable.",
+  "observatory.consentNotice":
+    "Nothing appears here without the organisation's explicit agreement and verified control of the domain. Agreement can be withdrawn at any time, and the profile disappears immediately.",
+  "observatory.empty":
+    "No profile is published. This is the ordinary state: publishing requires both an organisation's agreement and a recorded publication review.",
+  "observatory.unavailable": "The observatory is temporarily unavailable.",
+  "observatory.count": "{count} published profiles",
+  "observatory.coverage": "Coverage {percent}%",
+  "observatory.observed": "Observed at {when}.",
+  "observatory.checksHeading": "Published checks",
+  "observatory.notice":
+    "An external hygiene assessment based on public, non-intrusive observation. Not a security guarantee, an audit, a certification, or a NIS2 conformity determination.",
+  "observatory.methodology": "Methodology {version}, catalogue {digest}.",
+  "observatory.disputeNotice":
+    "If a result looks wrong to you, the organisation that holds the domain can withdraw publication at any time from its own workspace.",
+
+  "result.pass": "Pass",
+  "result.warning": "Warning",
+  "result.fail": "Fail",
+
   "severity.critical": "Critical",
   "severity.high": "High",
   "severity.medium": "Medium",
@@ -726,6 +785,7 @@ const en: Messages = {
   "domains.loadFailed": "The domains could not be loaded.",
   "domains.adding": "Validating and recording the domain…",
   "domains.addFailed": "The domain could not be added.",
+  "domains.viewAudit": "View the audit log",
 
   "domainState.pending.title": "Verification pending",
   "domainState.pending.detail": "Proof of control over the domain has not been validated yet.",
@@ -793,6 +853,16 @@ const en: Messages = {
   "assets.confidence": "confidence {percent}%",
   "assets.confidenceColumn": "Confidence",
   "assets.sharedHosting": "Shared hosting: another customer's certificate says nothing about your organization.",
+  "assets.basis.authorized_domain": "The authorized domain",
+  "assets.basis.subdomain": "Subdomain of the authorized domain",
+  "assets.basis.unrelated": "Name with no evident connection",
+  "assets.state.unreviewed": "Unreviewed",
+  "assets.state.accepted": "Accepted",
+  "assets.state.rejected": "Rejected",
+  "assets.observedTimes": "observed {count} times",
+  "assets.decidedHeading": "Already decided ({count})",
+  "assets.nameColumn": "Name",
+  "assets.decisionColumn": "Decision",
 
   "attribution.shared_certificate": "Shared certificate",
   "attribution.unrelated_name": "No evident relation to the name",

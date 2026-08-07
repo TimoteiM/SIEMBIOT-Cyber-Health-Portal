@@ -131,10 +131,55 @@ def build_checks(root: Path | None = None) -> tuple[Check, ...]:
         ),
         Check("secrets"),
         Check("images"),
+        Check("i18n"),
         Check("sbom"),
         Check("docs"),
         Check("diff", (("git", "diff", "--check"),)),
     )
+
+
+#: Letters that appear in Romanian and in no language this codebase writes code in.
+#: Their presence in a component is a user-visible string that never reached the
+#: catalogue -- which renders as Romanian on an English page.
+ROMANIAN_LETTERS = set("șțăîâȘȚĂÎÂ")
+
+#: Where Romanian legitimately lives outside a component.
+#:
+#: `consent.ts` holds both languages on purpose: its exact wording is digested and stored
+#: against each authorization, so it is versioned rather than translated freely, and it
+#: says so at length in its own docstring.
+I18N_EXEMPT = ("src/lib/i18n/", "src/lib/consent.ts", ".test.ts", ".test.tsx")
+
+
+def check_i18n(root: Path) -> list[str]:
+    """User-visible Romanian must come from the catalogue, not from a component.
+
+    Found by running the product in English and reading the page: the domains screen
+    rendered "AUTHORIZED SURFACE" above "Domenii verificate", because four strings were
+    written straight into the component while everything around them was translated.
+    Nothing failed, and the English catalogue was complete -- the keys simply were not
+    being used, which no test of the catalogue can detect.
+
+    **This catches some of the problem, not all of it.** It keys on letters that exist in
+    Romanian and not in English, so "Acceptat" and "Respins" pass straight through. Six
+    such strings were sitting in the same file as the two this found; the value of the
+    check is that it points at the file, and a person reads the rest. A gate that claimed
+    to prove the absence of hardcoded text would be worse than this one, because it would
+    be believed.
+    """
+    problems: list[str] = []
+    web = root / "apps" / "web" / "src"
+    for path in sorted(web.rglob("*.ts*")):
+        relative = path.relative_to(root).as_posix()
+        if any(part in relative for part in I18N_EXEMPT):
+            continue
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            if ROMANIAN_LETTERS & set(line):
+                problems.append(
+                    f"{relative}:{number}: Romanian text outside the message catalogue: "
+                    f"{line.strip()[:70]}"
+                )
+    return problems
 
 
 def check_images(root: Path) -> list[str]:
@@ -284,6 +329,8 @@ def verify_internal_gate(name: str, root: Path) -> list[str]:
         ]
     if name == "images":
         return check_images(root)
+    if name == "i18n":
+        return check_i18n(root)
     if name == "sbom":
         manifests = (root / "uv.lock", root / "pnpm-lock.yaml")
         return [f"SBOM input missing: {path.name}" for path in manifests if not path.is_file()]
@@ -292,7 +339,8 @@ def verify_internal_gate(name: str, root: Path) -> list[str]:
 
 def main() -> int:
     root = Path(__file__).resolve().parents[1]
-    for check in build_checks(root):
+    checks = build_checks(root)
+    for check in checks:
         print(f"[check] {check.name}", flush=True)
         errors = verify_internal_gate(check.name, root)
         if errors:
@@ -304,7 +352,10 @@ def main() -> int:
             if completed.returncode != 0:
                 print(f"[check] failed: {check.name}", file=sys.stderr)
                 return completed.returncode
-    print("Repository verification passed: 14/14 gates")
+    # Counted, not written down. This line said "14/14" for as long as there were
+    # fourteen gates and kept saying it after a fifteenth was added, which is the exact
+    # failure mode this repository keeps finding: a confident number nobody recomputed.
+    print(f"Repository verification passed: {len(checks)}/{len(checks)} gates")
     return 0
 
 
