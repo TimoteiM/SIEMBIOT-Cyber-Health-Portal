@@ -1,0 +1,431 @@
+{
+  "_comment": "Self-declared organisational practice, grounded in the ten measure categories of NIS2 Article 21(2). The questions are this project's own wording; no standard's control text is reproduced here. A CIS Controls v8.1 IG1 mapping is deliberately absent rather than approximated: that text is copyrighted and mapping to it is a licensing decision, not an engineering one. The field exists in the schema, unpopulated, so adding it later is a data change rather than a migration. Every question is review_status 'draft' until a named owner signs it off. NOTHING HERE IS OBSERVED. The whole catalogue records what somebody says about their own organisation, which is a different kind of evidence from an assessment result and is never blended with one.",
+  "questionnaire_id": "nis2_baseline",
+  "version": "1.0.0",
+  "review_status": "draft",
+  "review_date": "2026-08-07",
+  "notice_ro": "Un chestionar de autoevaluare. Răspunsurile sunt declarații ale organizației, nu constatări verificate de platformă, și nu constituie o determinare de conformitate NIS2.",
+  "notice_en": "A self-assessment questionnaire. The answers are the organisation's own declarations, not findings the platform verified, and do not constitute a NIS2 conformity determination.",
+
+  "_ladder_comment": "One ladder for every question, defined once. The rungs are 0, 2, 3 and 5 on the 0-5 scale rather than 0-1-2-3-4-5: four rungs are as many distinctions as anybody can reliably draw about their own organisation, and inventing two more to fill the gaps would manufacture precision. 'unknown' reduces completeness instead of scoring zero, exactly as an unknown check reduces coverage rather than failing -- not knowing is not the same as not having, and the two must not produce the same number.",
+  "answer_ladder": [
+    {
+      "answer": "absent",
+      "level": 0,
+      "scored": true,
+      "label_ro": "Nu există.",
+      "label_en": "Not in place."
+    },
+    {
+      "answer": "informal",
+      "level": 2,
+      "scored": true,
+      "label_ro": "Se face în practică, dar nu este documentat sau nu este consecvent.",
+      "label_en": "Done in practice, but not written down or not consistent."
+    },
+    {
+      "answer": "documented",
+      "level": 3,
+      "scored": true,
+      "label_ro": "Documentat și aplicat consecvent.",
+      "label_en": "Documented and applied consistently."
+    },
+    {
+      "answer": "verified",
+      "level": 5,
+      "scored": true,
+      "label_ro": "Documentat, aplicat și testat sau revizuit în ultimele 12 luni.",
+      "label_en": "Documented, applied, and tested or reviewed in the last 12 months."
+    },
+    {
+      "answer": "unknown",
+      "level": null,
+      "scored": false,
+      "effect": "reduces_completeness",
+      "label_ro": "Nu știu.",
+      "label_en": "I do not know."
+    },
+    {
+      "answer": "not_applicable",
+      "level": null,
+      "scored": false,
+      "effect": "leaves_denominator",
+      "label_ro": "Nu se aplică organizației noastre.",
+      "label_en": "Does not apply to our organisation."
+    }
+  ],
+
+  "minimum_completeness_percentage": 70,
+
+  "sections": [
+    {
+      "section_id": "risk_management",
+      "nis2_reference": "Article 21(2)(a)",
+      "cis_reference": null,
+      "title_ro": "Analiza riscurilor și politici de securitate",
+      "title_en": "Risk analysis and security policies",
+      "questions": [
+        {
+          "question_id": "risk_management.assessment_performed",
+          "weight": 3,
+          "corroborating_check_id": null,
+          "title_ro": "Organizația a realizat o evaluare a riscurilor de securitate a informației în ultimele 12 luni.",
+          "title_en": "The organisation carried out an information security risk assessment in the last 12 months.",
+          "help_ro": "Un exercițiu care identifică ce sisteme contează, ce li se poate întâmpla și cât de grav ar fi. Un document moștenit de acum cinci ani nu se califică.",
+          "help_en": "An exercise that identifies which systems matter, what could happen to them, and how bad that would be. A document inherited from five years ago does not count."
+        },
+        {
+          "question_id": "risk_management.policy_approved",
+          "weight": 2,
+          "corroborating_check_id": null,
+          "title_ro": "Există o politică de securitate a informației aprobată de conducere.",
+          "title_en": "There is an information security policy approved by management.",
+          "help_ro": "Aprobată explicit de conducere, nu doar redactată de echipa tehnică. Fără aprobare, politica nu obligă pe nimeni.",
+          "help_en": "Explicitly approved by management, not merely drafted by the technical team. Without approval a policy obliges nobody."
+        },
+        {
+          "question_id": "risk_management.treatment_owned",
+          "weight": 2,
+          "corroborating_check_id": null,
+          "title_ro": "Riscurile identificate au un responsabil desemnat și un termen.",
+          "title_en": "Identified risks have a named owner and a deadline.",
+          "help_ro": "O listă de riscuri fără nume și fără date este un document, nu un plan.",
+          "help_en": "A list of risks with no names and no dates is a document, not a plan."
+        }
+      ]
+    },
+    {
+      "section_id": "incident_handling",
+      "nis2_reference": "Article 21(2)(b)",
+      "cis_reference": null,
+      "title_ro": "Tratarea incidentelor",
+      "title_en": "Incident handling",
+      "questions": [
+        {
+          "question_id": "incident_handling.procedure_exists",
+          "weight": 3,
+          "corroborating_check_id": null,
+          "title_ro": "Există o procedură scrisă de tratare a incidentelor de securitate.",
+          "title_en": "There is a written procedure for handling security incidents.",
+          "help_ro": "Cine decide, cine investighează, cine comunică și în ce ordine. Momentul incidentului nu este momentul în care se scrie procedura.",
+          "help_en": "Who decides, who investigates, who communicates, and in what order. The moment of an incident is not the moment to write the procedure."
+        },
+        {
+          "question_id": "incident_handling.reporting_obligation_known",
+          "weight": 3,
+          "corroborating_check_id": null,
+          "title_ro": "Organizația știe cui trebuie să raporteze un incident semnificativ și în cât timp.",
+          "title_en": "The organisation knows who it must report a significant incident to, and within what deadline.",
+          "help_ro": "În România, autoritatea competentă este DNSC. NIS2 prevede o avertizare timpurie în 24 de ore de la constatare. Termenul curge indiferent dacă cineva știe de el.",
+          "help_en": "In Romania the competent authority is DNSC. NIS2 provides for an early warning within 24 hours of becoming aware. The clock runs whether or not anybody knows about it."
+        },
+        {
+          "question_id": "incident_handling.contact_reachable",
+          "weight": 2,
+          "corroborating_check_id": null,
+          "title_ro": "Există un punct de contact care poate fi atins în afara programului de lucru.",
+          "title_en": "There is a point of contact reachable outside working hours.",
+          "help_ro": "Majoritatea incidentelor încep noaptea sau în weekend, când adresa generică de e-mail nu este citită de nimeni.",
+          "help_en": "Most incidents begin at night or at a weekend, when nobody is reading the generic mailbox."
+        }
+      ]
+    },
+    {
+      "section_id": "continuity",
+      "nis2_reference": "Article 21(2)(c)",
+      "cis_reference": null,
+      "title_ro": "Continuitate, copii de siguranță și gestionarea crizelor",
+      "title_en": "Continuity, backup management and crisis management",
+      "questions": [
+        {
+          "question_id": "continuity.backups_exist",
+          "weight": 3,
+          "corroborating_check_id": null,
+          "title_ro": "Se realizează copii de siguranță ale datelor și sistemelor esențiale.",
+          "title_en": "Backups are taken of essential data and systems.",
+          "help_ro": "Cu o frecvență stabilită în funcție de cât de multe date își permite organizația să piardă.",
+          "help_en": "At a frequency chosen from how much data the organisation can afford to lose."
+        },
+        {
+          "question_id": "continuity.restore_tested",
+          "weight": 3,
+          "corroborating_check_id": null,
+          "title_ro": "Restaurarea dintr-o copie de siguranță a fost testată în ultimele 12 luni.",
+          "title_en": "Restoring from a backup was tested in the last 12 months.",
+          "help_ro": "O copie care nu a fost restaurată niciodată nu este o copie de siguranță, ci o presupunere. Aceasta este întrebarea care separă organizațiile care au copii de siguranță de cele care cred că au.",
+          "help_en": "A backup that has never been restored is not a backup, it is an assumption. This is the question that separates organisations that have backups from organisations that believe they do."
+        },
+        {
+          "question_id": "continuity.copy_isolated",
+          "weight": 2,
+          "corroborating_check_id": null,
+          "title_ro": "Cel puțin o copie este izolată de rețea sau nu poate fi ștearsă de administratorii obișnuiți.",
+          "title_en": "At least one copy is isolated from the network or cannot be deleted by ordinary administrators.",
+          "help_ro": "Un atac cu răscumpărare șterge întâi copiile pe care le poate atinge, folosind exact conturile care le administrează.",
+          "help_en": "A ransomware attack deletes the copies it can reach first, using exactly the accounts that administer them."
+        },
+        {
+          "question_id": "continuity.plan_exists",
+          "weight": 2,
+          "corroborating_check_id": null,
+          "title_ro": "Există un plan de continuitate care spune ce servicii se restabilesc primele.",
+          "title_en": "There is a continuity plan that says which services are restored first.",
+          "help_ro": "Ordinea trebuie decisă înainte, nu în timpul crizei, când toate par urgente.",
+          "help_en": "The order has to be decided beforehand, not during the crisis, when everything looks urgent."
+        }
+      ]
+    },
+    {
+      "section_id": "supply_chain",
+      "nis2_reference": "Article 21(2)(d)",
+      "cis_reference": null,
+      "title_ro": "Securitatea lanțului de aprovizionare",
+      "title_en": "Supply chain security",
+      "questions": [
+        {
+          "question_id": "supply_chain.suppliers_inventoried",
+          "weight": 2,
+          "corroborating_check_id": null,
+          "title_ro": "Există o listă a furnizorilor care au acces la sistemele sau datele organizației.",
+          "title_en": "There is a list of suppliers with access to the organisation's systems or data.",
+          "help_ro": "Inclusiv furnizorii de găzduire, de e-mail și cei care întrețin aplicațiile.",
+          "help_en": "Including hosting providers, email providers, and whoever maintains the applications."
+        },
+        {
+          "question_id": "supply_chain.security_requirements",
+          "weight": 2,
+          "corroborating_check_id": null,
+          "title_ro": "Contractele cu acești furnizori conțin cerințe de securitate.",
+          "title_en": "Contracts with those suppliers contain security requirements.",
+          "help_ro": "Fără clauze, obligațiile organizației nu se transmit mai departe și rămân integral ale ei.",
+          "help_en": "Without clauses, the organisation's obligations do not travel down the chain and remain entirely its own."
+        },
+        {
+          "question_id": "supply_chain.incident_notification",
+          "weight": 2,
+          "corroborating_check_id": null,
+          "title_ro": "Furnizorii sunt obligați să anunțe organizația în caz de incident la ei.",
+          "title_en": "Suppliers are required to notify the organisation of an incident on their side.",
+          "help_ro": "Termenul de raportare al organizației curge din momentul în care află, iar dacă furnizorul nu spune, nu află.",
+          "help_en": "The organisation's own reporting deadline runs from when it becomes aware, and if the supplier does not say, it does not become aware."
+        }
+      ]
+    },
+    {
+      "section_id": "secure_operations",
+      "nis2_reference": "Article 21(2)(e)",
+      "cis_reference": null,
+      "title_ro": "Achiziție, dezvoltare și tratarea vulnerabilităților",
+      "title_en": "Acquisition, development and vulnerability handling",
+      "questions": [
+        {
+          "question_id": "secure_operations.vulnerability_monitoring",
+          "weight": 3,
+          "corroborating_check_id": null,
+          "title_ro": "Cineva urmărește vulnerabilitățile anunțate pentru produsele folosite de organizație.",
+          "title_en": "Somebody follows the vulnerabilities announced for the products the organisation uses.",
+          "help_ro": "Presupune să se știe ce produse și ce versiuni sunt în funcțiune.",
+          "help_en": "This presumes knowing which products and which versions are running."
+        },
+        {
+          "question_id": "secure_operations.patching_timeline",
+          "weight": 3,
+          "corroborating_check_id": null,
+          "title_ro": "Există un termen stabilit pentru aplicarea actualizărilor de securitate critice.",
+          "title_en": "There is an agreed deadline for applying critical security updates.",
+          "help_ro": "Un termen scris permite să se observe când este depășit. Fără el, întârzierea nu are cum să fie remarcată.",
+          "help_en": "A written deadline makes it possible to notice when it is missed. Without one, lateness has no way of being noticed."
+        },
+        {
+          "question_id": "secure_operations.disclosure_contact",
+          "weight": 2,
+          "corroborating_check_id": null,
+          "title_ro": "Există o modalitate publică prin care cineva din exterior poate raporta o vulnerabilitate.",
+          "title_en": "There is a public way for somebody outside to report a vulnerability.",
+          "help_ro": "O adresă de contact publicată. Cercetătorul care găsește ceva și nu are unde să raporteze fie renunță, fie publică.",
+          "help_en": "A published contact address. A researcher who finds something and has nowhere to report it either gives up or publishes."
+        }
+      ]
+    },
+    {
+      "section_id": "effectiveness",
+      "nis2_reference": "Article 21(2)(f)",
+      "cis_reference": null,
+      "title_ro": "Evaluarea eficacității măsurilor",
+      "title_en": "Assessing the effectiveness of the measures",
+      "questions": [
+        {
+          "question_id": "effectiveness.measures_reviewed",
+          "weight": 2,
+          "corroborating_check_id": null,
+          "title_ro": "Măsurile de securitate sunt revizuite periodic pentru a vedea dacă încă funcționează.",
+          "title_en": "The security measures are reviewed periodically to see whether they still work.",
+          "help_ro": "Sistemele se schimbă, iar o măsură potrivită anul trecut poate să nu mai acopere nimic.",
+          "help_en": "Systems change, and a measure that fitted last year may now cover nothing."
+        },
+        {
+          "question_id": "effectiveness.independent_check",
+          "weight": 2,
+          "corroborating_check_id": null,
+          "title_ro": "În ultimele 24 de luni, cineva din afara echipei care le-a implementat a verificat măsurile.",
+          "title_en": "In the last 24 months somebody outside the team that implemented them checked the measures.",
+          "help_ro": "Un audit, un test de penetrare sau o evaluare externă. Echipa care a construit un sistem îl verifică cu aceleași presupuneri cu care l-a construit.",
+          "help_en": "An audit, a penetration test, or an external review. The team that built a system checks it with the same assumptions it was built on."
+        }
+      ]
+    },
+    {
+      "section_id": "hygiene_training",
+      "nis2_reference": "Article 21(2)(g)",
+      "cis_reference": null,
+      "title_ro": "Igiena cibernetică de bază și instruirea personalului",
+      "title_en": "Basic cyber hygiene and staff training",
+      "questions": [
+        {
+          "question_id": "hygiene_training.awareness_training",
+          "weight": 3,
+          "corroborating_check_id": null,
+          "title_ro": "Personalul primește instruire de securitate cel puțin anual.",
+          "title_en": "Staff receive security training at least once a year.",
+          "help_ro": "Inclusiv conducerea, care este ținta preferată a atacurilor prin e-mail.",
+          "help_en": "Including management, who are the preferred target of email-based attacks."
+        },
+        {
+          "question_id": "hygiene_training.phishing_exercise",
+          "weight": 2,
+          "corroborating_check_id": null,
+          "title_ro": "Organizația a testat reacția personalului la un e-mail de tip phishing.",
+          "title_en": "The organisation has tested how staff respond to a phishing email.",
+          "help_ro": "Rezultatul util nu este câți au dat click, ci câți au raportat.",
+          "help_en": "The useful result is not how many clicked, but how many reported it."
+        },
+        {
+          "question_id": "hygiene_training.email_authentication",
+          "weight": 2,
+          "corroborating_check_id": "B.dmarc_enforced",
+          "title_ro": "Domeniile organizației sunt configurate astfel încât altcineva să nu poată trimite e-mail în numele lor.",
+          "title_en": "The organisation's domains are configured so that nobody else can send email in their name.",
+          "help_ro": "SPF, DKIM și DMARC în regim de aplicare. Aceasta este una dintre puținele întrebări din chestionar la care platforma poate privi ea însăși, iar răspunsul dumneavoastră va fi comparat cu ceea ce observă.",
+          "help_en": "SPF, DKIM and DMARC in enforcing mode. This is one of the few questions here the platform can look at itself, and your answer will be compared with what it observes."
+        }
+      ]
+    },
+    {
+      "section_id": "cryptography",
+      "nis2_reference": "Article 21(2)(h)",
+      "cis_reference": null,
+      "title_ro": "Criptografie și criptare",
+      "title_en": "Cryptography and encryption",
+      "questions": [
+        {
+          "question_id": "cryptography.public_services_encrypted",
+          "weight": 2,
+          "corroborating_check_id": "C.https_available",
+          "title_ro": "Serviciile publice ale organizației sunt accesibile doar prin conexiuni criptate.",
+          "title_en": "The organisation's public services are reachable only over encrypted connections.",
+          "help_ro": "Și această întrebare este comparată cu ceea ce observă evaluarea tehnică.",
+          "help_en": "This question too is compared with what the technical assessment observes."
+        },
+        {
+          "question_id": "cryptography.data_at_rest",
+          "weight": 2,
+          "corroborating_check_id": null,
+          "title_ro": "Datele sensibile sunt criptate acolo unde sunt stocate, inclusiv pe laptopuri.",
+          "title_en": "Sensitive data is encrypted where it is stored, including on laptops.",
+          "help_ro": "Un laptop pierdut fără criptare este o încălcare a securității datelor; cu criptare, este un laptop pierdut.",
+          "help_en": "A lost laptop without encryption is a data breach; with encryption, it is a lost laptop."
+        },
+        {
+          "question_id": "cryptography.key_management",
+          "weight": 2,
+          "corroborating_check_id": null,
+          "title_ro": "Se știe unde sunt păstrate cheile și certificatele și cine are acces la ele.",
+          "title_en": "It is known where keys and certificates are kept and who has access to them.",
+          "help_ro": "Inclusiv ce se întâmplă când pleacă persoana care le administrează.",
+          "help_en": "Including what happens when the person who administers them leaves."
+        }
+      ]
+    },
+    {
+      "section_id": "access_and_assets",
+      "nis2_reference": "Article 21(2)(i)",
+      "cis_reference": null,
+      "title_ro": "Resurse umane, control al accesului și gestionarea activelor",
+      "title_en": "Human resources, access control and asset management",
+      "questions": [
+        {
+          "question_id": "access_and_assets.inventory_maintained",
+          "weight": 3,
+          "corroborating_check_id": "D.asset_attribution_reviewed",
+          "title_ro": "Există un inventar al sistemelor, serviciilor și domeniilor organizației.",
+          "title_en": "There is an inventory of the organisation's systems, services and domains.",
+          "help_ro": "Nu se poate proteja ceea ce nu se știe că există. Serviciile uitate sunt cele care rămân neactualizate.",
+          "help_en": "What is not known to exist cannot be protected. Forgotten services are the ones that stay unpatched."
+        },
+        {
+          "question_id": "access_and_assets.access_reviewed",
+          "weight": 3,
+          "corroborating_check_id": null,
+          "title_ro": "Drepturile de acces sunt revizuite periodic.",
+          "title_en": "Access rights are reviewed periodically.",
+          "help_ro": "Accesul se acumulează pe măsură ce oamenii schimbă rolurile și aproape niciodată nu se retrage de la sine.",
+          "help_en": "Access accumulates as people change roles, and almost never withdraws by itself."
+        },
+        {
+          "question_id": "access_and_assets.leaver_process",
+          "weight": 3,
+          "corroborating_check_id": null,
+          "title_ro": "Accesul este retras în aceeași zi în care o persoană pleacă din organizație.",
+          "title_en": "Access is withdrawn on the same day a person leaves the organisation.",
+          "help_ro": "Inclusiv accesul la serviciile din exterior și la conturile partajate.",
+          "help_en": "Including access to external services and to shared accounts."
+        },
+        {
+          "question_id": "access_and_assets.privileged_separate",
+          "weight": 2,
+          "corroborating_check_id": null,
+          "title_ro": "Administratorii folosesc conturi separate pentru activitatea de zi cu zi.",
+          "title_en": "Administrators use separate accounts for day-to-day work.",
+          "help_ro": "Un e-mail deschis dintr-un cont de administrator predă direct drepturile de administrator.",
+          "help_en": "An email opened from an administrator account hands over administrator rights directly."
+        }
+      ]
+    },
+    {
+      "section_id": "authentication",
+      "nis2_reference": "Article 21(2)(j)",
+      "cis_reference": null,
+      "title_ro": "Autentificare multifactor și comunicații securizate",
+      "title_en": "Multi-factor authentication and secured communications",
+      "questions": [
+        {
+          "question_id": "authentication.mfa_remote_access",
+          "weight": 3,
+          "corroborating_check_id": null,
+          "title_ro": "Accesul de la distanță necesită autentificare multifactor.",
+          "title_en": "Remote access requires multi-factor authentication.",
+          "help_ro": "Parolele furate sunt modul obișnuit în care începe un incident, iar al doilea factor este măsura care le face insuficiente.",
+          "help_en": "Stolen passwords are the ordinary way an incident begins, and a second factor is the measure that makes them insufficient."
+        },
+        {
+          "question_id": "authentication.mfa_privileged",
+          "weight": 3,
+          "corroborating_check_id": null,
+          "title_ro": "Conturile de administrator necesită autentificare multifactor.",
+          "title_en": "Administrator accounts require multi-factor authentication.",
+          "help_ro": "Inclusiv conturile de administrare la furnizorii externi: găzduire, DNS, registrar.",
+          "help_en": "Including administrative accounts at external providers: hosting, DNS, registrar."
+        },
+        {
+          "question_id": "authentication.emergency_communications",
+          "weight": 2,
+          "corroborating_check_id": null,
+          "title_ro": "Există un mod de comunicare stabilit pentru cazul în care sistemele obișnuite nu sunt disponibile.",
+          "title_en": "There is an agreed way to communicate if the usual systems are unavailable.",
+          "help_ro": "Dacă e-mailul este oprit sau compromis, planul care se află doar pe e-mail nu poate fi citit.",
+          "help_en": "If email is down or compromised, a plan that exists only in email cannot be read."
+        }
+      ]
+    }
+  ]
+}

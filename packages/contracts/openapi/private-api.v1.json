@@ -219,6 +219,54 @@
         "title": "ActionUpsert",
         "type": "object"
       },
+      "AnswerUpsert": {
+        "additionalProperties": false,
+        "properties": {
+          "answer": {
+            "enum": [
+              "absent",
+              "informal",
+              "documented",
+              "verified",
+              "unknown",
+              "not_applicable"
+            ],
+            "title": "Answer",
+            "type": "string"
+          },
+          "evidence_reference": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Reference"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "required": [
+          "answer"
+        ],
+        "title": "AnswerUpsert",
+        "type": "object"
+      },
       "AssessmentAuthorizationCreate": {
         "additionalProperties": false,
         "properties": {
@@ -1942,6 +1990,171 @@
         "title": "InvitationResponse",
         "type": "object"
       },
+      "LadderRungResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "answer": {
+            "enum": [
+              "absent",
+              "informal",
+              "documented",
+              "verified",
+              "unknown",
+              "not_applicable"
+            ],
+            "title": "Answer",
+            "type": "string"
+          },
+          "label_en": {
+            "title": "Label En",
+            "type": "string"
+          },
+          "label_ro": {
+            "title": "Label Ro",
+            "type": "string"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "scored": {
+            "title": "Scored",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "answer",
+          "scored",
+          "label_ro",
+          "label_en"
+        ],
+        "title": "LadderRungResponse",
+        "type": "object"
+      },
+      "MaturityResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "answered_count": {
+            "default": 0,
+            "title": "Answered Count",
+            "type": "integer"
+          },
+          "comparable": {
+            "title": "Comparable",
+            "type": "boolean"
+          },
+          "completeness_percentage": {
+            "title": "Completeness Percentage",
+            "type": "number"
+          },
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "contradicted_count": {
+            "default": 0,
+            "title": "Contradicted Count",
+            "type": "integer"
+          },
+          "incomparable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Incomparable Reason"
+          },
+          "ladder": {
+            "items": {
+              "$ref": "#/components/schemas/LadderRungResponse"
+            },
+            "title": "Ladder",
+            "type": "array"
+          },
+          "minimum_completeness_percentage": {
+            "title": "Minimum Completeness Percentage",
+            "type": "integer"
+          },
+          "not_applicable_count": {
+            "default": 0,
+            "title": "Not Applicable Count",
+            "type": "integer"
+          },
+          "notice_en": {
+            "title": "Notice En",
+            "type": "string"
+          },
+          "notice_ro": {
+            "title": "Notice Ro",
+            "type": "string"
+          },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "questionnaire_id": {
+            "title": "Questionnaire Id",
+            "type": "string"
+          },
+          "questionnaire_version": {
+            "title": "Questionnaire Version",
+            "type": "string"
+          },
+          "review_status": {
+            "title": "Review Status",
+            "type": "string"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/SectionResponse"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "self_declared_percentage": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Self Declared Percentage"
+          },
+          "unanswered_count": {
+            "default": 0,
+            "title": "Unanswered Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "organization_id",
+          "questionnaire_id",
+          "questionnaire_version",
+          "review_status",
+          "notice_ro",
+          "notice_en",
+          "completeness_percentage",
+          "minimum_completeness_percentage",
+          "comparable"
+        ],
+        "title": "MaturityResponse",
+        "type": "object"
+      },
       "MembershipResponse": {
         "additionalProperties": false,
         "properties": {
@@ -2069,6 +2282,159 @@
           "created_at"
         ],
         "title": "OrganizationResponse",
+        "type": "object"
+      },
+      "QuestionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "answer": {
+            "anyOf": [
+              {
+                "enum": [
+                  "absent",
+                  "informal",
+                  "documented",
+                  "verified",
+                  "unknown",
+                  "not_applicable"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer"
+          },
+          "answered_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answered At"
+          },
+          "answered_by_display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answered By Display Name"
+          },
+          "corroborating_check_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Corroborating Check Id"
+          },
+          "corroboration": {
+            "anyOf": [
+              {
+                "enum": [
+                  "consistent",
+                  "contradicted",
+                  "understated",
+                  "not_observed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Corroboration"
+          },
+          "evidence_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Reference"
+          },
+          "help_en": {
+            "title": "Help En",
+            "type": "string"
+          },
+          "help_ro": {
+            "title": "Help Ro",
+            "type": "string"
+          },
+          "nis2_reference": {
+            "title": "Nis2 Reference",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "observed": {
+            "anyOf": [
+              {
+                "enum": [
+                  "pass",
+                  "problem",
+                  "inconclusive",
+                  "not_assessed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed"
+          },
+          "question_id": {
+            "title": "Question Id",
+            "type": "string"
+          },
+          "title_en": {
+            "title": "Title En",
+            "type": "string"
+          },
+          "title_ro": {
+            "title": "Title Ro",
+            "type": "string"
+          },
+          "weight": {
+            "title": "Weight",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "question_id",
+          "nis2_reference",
+          "weight",
+          "title_ro",
+          "title_en",
+          "help_ro",
+          "help_en"
+        ],
+        "title": "QuestionResponse",
         "type": "object"
       },
       "ReadinessResponse": {
@@ -2459,6 +2825,69 @@
           "created_at"
         ],
         "title": "ScopeManifestResponse",
+        "type": "object"
+      },
+      "SectionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "cis_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cis Reference"
+          },
+          "completeness_percentage": {
+            "title": "Completeness Percentage",
+            "type": "number"
+          },
+          "nis2_reference": {
+            "title": "Nis2 Reference",
+            "type": "string"
+          },
+          "percentage": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percentage"
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/QuestionResponse"
+            },
+            "title": "Questions",
+            "type": "array"
+          },
+          "section_id": {
+            "title": "Section Id",
+            "type": "string"
+          },
+          "title_en": {
+            "title": "Title En",
+            "type": "string"
+          },
+          "title_ro": {
+            "title": "Title Ro",
+            "type": "string"
+          }
+        },
+        "required": [
+          "section_id",
+          "nis2_reference",
+          "title_ro",
+          "title_en",
+          "completeness_percentage"
+        ],
+        "title": "SectionResponse",
         "type": "object"
       },
       "SessionResponse": {
@@ -4330,6 +4759,112 @@
         "summary": "Create Invitation",
         "tags": [
           "organizations"
+        ]
+      }
+    },
+    "/api/v1/organizations/{organization_id}/maturity": {
+      "get": {
+        "operationId": "index_api_v1_organizations__organization_id__maturity_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaturityResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Index",
+        "tags": [
+          "maturity"
+        ]
+      }
+    },
+    "/api/v1/organizations/{organization_id}/maturity/answers/{question_id}": {
+      "put": {
+        "description": "Record one answer, and return the whole questionnaire.\n\nAuthorized with `ORGANIZATION_UPDATE`: an answer here is a statement made on\nbehalf of the organisation, not a note about an assessment, so it sits with the\npeople who can speak for it rather than with everybody who can read a report.\n\nReturns the full document because a single answer changes the score, the\ncompleteness, and possibly whether a score is shown at all. Returning only the\nstored row would leave every client to recompute that, and clients that\nrecompute a score eventually disagree with the server about it.",
+        "operationId": "answer_api_v1_organizations__organization_id__maturity_answers__question_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "question_id",
+            "required": true,
+            "schema": {
+              "title": "Question Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerUpsert"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaturityResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Answer",
+        "tags": [
+          "maturity"
         ]
       }
     },

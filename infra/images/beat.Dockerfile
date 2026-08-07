@@ -1,4 +1,4 @@
-# The scheduler image.
+﻿# The scheduler image.
 #
 # Identical to the worker apart from the entrypoint, and separate on purpose: exactly
 # one scheduler must run. Two would enqueue every due assessment twice -- harmless,
@@ -47,13 +47,18 @@ COPY --chown=root:root packages/policy /app/packages/policy
 
 USER 10003:10003
 
-# No healthcheck. A Celery worker has no socket to probe, and `celery inspect ping`
-# would have this container declare itself unhealthy whenever the broker is briefly
-# unreachable -- restarting a worker mid-run to no purpose. The engine already treats
-# an interrupted run as resumable; liveness here is the orchestrator's business.
+# No healthcheck. There is no socket to probe, and a scheduler that declares itself
+# unhealthy during a brief broker outage would be restarted for nothing. Whether beat is
+# actually dispatching is answered by `siembiot_schedules_due`, which is the signal that
+# matters: a scheduler that is running but not dispatching looks healthy to any probe.
 
-# Neither --beat nor a scheduler: exactly one scheduler runs, from beat.Dockerfile, and
-# baking it in here would start one per replica the moment anybody scaled the workers.
-ENTRYPOINT ["celery", "-A", "siembiot_worker.celery_app", "worker", \
-            "--queues", "assessments", "--pool", "threads", "--concurrency", "4", \
+# `beat`, not `worker`. This image consumes no queue and runs no task; it only wakes on
+# the intervals in `beat_schedule` and enqueues `siembiot.sweep` and
+# `siembiot.start_scheduled` for the workers to pick up.
+#
+# The schedule file goes in /tmp because the root filesystem is read-only. Losing it on
+# restart is harmless -- both entries are fixed intervals rather than crontabs, so beat
+# reschedules them immediately from the configuration.
+ENTRYPOINT ["celery", "-A", "siembiot_worker.celery_app", "beat", \
+            "--schedule", "/tmp/celerybeat-schedule", \
             "--loglevel", "info"]

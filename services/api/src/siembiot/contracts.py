@@ -612,3 +612,100 @@ class RoadmapResponse(ContractModel):
     overdue_count: int = 0
     #: Actions asserted complete whose weakness is still observed.
     contradicted_count: int = 0
+
+
+# -- self-assessment ---------------------------------------------------------
+#
+# Everything below carries declarations rather than observations, and the contract is
+# shaped to keep that visible at every layer. There is deliberately no field anywhere
+# that combines a self-declared figure with a measured one.
+
+MATURITY_ANSWERS = Literal[
+    "absent", "informal", "documented", "verified", "unknown", "not_applicable"
+]
+
+#: What the technical assessment saw about the same subject, where it could see anything.
+OBSERVED_RESULT = Literal["pass", "problem", "inconclusive", "not_assessed"]
+
+CORROBORATION = Literal["consistent", "contradicted", "understated", "not_observed"]
+
+
+class LadderRungResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    answer: MATURITY_ANSWERS
+    #: Absent where the rung is not scored. Not zero: "I do not know" is not "no".
+    level: int | None = None
+    scored: bool
+    label_ro: str
+    label_en: str
+
+
+class AnswerUpsert(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    answer: MATURITY_ANSWERS
+    #: Where the supporting document lives, if the respondent says one does. Naming a
+    #: document is still an assertion; the platform does not read it, and nothing is
+    #: promoted on the strength of a string in this field.
+    evidence_reference: str | None = Field(default=None, min_length=1, max_length=500)
+    note: str | None = Field(default=None, min_length=1, max_length=2000)
+
+
+class QuestionResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    question_id: str
+    nis2_reference: str
+    weight: int
+    title_ro: str
+    title_en: str
+    help_ro: str
+    help_en: str
+    #: Absent for most questions, because most of what protects an organisation cannot
+    #: be seen from the internet. That is the reason for asking rather than a gap.
+    corroborating_check_id: str | None = None
+    answer: MATURITY_ANSWERS | None = None
+    evidence_reference: str | None = None
+    note: str | None = None
+    answered_at: datetime | None = None
+    answered_by_display_name: str | None = None
+    #: What the assessment saw, and how it sits against the answer. Both carried so a
+    #: client cannot show one without the other.
+    observed: OBSERVED_RESULT | None = None
+    corroboration: CORROBORATION | None = None
+
+
+class SectionResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    section_id: str
+    nis2_reference: str
+    #: Present and null until a mapping to CIS Controls clears licensing review. An
+    #: approximation written here would be read as authoritative.
+    cis_reference: str | None = None
+    title_ro: str
+    title_en: str
+    percentage: float | None = None
+    completeness_percentage: float
+    questions: list[QuestionResponse] = Field(default_factory=list)
+
+
+class MaturityResponse(ContractModel):
+    organization_id: UUID
+    questionnaire_id: str
+    questionnaire_version: str
+    #: 'draft' until a named owner signs the questions off. Shown, not hidden.
+    review_status: str
+    notice_ro: str
+    notice_en: str
+    ladder: list[LadderRungResponse] = Field(default_factory=list)
+    #: Withheld, not caveated, below the completeness floor. A caveat beside a number
+    #: loses to the number.
+    self_declared_percentage: float | None = None
+    completeness_percentage: float
+    minimum_completeness_percentage: int
+    comparable: bool
+    incomparable_reason: str | None = None
+    answered_count: int = 0
+    unanswered_count: int = 0
+    not_applicable_count: int = 0
+    #: Answers claiming a practice is in place where the assessment observes otherwise.
+    contradicted_count: int = 0
+    sections: list[SectionResponse] = Field(default_factory=list)

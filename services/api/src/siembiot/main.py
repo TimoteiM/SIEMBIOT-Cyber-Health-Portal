@@ -30,6 +30,7 @@ from siembiot.errors import AppError
 from siembiot.findings import build_findings_router
 from siembiot.history import build_history_router
 from siembiot.identity import IdentityResolver, build_identity_resolver
+from siembiot.maturity_router import build_maturity_router
 from siembiot.metrics import build_metrics_router
 from siembiot.organizations import build_invitation_router, build_organization_router
 from siembiot.request_context import RequestContextMiddleware, new_request_id
@@ -138,6 +139,7 @@ def create_app(
     app.include_router(build_schedule_router())
     app.include_router(build_history_router())
     app.include_router(build_roadmap_router())
+    app.include_router(build_maturity_router())
     app.include_router(build_metrics_router())
 
     return app

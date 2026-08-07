@@ -505,6 +505,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/organizations/{organization_id}/maturity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Index */
+        get: operations["index_api_v1_organizations__organization_id__maturity_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/maturity/answers/{question_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Answer
+         * @description Record one answer, and return the whole questionnaire.
+         *
+         *     Authorized with `ORGANIZATION_UPDATE`: an answer here is a statement made on
+         *     behalf of the organisation, not a note about an assessment, so it sits with the
+         *     people who can speak for it rather than with everybody who can read a report.
+         *
+         *     Returns the full document because a single answer changes the score, the
+         *     completeness, and possibly whether a score is shown at all. Returning only the
+         *     stored row would leave every client to recompute that, and clients that
+         *     recompute a score eventually disagree with the server about it.
+         */
+        put: operations["answer_api_v1_organizations__organization_id__maturity_answers__question_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/organizations/{organization_id}/memberships": {
         parameters: {
             query?: never;
@@ -671,6 +717,18 @@ export interface components {
              * @enum {string}
              */
             status: "planned" | "in_progress" | "blocked" | "completed";
+        };
+        /** AnswerUpsert */
+        AnswerUpsert: {
+            /**
+             * Answer
+             * @enum {string}
+             */
+            answer: "absent" | "informal" | "documented" | "verified" | "unknown" | "not_applicable";
+            /** Evidence Reference */
+            evidence_reference?: string | null;
+            /** Note */
+            note?: string | null;
         };
         /** AssessmentAuthorizationCreate */
         AssessmentAuthorizationCreate: {
@@ -1482,6 +1540,80 @@ export interface components {
             /** Status */
             status: string;
         };
+        /** LadderRungResponse */
+        LadderRungResponse: {
+            /**
+             * Answer
+             * @enum {string}
+             */
+            answer: "absent" | "informal" | "documented" | "verified" | "unknown" | "not_applicable";
+            /** Label En */
+            label_en: string;
+            /** Label Ro */
+            label_ro: string;
+            /** Level */
+            level?: number | null;
+            /** Scored */
+            scored: boolean;
+        };
+        /** MaturityResponse */
+        MaturityResponse: {
+            /**
+             * Answered Count
+             * @default 0
+             */
+            answered_count: number;
+            /** Comparable */
+            comparable: boolean;
+            /** Completeness Percentage */
+            completeness_percentage: number;
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /**
+             * Contradicted Count
+             * @default 0
+             */
+            contradicted_count: number;
+            /** Incomparable Reason */
+            incomparable_reason?: string | null;
+            /** Ladder */
+            ladder?: components["schemas"]["LadderRungResponse"][];
+            /** Minimum Completeness Percentage */
+            minimum_completeness_percentage: number;
+            /**
+             * Not Applicable Count
+             * @default 0
+             */
+            not_applicable_count: number;
+            /** Notice En */
+            notice_en: string;
+            /** Notice Ro */
+            notice_ro: string;
+            /**
+             * Organization Id
+             * Format: uuid
+             */
+            organization_id: string;
+            /** Questionnaire Id */
+            questionnaire_id: string;
+            /** Questionnaire Version */
+            questionnaire_version: string;
+            /** Review Status */
+            review_status: string;
+            /** Sections */
+            sections?: components["schemas"]["SectionResponse"][];
+            /** Self Declared Percentage */
+            self_declared_percentage?: number | null;
+            /**
+             * Unanswered Count
+             * @default 0
+             */
+            unanswered_count: number;
+        };
         /** MembershipResponse */
         MembershipResponse: {
             /**
@@ -1552,6 +1684,39 @@ export interface components {
             name: string;
             /** Slug */
             slug: string;
+        };
+        /** QuestionResponse */
+        QuestionResponse: {
+            /** Answer */
+            answer?: ("absent" | "informal" | "documented" | "verified" | "unknown" | "not_applicable") | null;
+            /** Answered At */
+            answered_at?: string | null;
+            /** Answered By Display Name */
+            answered_by_display_name?: string | null;
+            /** Corroborating Check Id */
+            corroborating_check_id?: string | null;
+            /** Corroboration */
+            corroboration?: ("consistent" | "contradicted" | "understated" | "not_observed") | null;
+            /** Evidence Reference */
+            evidence_reference?: string | null;
+            /** Help En */
+            help_en: string;
+            /** Help Ro */
+            help_ro: string;
+            /** Nis2 Reference */
+            nis2_reference: string;
+            /** Note */
+            note?: string | null;
+            /** Observed */
+            observed?: ("pass" | "problem" | "inconclusive" | "not_assessed") | null;
+            /** Question Id */
+            question_id: string;
+            /** Title En */
+            title_en: string;
+            /** Title Ro */
+            title_ro: string;
+            /** Weight */
+            weight: number;
         };
         /**
          * ReadinessResponse
@@ -1750,6 +1915,25 @@ export interface components {
             manifest_version: "v1";
             /** Payload Sha256 */
             payload_sha256: string;
+        };
+        /** SectionResponse */
+        SectionResponse: {
+            /** Cis Reference */
+            cis_reference?: string | null;
+            /** Completeness Percentage */
+            completeness_percentage: number;
+            /** Nis2 Reference */
+            nis2_reference: string;
+            /** Percentage */
+            percentage?: number | null;
+            /** Questions */
+            questions?: components["schemas"]["QuestionResponse"][];
+            /** Section Id */
+            section_id: string;
+            /** Title En */
+            title_en: string;
+            /** Title Ro */
+            title_ro: string;
         };
         /** SessionResponse */
         SessionResponse: {
@@ -2898,6 +3082,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InvitationCreatedResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    index_api_v1_organizations__organization_id__maturity_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaturityResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    answer_api_v1_organizations__organization_id__maturity_answers__question_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                question_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnswerUpsert"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaturityResponse"];
                 };
             };
             /** @description Validation Error */

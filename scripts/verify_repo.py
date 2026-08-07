@@ -10,6 +10,17 @@ from pathlib import Path
 from shutil import which
 
 TEXT_SUFFIXES = {"", ".json", ".md", ".py", ".toml", ".yaml", ".yml"}
+
+#: The process each image must actually start, matched against its ENTRYPOINT. The
+#: quotes are part of the token so `"worker"` does not match `siembiot_worker.celery_app`
+#: -- which is exactly the substring that would make this check pass on the bug it
+#: exists to catch.
+ENTRYPOINT_COMMANDS = {
+    "api": '"uvicorn"',
+    "worker": '"worker"',
+    "beat": '"beat"',
+    "web": '"node"',
+}
 PLACEHOLDERS = {
     "",
     "changeme",
@@ -187,6 +198,23 @@ def check_images(root: Path) -> list[str]:
             problems.append(f"{name}: final stage has no USER, so it runs as root")
         elif users[-1].split()[1].split(":")[0] in {"root", "0"}:
             problems.append(f"{name}: final stage runs as root")
+
+        # An image that starts the wrong process. Found the hard way: beat.Dockerfile
+        # carried a copy of the worker's ENTRYPOINT, so the stack ran two workers and no
+        # scheduler. Nothing failed -- schedules simply never fired, and a domain that
+        # quietly stops being assessed looks exactly like a domain with nothing wrong.
+        # The file's own comments claimed it ran the scheduler, which is why reading it
+        # was never going to catch this.
+        expected = ENTRYPOINT_COMMANDS.get(path.stem)
+        if expected:
+            entrypoints = [line for line in final if line.upper().startswith("ENTRYPOINT")]
+            if not entrypoints:
+                problems.append(f"{name}: no ENTRYPOINT, so the image runs the base default")
+            elif expected not in entrypoints[-1]:
+                problems.append(
+                    f"{name}: ENTRYPOINT does not start {expected!r}; "
+                    f"{path.stem}.Dockerfile must run the process it is named for"
+                )
 
     return problems
 
