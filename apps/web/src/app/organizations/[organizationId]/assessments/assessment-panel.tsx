@@ -11,6 +11,17 @@ import { apiRequest, loadSession } from "../../../../lib/secure-client";
 type Assessment = components["schemas"]["AssessmentResponse"];
 type Domain = components["schemas"]["DomainResponse"];
 type Step = components["schemas"]["AssessmentStepResponse"];
+type Schedule = components["schemas"]["ScheduleResponse"];
+type Cadence = Schedule["cadence"];
+
+const CADENCES: Cadence[] = ["off", "daily", "weekly", "monthly", "quarterly"];
+const CADENCE_KEYS = {
+  off: "schedule.off",
+  daily: "schedule.daily",
+  weekly: "schedule.weekly",
+  monthly: "schedule.monthly",
+  quarterly: "schedule.quarterly",
+} as const;
 
 /** Runs still doing work are polled; settled ones are left alone. */
 const POLL_INTERVAL_MS = 4000;
@@ -70,6 +81,7 @@ function stepTone(state: Step["state"]): string {
 export default function AssessmentPanel({ organizationId }: { organizationId: string }) {
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
+  const [schedules, setSchedules] = useState<Record<string, Schedule>>({});
   const [message, setMessage] = useState<MessageKey | null>("assessments.loading");
   const [busy, setBusy] = useState(false);
   const { t, formatDateTime, formatNumber } = useLocalization();
@@ -83,6 +95,16 @@ export default function AssessmentPanel({ organizationId }: { organizationId: st
     ]);
     setAssessments(nextAssessments);
     setDomains(nextDomains);
+    // Fetched per domain rather than as a list: a schedule belongs to a domain, and a
+    // separate collection endpoint would be a second place for the same fact to live.
+    const loaded = await Promise.all(
+      nextDomains.map((domain) =>
+        apiRequest<Schedule>(
+          `/api/v1/organizations/${organizationId}/domains/${domain.id}/schedule`,
+        ).then((schedule) => [domain.id, schedule] as const),
+      ),
+    );
+    setSchedules(Object.fromEntries(loaded));
     setMessage(null);
   }, [organizationId]);
 
@@ -115,6 +137,22 @@ export default function AssessmentPanel({ organizationId }: { organizationId: st
       setMessage(mode === PASSIVE ? "assessments.queuedPassive" : "assessments.queuedAuthorized");
     } catch (error) {
       setMessage(apiErrorKey(error, "assessments.startFailed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function setCadence(domainId: string, cadence: Cadence) {
+    setBusy(true);
+    try {
+      const saved = await apiRequest<Schedule>(
+        `/api/v1/organizations/${organizationId}/domains/${domainId}/schedule`,
+        { method: "PUT", body: JSON.stringify({ cadence }) },
+      );
+      setSchedules((current) => ({ ...current, [domainId]: saved }));
+      setMessage("schedule.saved");
+    } catch (error) {
+      setMessage(apiErrorKey(error, "schedule.saveFailed"));
     } finally {
       setBusy(false);
     }
@@ -176,6 +214,35 @@ export default function AssessmentPanel({ organizationId }: { organizationId: st
                     <small className="muted"> · {t("assessments.unverified")}</small>
                   )}
                 </span>
+                {/*
+                  The cadence sits beside the one-off buttons because it is the same
+                  decision made standing: what should happen to this domain, now and
+                  from now on.
+                */}
+                <label className="cadence-control">
+                  <span className="sr-only">{t("schedule.label")}</span>
+                  <select
+                    value={schedules[domain.id]?.cadence ?? "off"}
+                    disabled={busy}
+                    onChange={(event) =>
+                      setCadence(domain.id, event.target.value as Cadence)
+                    }
+                  >
+                    {CADENCES.map((cadence) => (
+                      <option key={cadence} value={cadence}>
+                        {t(CADENCE_KEYS[cadence])}
+                      </option>
+                    ))}
+                  </select>
+                  {schedules[domain.id]?.next_run_at && (
+                    <small className="muted">
+                      {t("schedule.nextRun", {
+                        when: formatDateTime(schedules[domain.id].next_run_at as string),
+                      })}
+                    </small>
+                  )}
+                </label>
+
                 <span className="run-actions">
                   <button
                     type="button"

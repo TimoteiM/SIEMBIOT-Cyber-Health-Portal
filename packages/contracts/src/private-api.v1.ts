@@ -373,6 +373,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/organizations/{organization_id}/domains/{domain_id}/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read */
+        get: operations["read_api_v1_organizations__organization_id__domains__domain_id__schedule_get"];
+        /** Update */
+        put: operations["update_api_v1_organizations__organization_id__domains__domain_id__schedule_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/organizations/{organization_id}/emergency-controls": {
         parameters: {
             query?: never;
@@ -1288,6 +1306,63 @@ export interface components {
             /** Version */
             version: string;
         };
+        /** ScheduleResponse */
+        ScheduleResponse: {
+            /**
+             * Cadence
+             * @enum {string}
+             */
+            cadence: "off" | "daily" | "weekly" | "monthly" | "quarterly";
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /**
+             * Domain Id
+             * Format: uuid
+             */
+            domain_id: string;
+            /** Last Run At */
+            last_run_at?: string | null;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "passive_observation" | "authorized_assessment";
+            /** Next Run At */
+            next_run_at?: string | null;
+            /** Quiet Hours End */
+            quiet_hours_end?: number | null;
+            /** Quiet Hours Start */
+            quiet_hours_start?: number | null;
+            /** Timezone */
+            timezone: string;
+        };
+        /** ScheduleUpdate */
+        ScheduleUpdate: {
+            /**
+             * Cadence
+             * @enum {string}
+             */
+            cadence: "off" | "daily" | "weekly" | "monthly" | "quarterly";
+            /**
+             * Mode
+             * @default passive_observation
+             * @enum {string}
+             */
+            mode: "passive_observation" | "authorized_assessment";
+            /** Quiet Hours End */
+            quiet_hours_end?: number | null;
+            /** Quiet Hours Start */
+            quiet_hours_start?: number | null;
+            /**
+             * Timezone
+             * @default Europe/Bucharest
+             */
+            timezone: string;
+        };
         /** ScopeManifestResponse */
         ScopeManifestResponse: {
             /**
@@ -2168,6 +2243,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DomainFindingsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_api_v1_organizations__organization_id__domains__domain_id__schedule_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                domain_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_api_v1_organizations__organization_id__domains__domain_id__schedule_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                domain_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScheduleUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleResponse"];
                 };
             };
             /** @description Validation Error */

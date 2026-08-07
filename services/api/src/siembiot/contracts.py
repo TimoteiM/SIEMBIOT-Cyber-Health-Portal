@@ -446,3 +446,33 @@ class DomainFindingsResponse(ContractModel):
     coverage_percentage: float | None = None
     summary: FindingSummaryResponse
     findings: list[FindingResponse] = Field(default_factory=list)
+
+
+#: Cadences the scheduler knows how to advance. 'off' is a first-class choice: an
+#: organization that paused a domain is saying something different from one that never
+#: configured it.
+SCHEDULE_CADENCES = Literal["off", "daily", "weekly", "monthly", "quarterly"]
+
+
+class ScheduleUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    cadence: SCHEDULE_CADENCES
+    #: Passive by default. An unattended run must never be the one that reaches past
+    #: what a visitor sees, because nobody is watching it happen.
+    mode: ASSESSMENT_MODES = "passive_observation"
+    #: Local hours to hold off during. Both or neither; the database enforces the pair.
+    quiet_hours_start: int | None = Field(default=None, ge=0, le=23)
+    quiet_hours_end: int | None = Field(default=None, ge=0, le=23)
+    timezone: str = Field(default="Europe/Bucharest", max_length=64)
+
+
+class ScheduleResponse(ContractModel):
+    domain_id: UUID
+    cadence: SCHEDULE_CADENCES
+    mode: ASSESSMENT_MODES
+    quiet_hours_start: int | None = None
+    quiet_hours_end: int | None = None
+    timezone: str
+    #: Absent exactly when the cadence is 'off'. The database holds the two together.
+    next_run_at: datetime | None = None
+    last_run_at: datetime | None = None

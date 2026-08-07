@@ -23,11 +23,16 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from siembiot_worker.observation.mode import AssessmentMode
 from siembiot_worker.observation.runtime import build_observation_runtime
 from siembiot_worker.policy.catalog import load_catalog
+from siembiot_worker.scheduling import (
+    advance_from,
+    due_schedules,
+    expire_stale_verifications,
+)
 from siembiot_worker.workflows.engine import WorkflowEngine
 from siembiot_worker.workflows.evidence_repository import EvidenceRepository, persist_assessment
 from siembiot_worker.workflows.handlers import AssessmentContext, build_handlers
@@ -41,6 +46,11 @@ ASSESSMENT_QUEUE = "assessments"
 #: window is not lost -- it simply waits for the next sweep, which is why the interval
 #: is a normal number of seconds rather than something urgent.
 SWEEP_INTERVAL_SECONDS = 30.0
+
+#: How often schedules are turned into runs, and stale verifications expired. Ten
+#: minutes rather than thirty seconds because the shortest cadence offered is daily:
+#: checking more often would only ask the same question repeatedly and get "not yet".
+SCHEDULE_INTERVAL_SECONDS = 600.0
 
 
 def broker_url() -> str:
@@ -220,6 +230,104 @@ def due_assessments() -> tuple[dict[str, Any], ...]:
         engine.dispose()
 
 
+def start_due_schedules() -> int:
+    """Create an assessment for every schedule that is due, and advance each schedule.
+
+    Written as one transaction per schedule rather than one for the batch: a failure on
+    the fourth domain must not roll back the three runs already created, because those
+    runs are real work the queue may already have picked up.
+    """
+    from sqlalchemy import text
+
+    engine = _tenant_engine()
+    created = 0
+    try:
+        # Expiry first: a domain whose proof lapsed today should not be handed an
+        # authorized run in the same pass that notices it lapsed.
+        with engine.begin() as connection:
+            expired = expire_stale_verifications(connection)
+        if expired:
+            print(f"expired verification on {expired} domain(s)")
+
+        with engine.begin() as connection:
+            pending = due_schedules(connection)
+
+        for schedule in pending:
+            with _evidence_transaction(engine, schedule.organization_id) as connection:
+                methodology = connection.execute(
+                    text("SELECT version FROM methodology_versions ORDER BY version DESC LIMIT 1")
+                ).scalar_one_or_none()
+                if methodology is None:
+                    # Nothing is published to score against, so there is no honest run
+                    # to create. Leaving next_run_at alone means the next pass tries
+                    # again rather than silently skipping this cadence forever.
+                    continue
+
+                assessment_id = uuid4()
+                connection.execute(
+                    text(
+                        """
+                        INSERT INTO assessments (
+                            id, organization_id, domain_id, methodology_version, state, mode
+                        ) VALUES (
+                            :id, :organization_id, :domain_id, :methodology_version,
+                            'queued', :mode
+                        )
+                        """
+                    ),
+                    {
+                        "id": assessment_id,
+                        "organization_id": schedule.organization_id,
+                        "domain_id": schedule.domain_id,
+                        "methodology_version": methodology,
+                        "mode": schedule.mode,
+                    },
+                )
+
+                # Advanced only after the run exists. The other order would lose a run
+                # whenever the insert failed, and lose it silently.
+                connection.execute(
+                    text(
+                        """
+                        UPDATE assessment_schedules
+                        SET next_run_at = CASE
+                                WHEN cadence = 'off' THEN NULL
+                                ELSE :next_run_at
+                            END,
+                            last_run_at = now(),
+                            updated_at = now()
+                        WHERE id = :schedule_id
+                        """
+                    ),
+                    {
+                        "schedule_id": schedule.schedule_id,
+                        "next_run_at": _next_run_for(connection, schedule.schedule_id),
+                    },
+                )
+                created += 1
+    finally:
+        engine.dispose()
+    return created
+
+
+def _next_run_for(connection: Any, schedule_id: UUID) -> datetime | None:
+    """Compute the following firing time from the schedule's own cadence."""
+    from sqlalchemy import text
+
+    row = (
+        connection.execute(
+            text("SELECT cadence, next_run_at FROM assessment_schedules WHERE id = :id"),
+            {"id": schedule_id},
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if row is None:
+        return None
+    previous = row["next_run_at"] or datetime.now(UTC)
+    return advance_from(str(row["cadence"]), previous, datetime.now(UTC))
+
+
 def build_celery_app() -> Any:
     """Construct the Celery application.
 
@@ -242,7 +350,11 @@ def build_celery_app() -> Any:
             "sweep-due-assessments": {
                 "task": "siembiot.sweep",
                 "schedule": SWEEP_INTERVAL_SECONDS,
-            }
+            },
+            "start-scheduled-assessments": {
+                "task": "siembiot.start_scheduled",
+                "schedule": SCHEDULE_INTERVAL_SECONDS,
+            },
         },
     )
 
@@ -272,6 +384,16 @@ def build_celery_app() -> Any:
             mode=AssessmentMode(mode),
             declared_dkim_selectors=tuple(declared_dkim_selectors or ()),
         )
+
+    @app.task(name="siembiot.start_scheduled")
+    def start_scheduled() -> int:
+        """Create the runs that cadences are due for, and expire stale verifications.
+
+        Returns how many runs were created. The two jobs share a task because both are
+        periodic maintenance over the same tenants, and running expiry first means a
+        domain whose proof lapsed today is not given an authorized run this pass.
+        """
+        return start_due_schedules()
 
     @app.task(name="siembiot.sweep")
     def sweep() -> int:

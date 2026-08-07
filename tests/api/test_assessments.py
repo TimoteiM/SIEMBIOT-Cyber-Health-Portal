@@ -478,3 +478,139 @@ def test_an_authorized_run_cannot_exist_without_an_authorization(
                 "VALUES (%s, %s, %s, %s, 'queued', 'authorized_assessment')",
                 (str(uuid4()), str(tenant.organization_id), str(tenant.domain_id), METHODOLOGY),
             )
+
+
+# -- schedules ---------------------------------------------------------------
+
+
+def schedule_url(tenant: Tenant) -> str:
+    return f"/api/v1/organizations/{tenant.organization_id}/domains/{tenant.domain_id}/schedule"
+
+
+def test_a_domain_with_no_schedule_reports_off_rather_than_missing(
+    postgres_database: dict[str, str],
+) -> None:
+    """The domain exists and its cadence is a real answer. A 404 would make every
+    client handle two shapes for the same fact."""
+    tenant = seed(postgres_database["owner_url"])
+    with client_for(postgres_database, tenant) as client:
+        body = client.get(schedule_url(tenant)).json()
+
+    assert body["cadence"] == "off"
+    assert body["next_run_at"] is None
+
+
+def test_setting_a_cadence_schedules_a_first_run(postgres_database: dict[str, str]) -> None:
+    """Immediately, not one interval away: somebody who just asked for weekly
+    monitoring wants to know where they stand now."""
+    tenant = seed(postgres_database["owner_url"])
+    with client_for(postgres_database, tenant) as client:
+        body = client.put(schedule_url(tenant), json={"cadence": "weekly"}).json()
+
+    assert body["cadence"] == "weekly"
+    assert body["next_run_at"] is not None
+
+
+def test_switching_off_clears_the_next_run(postgres_database: dict[str, str]) -> None:
+    tenant = seed(postgres_database["owner_url"])
+    with client_for(postgres_database, tenant) as client:
+        client.put(schedule_url(tenant), json={"cadence": "daily"})
+        body = client.put(schedule_url(tenant), json={"cadence": "off"}).json()
+
+    assert body["cadence"] == "off"
+    assert body["next_run_at"] is None
+
+
+def test_changing_quiet_hours_does_not_postpone_the_next_run(
+    postgres_database: dict[str, str],
+) -> None:
+    """Editing an unrelated field should not silently push the run into next week."""
+    tenant = seed(postgres_database["owner_url"])
+    with client_for(postgres_database, tenant) as client:
+        first = client.put(schedule_url(tenant), json={"cadence": "weekly"}).json()
+        second = client.put(
+            schedule_url(tenant),
+            json={"cadence": "weekly", "quiet_hours_start": 22, "quiet_hours_end": 6},
+        ).json()
+
+    assert second["next_run_at"] == first["next_run_at"]
+    assert second["quiet_hours_start"] == 22
+
+
+def test_quiet_hours_need_both_ends(postgres_database: dict[str, str]) -> None:
+    tenant = seed(postgres_database["owner_url"])
+    with client_for(postgres_database, tenant) as client:
+        response = client.put(
+            schedule_url(tenant), json={"cadence": "daily", "quiet_hours_start": 22}
+        )
+    assert response.status_code == 422
+
+
+def test_a_scheduled_run_defaults_to_passive(postgres_database: dict[str, str]) -> None:
+    """An unattended run must never be the one that reaches past what a visitor sees,
+    because nobody is watching it happen."""
+    tenant = seed(postgres_database["owner_url"])
+    with client_for(postgres_database, tenant) as client:
+        body = client.put(schedule_url(tenant), json={"cadence": "daily"}).json()
+    assert body["mode"] == "passive_observation"
+
+
+def test_an_authorized_cadence_needs_verified_control(
+    postgres_database: dict[str, str],
+) -> None:
+    """Otherwise the ownership question is postponed to a moment nobody is present for."""
+    tenant = seed(postgres_database["owner_url"], ownership="pending")
+    with client_for(postgres_database, tenant) as client:
+        response = client.put(
+            schedule_url(tenant), json={"cadence": "daily", "mode": "authorized_assessment"}
+        )
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "ownership_not_verified"
+
+
+def test_setting_a_cadence_is_audited(postgres_database: dict[str, str]) -> None:
+    """A cadence decides what the platform does repeatedly and unattended, so an
+    auditor asking why a domain was contacted needs the setting, not only the runs."""
+    tenant = seed(postgres_database["owner_url"])
+    with client_for(postgres_database, tenant) as client:
+        client.put(schedule_url(tenant), json={"cadence": "monthly"})
+
+    with psycopg.connect(postgres_database["owner_url"]) as owner:
+        row = owner.execute(
+            "SELECT context FROM audit_events WHERE action = 'assessment.schedule_changed' "
+            "AND organization_id = %s",
+            (str(tenant.organization_id),),
+        ).fetchone()
+    assert row is not None
+    assert row[0]["cadence"] == "monthly"
+
+
+def test_a_read_only_role_cannot_set_a_cadence(postgres_database: dict[str, str]) -> None:
+    """Setting a cadence is the same decision as pressing the button, made once for
+    every future occasion."""
+    tenant = seed(postgres_database["owner_url"], role="viewer_auditor")
+    with client_for(postgres_database, tenant) as client:
+        assert client.get(schedule_url(tenant)).status_code == 200
+        assert client.put(schedule_url(tenant), json={"cadence": "daily"}).status_code == 403
+
+
+def test_an_unknown_cadence_is_refused(postgres_database: dict[str, str]) -> None:
+    tenant = seed(postgres_database["owner_url"])
+    with client_for(postgres_database, tenant) as client:
+        assert client.put(schedule_url(tenant), json={"cadence": "hourly"}).status_code == 422
+
+
+def test_the_api_and_worker_agree_on_which_cadences_exist() -> None:
+    """Two lists that drift would store a cadence the worker cannot advance: it would
+    display as active and never fire."""
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    sys.path.insert(0, str(root / "services" / "api" / "src"))
+    sys.path.insert(0, str(root / "services" / "worker" / "src"))
+    from siembiot import schedules as api_schedules
+    from siembiot_worker import scheduling as worker_scheduling
+
+    assert set(api_schedules.CADENCE_INTERVALS) == set(worker_scheduling.CADENCE_INTERVALS)
+    assert api_schedules.CADENCE_INTERVALS == worker_scheduling.CADENCE_INTERVALS

@@ -105,6 +105,16 @@ const ro = {
     "Am putut evalua doar {percent}% din verificări. Sub pragul de {floor}% rezultatul nu este reprezentativ, așa că nu îl prezentăm ca scor.",
   "assessments.rawScore": "Valoare brută, pentru audit: {score} / 100",
 
+  "schedule.label": "Reevaluare automată",
+  "schedule.off": "Oprită",
+  "schedule.daily": "Zilnic",
+  "schedule.weekly": "Săptămânal",
+  "schedule.monthly": "Lunar",
+  "schedule.quarterly": "Trimestrial",
+  "schedule.nextRun": "Următoarea: {when}",
+  "schedule.saved": "Cadența a fost salvată.",
+  "schedule.saveFailed": "Cadența nu a putut fi salvată.",
+
   "mode.passive_observation": "Observare publică",
   "mode.authorized_assessment": "Evaluare autorizată",
 
@@ -396,6 +406,16 @@ const en: Messages = {
   "assessments.insufficientBody":
     "We could evaluate only {percent}% of the checks. Below the {floor}% threshold the result is not representative, so we do not present it as a score.",
   "assessments.rawScore": "Raw value, for audit: {score} / 100",
+
+  "schedule.label": "Automatic reassessment",
+  "schedule.off": "Off",
+  "schedule.daily": "Daily",
+  "schedule.weekly": "Weekly",
+  "schedule.monthly": "Monthly",
+  "schedule.quarterly": "Quarterly",
+  "schedule.nextRun": "Next: {when}",
+  "schedule.saved": "The cadence was saved.",
+  "schedule.saveFailed": "The cadence could not be saved.",
 
   "mode.passive_observation": "Public observation",
   "mode.authorized_assessment": "Authorized assessment",

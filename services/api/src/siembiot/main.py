@@ -31,6 +31,7 @@ from siembiot.findings import build_findings_router
 from siembiot.identity import IdentityResolver, build_identity_resolver
 from siembiot.organizations import build_invitation_router, build_organization_router
 from siembiot.request_context import RequestContextMiddleware, new_request_id
+from siembiot.schedules import build_schedule_router
 
 
 def _request_id(request: Request) -> str:
@@ -118,6 +119,7 @@ def create_app(
     app.include_router(build_assessment_router())
     app.include_router(build_asset_router())
     app.include_router(build_findings_router())
+    app.include_router(build_schedule_router())
 
     return app
 
