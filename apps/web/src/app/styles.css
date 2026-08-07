@@ -774,3 +774,41 @@ details > summary:hover { color: var(--text-primary); }
   .card-list li.domain-run-row { grid-template-columns: 1fr; }
   .cadence-control { justify-items: start; }
 }
+
+/* -- history ---------------------------------------------------------------- */
+
+.history-chart { margin: 0 0 1.25rem; }
+.history-chart svg {
+  width: 100%;
+  height: 140px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+}
+.history-line {
+  stroke-linecap: round;
+  fill: none;
+  stroke: var(--accent-fill);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+.history-point { fill: var(--accent-fill); }
+/*
+  A run below the coverage floor is drawn hollow. It has a number but not a result,
+  and rendering it like the others would put it on the same footing as a run we would
+  actually stand behind.
+*/
+.history-point.thin {
+  fill: var(--bg-deep);
+  stroke: var(--text-muted);
+  stroke-width: 2;
+}
+.history-points {
+  list-style: none;
+  padding: 0.6rem 0 0;
+  margin: 0;
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}

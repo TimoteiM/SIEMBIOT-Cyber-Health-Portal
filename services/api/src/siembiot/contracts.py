@@ -476,3 +476,56 @@ class ScheduleResponse(ContractModel):
     #: Absent exactly when the cadence is 'off'. The database holds the two together.
     next_run_at: datetime | None = None
     last_run_at: datetime | None = None
+
+
+class HistoryPointResponse(ContractModel):
+    """One completed assessment, as a point on a timeline."""
+
+    assessment_id: UUID
+    completed_at: datetime
+    mode: ASSESSMENT_MODES
+    methodology_version: str
+    score: float
+    band: str
+    coverage_percentage: float
+    #: False below the methodology's coverage floor. Such a run has a number but not a
+    #: result, so a chart must not draw it as one point among equals.
+    coverage_sufficient: bool
+
+
+class FindingChangeResponse(ContractModel):
+    check_id: str
+    severity: FINDING_SEVERITIES
+    title_ro: str
+    title_en: str
+
+
+class AssessmentChangeResponse(ContractModel):
+    """What moved between two runs, and whether the comparison means anything.
+
+    `comparable` is the honest part. A score that rose because coverage fell is not an
+    improvement -- it is a different question, answered against less evidence. When the
+    two runs did not see the same amount, the deltas are still reported but the flag
+    says not to read them as progress.
+    """
+
+    previous_assessment_id: UUID
+    current_assessment_id: UUID
+    score_delta: float
+    coverage_delta: float
+    comparable: bool
+    #: Why not, when it is not: 'insufficient_coverage' or 'coverage_moved'.
+    incomparable_reason: str | None = None
+    resolved: list[FindingChangeResponse] = Field(default_factory=list)
+    opened: list[FindingChangeResponse] = Field(default_factory=list)
+    #: Findings present before and still present now. Counted rather than listed: the
+    #: list a reader needs on this screen is what changed.
+    unchanged_count: int = 0
+
+
+class DomainHistoryResponse(ContractModel):
+    domain_id: UUID
+    #: Oldest first, so a chart can render it without reversing.
+    points: list[HistoryPointResponse] = Field(default_factory=list)
+    #: Absent until a domain has two completed runs to compare.
+    change: AssessmentChangeResponse | None = None

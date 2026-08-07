@@ -152,6 +152,79 @@
         "title": "AssessmentCancel",
         "type": "object"
       },
+      "AssessmentChangeResponse": {
+        "additionalProperties": false,
+        "description": "What moved between two runs, and whether the comparison means anything.\n\n`comparable` is the honest part. A score that rose because coverage fell is not an\nimprovement -- it is a different question, answered against less evidence. When the\ntwo runs did not see the same amount, the deltas are still reported but the flag\nsays not to read them as progress.",
+        "properties": {
+          "comparable": {
+            "title": "Comparable",
+            "type": "boolean"
+          },
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "coverage_delta": {
+            "title": "Coverage Delta",
+            "type": "number"
+          },
+          "current_assessment_id": {
+            "format": "uuid",
+            "title": "Current Assessment Id",
+            "type": "string"
+          },
+          "incomparable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Incomparable Reason"
+          },
+          "opened": {
+            "items": {
+              "$ref": "#/components/schemas/FindingChangeResponse"
+            },
+            "title": "Opened",
+            "type": "array"
+          },
+          "previous_assessment_id": {
+            "format": "uuid",
+            "title": "Previous Assessment Id",
+            "type": "string"
+          },
+          "resolved": {
+            "items": {
+              "$ref": "#/components/schemas/FindingChangeResponse"
+            },
+            "title": "Resolved",
+            "type": "array"
+          },
+          "score_delta": {
+            "title": "Score Delta",
+            "type": "number"
+          },
+          "unchanged_count": {
+            "default": 0,
+            "title": "Unchanged Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "previous_assessment_id",
+          "current_assessment_id",
+          "score_delta",
+          "coverage_delta",
+          "comparable"
+        ],
+        "title": "AssessmentChangeResponse",
+        "type": "object"
+      },
       "AssessmentCreate": {
         "additionalProperties": false,
         "properties": {
@@ -830,6 +903,44 @@
         "title": "DomainFindingsResponse",
         "type": "object"
       },
+      "DomainHistoryResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "change": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssessmentChangeResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "domain_id": {
+            "format": "uuid",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/HistoryPointResponse"
+            },
+            "title": "Points",
+            "type": "array"
+          }
+        },
+        "required": [
+          "domain_id"
+        ],
+        "title": "DomainHistoryResponse",
+        "type": "object"
+      },
       "DomainResponse": {
         "additionalProperties": false,
         "properties": {
@@ -1080,6 +1191,48 @@
           "created_at"
         ],
         "title": "EmergencyControlResponse",
+        "type": "object"
+      },
+      "FindingChangeResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "check_id": {
+            "title": "Check Id",
+            "type": "string"
+          },
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low",
+              "informational"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "title_en": {
+            "title": "Title En",
+            "type": "string"
+          },
+          "title_ro": {
+            "title": "Title Ro",
+            "type": "string"
+          }
+        },
+        "required": [
+          "check_id",
+          "severity",
+          "title_ro",
+          "title_en"
+        ],
+        "title": "FindingChangeResponse",
         "type": "object"
       },
       "FindingConfidenceResponse": {
@@ -1349,6 +1502,68 @@
           }
         },
         "title": "HealthResponse",
+        "type": "object"
+      },
+      "HistoryPointResponse": {
+        "additionalProperties": false,
+        "description": "One completed assessment, as a point on a timeline.",
+        "properties": {
+          "assessment_id": {
+            "format": "uuid",
+            "title": "Assessment Id",
+            "type": "string"
+          },
+          "band": {
+            "title": "Band",
+            "type": "string"
+          },
+          "completed_at": {
+            "format": "date-time",
+            "title": "Completed At",
+            "type": "string"
+          },
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "coverage_percentage": {
+            "title": "Coverage Percentage",
+            "type": "number"
+          },
+          "coverage_sufficient": {
+            "title": "Coverage Sufficient",
+            "type": "boolean"
+          },
+          "methodology_version": {
+            "title": "Methodology Version",
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "passive_observation",
+              "authorized_assessment"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          }
+        },
+        "required": [
+          "assessment_id",
+          "completed_at",
+          "mode",
+          "methodology_version",
+          "score",
+          "band",
+          "coverage_percentage",
+          "coverage_sufficient"
+        ],
+        "title": "HistoryPointResponse",
         "type": "object"
       },
       "InvitationAccept": {
@@ -3314,6 +3529,71 @@
         "summary": "Index",
         "tags": [
           "findings"
+        ]
+      }
+    },
+    "/api/v1/organizations/{organization_id}/domains/{domain_id}/history": {
+      "get": {
+        "operationId": "index_api_v1_organizations__organization_id__domains__domain_id__history_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "domain_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Domain Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 200,
+              "minimum": 2,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DomainHistoryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Index",
+        "tags": [
+          "history"
         ]
       }
     },

@@ -373,6 +373,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/organizations/{organization_id}/domains/{domain_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Index */
+        get: operations["index_api_v1_organizations__organization_id__domains__domain_id__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/organizations/{organization_id}/domains/{domain_id}/schedule": {
         parameters: {
             query?: never;
@@ -569,6 +586,50 @@ export interface components {
         AssessmentCancel: {
             /** Reason */
             reason: string;
+        };
+        /**
+         * AssessmentChangeResponse
+         * @description What moved between two runs, and whether the comparison means anything.
+         *
+         *     `comparable` is the honest part. A score that rose because coverage fell is not an
+         *     improvement -- it is a different question, answered against less evidence. When the
+         *     two runs did not see the same amount, the deltas are still reported but the flag
+         *     says not to read them as progress.
+         */
+        AssessmentChangeResponse: {
+            /** Comparable */
+            comparable: boolean;
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /** Coverage Delta */
+            coverage_delta: number;
+            /**
+             * Current Assessment Id
+             * Format: uuid
+             */
+            current_assessment_id: string;
+            /** Incomparable Reason */
+            incomparable_reason?: string | null;
+            /** Opened */
+            opened?: components["schemas"]["FindingChangeResponse"][];
+            /**
+             * Previous Assessment Id
+             * Format: uuid
+             */
+            previous_assessment_id: string;
+            /** Resolved */
+            resolved?: components["schemas"]["FindingChangeResponse"][];
+            /** Score Delta */
+            score_delta: number;
+            /**
+             * Unchanged Count
+             * @default 0
+             */
+            unchanged_count: number;
         };
         /** AssessmentCreate */
         AssessmentCreate: {
@@ -873,6 +934,23 @@ export interface components {
             score?: number | null;
             summary: components["schemas"]["FindingSummaryResponse"];
         };
+        /** DomainHistoryResponse */
+        DomainHistoryResponse: {
+            change?: components["schemas"]["AssessmentChangeResponse"] | null;
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /**
+             * Domain Id
+             * Format: uuid
+             */
+            domain_id: string;
+            /** Points */
+            points?: components["schemas"]["HistoryPointResponse"][];
+        };
         /** DomainResponse */
         DomainResponse: {
             /** Canonical Name */
@@ -966,6 +1044,26 @@ export interface components {
              * @enum {string}
              */
             scope: "global" | "organization" | "domain" | "operation_class";
+        };
+        /** FindingChangeResponse */
+        FindingChangeResponse: {
+            /** Check Id */
+            check_id: string;
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "critical" | "high" | "medium" | "low" | "informational";
+            /** Title En */
+            title_en: string;
+            /** Title Ro */
+            title_ro: string;
         };
         /**
          * FindingConfidenceResponse
@@ -1099,6 +1197,43 @@ export interface components {
              * @constant
              */
             status: "ok";
+        };
+        /**
+         * HistoryPointResponse
+         * @description One completed assessment, as a point on a timeline.
+         */
+        HistoryPointResponse: {
+            /**
+             * Assessment Id
+             * Format: uuid
+             */
+            assessment_id: string;
+            /** Band */
+            band: string;
+            /**
+             * Completed At
+             * Format: date-time
+             */
+            completed_at: string;
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /** Coverage Percentage */
+            coverage_percentage: number;
+            /** Coverage Sufficient */
+            coverage_sufficient: boolean;
+            /** Methodology Version */
+            methodology_version: string;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "passive_observation" | "authorized_assessment";
+            /** Score */
+            score: number;
         };
         /** InvitationAccept */
         InvitationAccept: {
@@ -2243,6 +2378,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DomainFindingsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    index_api_v1_organizations__organization_id__domains__domain_id__history_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                organization_id: string;
+                domain_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomainHistoryResponse"];
                 };
             };
             /** @description Validation Error */
