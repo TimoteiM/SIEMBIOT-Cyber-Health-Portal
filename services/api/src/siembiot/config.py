@@ -25,6 +25,20 @@ class Settings(BaseSettings):
     #: `Database.verify_least_privilege` re-checks this against the live connection at
     #: startup, because a variable is a claim and the connected role is the fact.
     app_database_url: str = "postgresql+psycopg://siembiot_app:CHANGEME@127.0.0.1:5432/siembiot"
+
+    #: SIEMBIOT_PUBLIC_DATABASE_URL -- the observatory role, for unauthenticated routes.
+    #:
+    #: Absent by default, and absent means the public routes are not served at all.
+    #: Failing closed is the right default for the one part of this product that speaks
+    #: outside the tenant boundary: a deployment that has not thought about publication
+    #: publishes nothing, rather than publishing through whatever connection was handy.
+    #:
+    #: It must carry `siembiot_public`, which has no USAGE on the schema holding tenant
+    #: tables. Serving public routes from the application role would leave the schema
+    #: separation intact in the database and useless in practice, so
+    #: `Database.verify_cannot_reach_tenant_data` re-checks the capability -- not the
+    #: role name, and not this variable -- against the live connection at startup.
+    public_database_url: str | None = None
     # Authentication is owned by a separate team and terminates upstream. The
     # gateway proves it is the caller with this shared secret; without it, identity
     # headers are ignored. Required outside development.

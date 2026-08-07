@@ -19,6 +19,97 @@ type ChallengeMethod = components["schemas"]["DomainChallengeCreate"]["method"];
 type Authorization = components["schemas"]["AssessmentAuthorizationResponse"];
 type EmergencyControl = components["schemas"]["EmergencyControlResponse"];
 
+type Consent = components["schemas"]["ConsentResponse"];
+
+/**
+ * Publishing to the public observatory.
+ *
+ * Two things this control has to keep visibly apart, because they are separate facts and
+ * an interface that merges them will eventually tell somebody they are published when
+ * they are not: agreeing to publication, and being published. Consent is permission, and
+ * nothing appears until an assessment has run and the platform's own publication review
+ * has been recorded.
+ *
+ * Withdrawal is a plain button with no confirmation step. Everywhere else in this product
+ * a destructive action deserves friction; here the destructive direction is *staying*
+ * published, and an institution that wants out should not have to argue with a dialog.
+ */
+function PublicationSection({
+  organizationId,
+  domainId,
+  verified,
+  onMessage,
+}: {
+  organizationId: string;
+  domainId: string;
+  verified: boolean;
+  onMessage: (key: MessageKey) => void;
+}) {
+  const { t, formatDateTime } = useLocalization();
+  const [state, setState] = useState<Consent>();
+  const [busy, setBusy] = useState(false);
+  const path = `/api/v1/organizations/${organizationId}/domains/${domainId}/publication`;
+
+  useEffect(() => {
+    apiRequest<Consent>(path)
+      .then(setState)
+      .catch(() => undefined);
+  }, [path]);
+
+  async function change(method: "PUT" | "DELETE") {
+    setBusy(true);
+    try {
+      setState(
+        await apiRequest<Consent>(path, {
+          method,
+          body: method === "DELETE" ? JSON.stringify({}) : undefined,
+        }),
+      );
+      onMessage(method === "PUT" ? "publication.granted" : "publication.withdrawn");
+    } catch (error) {
+      onMessage(apiErrorKey(error, "publication.changeFailed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section aria-labelledby="publication-title">
+      <h2 id="publication-title">{t("publication.heading")}</h2>
+      <p>{t("publication.explainer")}</p>
+
+      {!verified && <p className="hint">{t("publication.needsVerification")}</p>}
+
+      {state?.consented ? (
+        <>
+          <p className="muted">
+            {state.published_at
+              ? t("publication.published", { when: formatDateTime(state.published_at) })
+              : t("publication.consentedNotPublished")}
+          </p>
+          <button
+            className="button secondary"
+            type="button"
+            disabled={busy}
+            onClick={() => change("DELETE")}
+          >
+            {t("publication.withdraw")}
+          </button>
+        </>
+      ) : (
+        <button
+          className="button secondary"
+          type="button"
+          disabled={busy || !verified}
+          onClick={() => change("PUT")}
+        >
+          {t("publication.grant")}
+        </button>
+      )}
+    </section>
+  );
+}
+
 export default function DomainDetail({
   organizationId,
   domainId,
@@ -248,6 +339,13 @@ export default function DomainDetail({
             ))}
           </ul>
         </section>
+
+        <PublicationSection
+          organizationId={organizationId}
+          domainId={domainId}
+          verified={domain.ownership_state === "verified"}
+          onMessage={setMessage}
+        />
       </div>
       <p className="status" role="status" aria-live="polite">
         {message ? t(message) : ""}

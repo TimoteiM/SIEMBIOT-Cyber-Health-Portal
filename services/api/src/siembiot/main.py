@@ -33,6 +33,7 @@ from siembiot.identity import IdentityResolver, build_identity_resolver
 from siembiot.maturity_router import build_maturity_router
 from siembiot.metrics import build_metrics_router
 from siembiot.organizations import build_invitation_router, build_organization_router
+from siembiot.publication.public_router import build_public_router
 from siembiot.publication.router import build_publication_router
 from siembiot.request_context import RequestContextMiddleware, new_request_id
 from siembiot.roadmap import build_roadmap_router
@@ -59,6 +60,14 @@ def create_app(
 ) -> FastAPI:
     resolved_settings = settings or Settings()
     database = Database(resolved_settings.app_database_url)
+    # Absent means the observatory is not served at all. A deployment that has not
+    # thought about publication publishes nothing, rather than publishing through
+    # whatever connection happened to be open.
+    public_database = (
+        Database(resolved_settings.public_database_url)
+        if resolved_settings.public_database_url
+        else None
+    )
     resolved_signer = manifest_signer or Ed25519ManifestSigner.generate(
         "dev-ephemeral", development_only=True
     )
@@ -76,12 +85,20 @@ def create_app(
         # later moment at which the problem announces itself. Refusing to serve is the
         # only outcome that cannot be missed.
         database.verify_least_privilege()
+        if public_database is not None:
+            # Same reasoning, opposite direction: a public connection that can reach
+            # tenant tables leaves the schema boundary intact in the database and
+            # useless in practice, and nothing about serving would fail.
+            public_database.verify_cannot_reach_tenant_data()
         yield
         database.close()
+        if public_database is not None:
+            public_database.close()
 
     app = FastAPI(title="SIEMBIOT Private API", version="1.0.0", lifespan=lifespan)
     app.state.settings = resolved_settings
     app.state.database = database
+    app.state.public_database = public_database
     app.state.identity_resolver = resolved_identity_resolver
     app.state.txt_resolver = txt_resolver or BoundedTXTResolver()
     app.state.manifest_signer = resolved_signer
@@ -142,6 +159,8 @@ def create_app(
     app.include_router(build_roadmap_router())
     app.include_router(build_maturity_router())
     app.include_router(build_publication_router())
+    if public_database is not None:
+        app.include_router(build_public_router())
     app.include_router(build_metrics_router())
 
     return app

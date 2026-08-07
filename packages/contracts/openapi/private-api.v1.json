@@ -2295,6 +2295,212 @@
         "title": "MembershipUpdate",
         "type": "object"
       },
+      "ObservatoryAggregateResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "check_id": {
+            "title": "Check Id",
+            "type": "string"
+          },
+          "cohort_size": {
+            "title": "Cohort Size",
+            "type": "integer"
+          },
+          "methodology_version": {
+            "title": "Methodology Version",
+            "type": "string"
+          },
+          "pass_count": {
+            "title": "Pass Count",
+            "type": "integer"
+          },
+          "released_at": {
+            "format": "date-time",
+            "title": "Released At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "check_id",
+          "cohort_size",
+          "pass_count",
+          "methodology_version",
+          "released_at"
+        ],
+        "title": "ObservatoryAggregateResponse",
+        "type": "object"
+      },
+      "ObservatoryAggregatesResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "aggregates": {
+            "items": {
+              "$ref": "#/components/schemas/ObservatoryAggregateResponse"
+            },
+            "title": "Aggregates",
+            "type": "array"
+          },
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          }
+        },
+        "title": "ObservatoryAggregatesResponse",
+        "type": "object"
+      },
+      "ObservatoryListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "profiles": {
+            "items": {
+              "$ref": "#/components/schemas/ObservatorySummary"
+            },
+            "title": "Profiles",
+            "type": "array"
+          },
+          "total": {
+            "default": 0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "title": "ObservatoryListResponse",
+        "type": "object"
+      },
+      "ObservatoryProfileResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "band": {
+            "anyOf": [
+              {
+                "enum": [
+                  "resilient",
+                  "managed",
+                  "developing",
+                  "exposed",
+                  "critical"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Band"
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/PublishedCheckResponse"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "coverage_percentage": {
+            "title": "Coverage Percentage",
+            "type": "number"
+          },
+          "methodology_version": {
+            "title": "Methodology Version",
+            "type": "string"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "policy_digest": {
+            "title": "Policy Digest",
+            "type": "string"
+          },
+          "published_at": {
+            "format": "date-time",
+            "title": "Published At",
+            "type": "string"
+          },
+          "registrable_domain": {
+            "title": "Registrable Domain",
+            "type": "string"
+          }
+        },
+        "required": [
+          "registrable_domain",
+          "coverage_percentage",
+          "methodology_version",
+          "policy_digest",
+          "observed_at",
+          "published_at"
+        ],
+        "title": "ObservatoryProfileResponse",
+        "type": "object"
+      },
+      "ObservatorySummary": {
+        "additionalProperties": false,
+        "properties": {
+          "band": {
+            "anyOf": [
+              {
+                "enum": [
+                  "resilient",
+                  "managed",
+                  "developing",
+                  "exposed",
+                  "critical"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Band"
+          },
+          "coverage_percentage": {
+            "title": "Coverage Percentage",
+            "type": "number"
+          },
+          "methodology_version": {
+            "title": "Methodology Version",
+            "type": "string"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "published_at": {
+            "format": "date-time",
+            "title": "Published At",
+            "type": "string"
+          },
+          "registrable_domain": {
+            "title": "Registrable Domain",
+            "type": "string"
+          }
+        },
+        "required": [
+          "registrable_domain",
+          "coverage_percentage",
+          "methodology_version",
+          "observed_at",
+          "published_at"
+        ],
+        "title": "ObservatorySummary",
+        "type": "object"
+      },
       "OrganizationCreate": {
         "additionalProperties": false,
         "properties": {
@@ -2352,6 +2558,30 @@
           "created_at"
         ],
         "title": "OrganizationResponse",
+        "type": "object"
+      },
+      "PublishedCheckResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "check_id": {
+            "title": "Check Id",
+            "type": "string"
+          },
+          "result": {
+            "enum": [
+              "pass",
+              "fail",
+              "warning"
+            ],
+            "title": "Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "check_id",
+          "result"
+        ],
+        "title": "PublishedCheckResponse",
         "type": "object"
       },
       "QuestionResponse": {
@@ -5256,6 +5486,126 @@
         "summary": "Change Membership",
         "tags": [
           "organizations"
+        ]
+      }
+    },
+    "/api/v1/public/aggregates": {
+      "get": {
+        "description": "Cohort statistics that survived the size threshold.\n\nDeclared before the profile route so `/aggregates` is not read as a domain name.",
+        "operationId": "aggregates_api_v1_public_aggregates_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservatoryAggregatesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Aggregates",
+        "tags": [
+          "observatory"
+        ]
+      }
+    },
+    "/api/v1/public/observatory": {
+      "get": {
+        "operationId": "index_api_v1_public_observatory_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservatoryListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Index",
+        "tags": [
+          "observatory"
+        ]
+      }
+    },
+    "/api/v1/public/observatory/{registrable_domain}": {
+      "get": {
+        "operationId": "profile_api_v1_public_observatory__registrable_domain__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "registrable_domain",
+            "required": true,
+            "schema": {
+              "title": "Registrable Domain",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservatoryProfileResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Profile",
+        "tags": [
+          "observatory"
         ]
       }
     },

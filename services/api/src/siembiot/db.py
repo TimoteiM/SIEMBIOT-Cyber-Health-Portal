@@ -52,6 +52,29 @@ class Database:
                 "siembiot_app role; SIEMBIOT_DATABASE_URL is for migrations only."
             )
 
+    def verify_cannot_reach_tenant_data(self) -> None:
+        """Refuse to serve public routes from a connection that can see tenant tables.
+
+        The counterpart of `verify_least_privilege`, and it fails the same way if it is
+        missing: nothing errors, every public query keeps working, and the schema
+        separation that the whole publication design rests on becomes decorative.
+
+        What is checked is the *capability*, not the role name and not the configured
+        URL. A role called `siembiot_public` that somebody granted USAGE to last month
+        is the failure this exists to catch, and its name would not have changed.
+        """
+        with self.engine.begin() as connection:
+            name, reaches_tenant_schema = connection.execute(
+                text("SELECT current_user, has_schema_privilege(current_user, 'public', 'USAGE')")
+            ).one()
+        if reaches_tenant_schema:
+            raise LeastPrivilegeError(
+                f"Public routes are connected as '{name}', which has USAGE on the schema "
+                "holding tenant data. Published pages would be served by a connection "
+                "that can reach private tables. Set SIEMBIOT_PUBLIC_DATABASE_URL to the "
+                "siembiot_public role."
+            )
+
     @contextmanager
     def connection(self) -> Iterator[Connection]:
         with self.engine.begin() as connection:

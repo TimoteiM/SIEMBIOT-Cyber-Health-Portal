@@ -620,6 +620,62 @@ export interface paths {
         patch: operations["change_membership_api_v1_organizations__organization_id__memberships__membership_id__patch"];
         trace?: never;
     };
+    "/api/v1/public/aggregates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Aggregates
+         * @description Cohort statistics that survived the size threshold.
+         *
+         *     Declared before the profile route so `/aggregates` is not read as a domain name.
+         */
+        get: operations["aggregates_api_v1_public_aggregates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/observatory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Index */
+        get: operations["index_api_v1_public_observatory_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/observatory/{registrable_domain}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Profile */
+        get: operations["profile_api_v1_public_observatory__registrable_domain__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ready": {
         parameters: {
             query?: never;
@@ -1714,6 +1770,101 @@ export interface components {
              */
             role: "organization_owner" | "security_admin" | "analyst" | "viewer_auditor" | "maturity_contributor";
         };
+        /** ObservatoryAggregateResponse */
+        ObservatoryAggregateResponse: {
+            /** Check Id */
+            check_id: string;
+            /** Cohort Size */
+            cohort_size: number;
+            /** Methodology Version */
+            methodology_version: string;
+            /** Pass Count */
+            pass_count: number;
+            /**
+             * Released At
+             * Format: date-time
+             */
+            released_at: string;
+        };
+        /** ObservatoryAggregatesResponse */
+        ObservatoryAggregatesResponse: {
+            /** Aggregates */
+            aggregates?: components["schemas"]["ObservatoryAggregateResponse"][];
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+        };
+        /** ObservatoryListResponse */
+        ObservatoryListResponse: {
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /** Profiles */
+            profiles?: components["schemas"]["ObservatorySummary"][];
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+        };
+        /** ObservatoryProfileResponse */
+        ObservatoryProfileResponse: {
+            /** Band */
+            band?: ("resilient" | "managed" | "developing" | "exposed" | "critical") | null;
+            /** Checks */
+            checks?: components["schemas"]["PublishedCheckResponse"][];
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /** Coverage Percentage */
+            coverage_percentage: number;
+            /** Methodology Version */
+            methodology_version: string;
+            /**
+             * Observed At
+             * Format: date-time
+             */
+            observed_at: string;
+            /** Policy Digest */
+            policy_digest: string;
+            /**
+             * Published At
+             * Format: date-time
+             */
+            published_at: string;
+            /** Registrable Domain */
+            registrable_domain: string;
+        };
+        /** ObservatorySummary */
+        ObservatorySummary: {
+            /** Band */
+            band?: ("resilient" | "managed" | "developing" | "exposed" | "critical") | null;
+            /** Coverage Percentage */
+            coverage_percentage: number;
+            /** Methodology Version */
+            methodology_version: string;
+            /**
+             * Observed At
+             * Format: date-time
+             */
+            observed_at: string;
+            /**
+             * Published At
+             * Format: date-time
+             */
+            published_at: string;
+            /** Registrable Domain */
+            registrable_domain: string;
+        };
         /** OrganizationCreate */
         OrganizationCreate: {
             /** Name */
@@ -1743,6 +1894,16 @@ export interface components {
             name: string;
             /** Slug */
             slug: string;
+        };
+        /** PublishedCheckResponse */
+        PublishedCheckResponse: {
+            /** Check Id */
+            check_id: string;
+            /**
+             * Result
+             * @enum {string}
+             */
+            result: "pass" | "fail" | "warning";
         };
         /** QuestionResponse */
         QuestionResponse: {
@@ -3405,6 +3566,89 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MembershipResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    aggregates_api_v1_public_aggregates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObservatoryAggregatesResponse"];
+                };
+            };
+        };
+    };
+    index_api_v1_public_observatory_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObservatoryListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    profile_api_v1_public_observatory__registrable_domain__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                registrable_domain: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObservatoryProfileResponse"];
                 };
             };
             /** @description Validation Error */

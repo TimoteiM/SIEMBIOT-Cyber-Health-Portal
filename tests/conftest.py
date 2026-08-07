@@ -38,6 +38,7 @@ def postgres_database() -> Iterator[dict[str, str]]:
             "SIEMBIOT_POSTGRES_OWNER_PASSWORD": "placeholder",
             "SIEMBIOT_POSTGRES_APP_PASSWORD": "placeholder",
             "SIEMBIOT_POSTGRES_WORKER_PASSWORD": "placeholder",
+            "SIEMBIOT_POSTGRES_PUBLIC_PASSWORD": "placeholder",
             "SIEMBIOT_DATABASE_URL": OWNER_ALEMBIC_URL,
             "SIEMBIOT_APP_DATABASE_URL": APP_URL,
         }

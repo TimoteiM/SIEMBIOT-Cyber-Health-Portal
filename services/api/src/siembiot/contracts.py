@@ -729,3 +729,65 @@ class ConsentResponse(ContractModel):
     #: rather than inferred from it: consent is permission, and this is fact. Somebody
     #: asking "are we published" is asking the second question.
     published_at: datetime | None = None
+
+
+# -- the public observatory --------------------------------------------------
+#
+# The published shape. Every field here is one somebody outside the tenant can read, so
+# the list is deliberately short and adding to it is a decision rather than a detail.
+# There is no score, no evidence, no identifier, and no organisation name.
+
+PUBLISHED_BANDS = Literal["resilient", "managed", "developing", "exposed", "critical"]
+
+#: Only outcomes that describe the domain. `unknown` and `error` describe our own
+#: collection and are never published.
+PUBLISHED_RESULTS = Literal["pass", "fail", "warning"]
+
+
+class ObservatorySummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    registrable_domain: str
+    #: Absent where coverage was too low to stand behind a result.
+    band: PUBLISHED_BANDS | None = None
+    coverage_percentage: float
+    methodology_version: str
+    observed_at: datetime
+    published_at: datetime
+
+
+class ObservatoryListResponse(ContractModel):
+    total: int = 0
+    profiles: list[ObservatorySummary] = Field(default_factory=list)
+
+
+class PublishedCheckResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    check_id: str
+    result: PUBLISHED_RESULTS
+
+
+class ObservatoryProfileResponse(ContractModel):
+    registrable_domain: str
+    band: PUBLISHED_BANDS | None = None
+    coverage_percentage: float
+    #: Carried so a published claim can be traced to the rules that produced it. Anybody
+    #: disputing a result deserves to know exactly what was applied.
+    methodology_version: str
+    policy_digest: str
+    observed_at: datetime
+    published_at: datetime
+    checks: list[PublishedCheckResponse] = Field(default_factory=list)
+
+
+class ObservatoryAggregateResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    check_id: str
+    #: Never below the cohort threshold; thin cohorts are absent rather than rounded.
+    cohort_size: int
+    pass_count: int
+    methodology_version: str
+    released_at: datetime
+
+
+class ObservatoryAggregatesResponse(ContractModel):
+    aggregates: list[ObservatoryAggregateResponse] = Field(default_factory=list)

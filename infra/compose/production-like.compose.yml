@@ -43,6 +43,7 @@ services:
       POSTGRES_PASSWORD: ${SIEMBIOT_POSTGRES_OWNER_PASSWORD:?set in local .env}
       SIEMBIOT_POSTGRES_APP_PASSWORD: ${SIEMBIOT_POSTGRES_APP_PASSWORD:?set in local .env}
       SIEMBIOT_POSTGRES_WORKER_PASSWORD: ${SIEMBIOT_POSTGRES_WORKER_PASSWORD:?set in local .env}
+      SIEMBIOT_POSTGRES_PUBLIC_PASSWORD: ${SIEMBIOT_POSTGRES_PUBLIC_PASSWORD:?set in local .env}
     volumes:
       - production-postgres:/var/lib/postgresql/data
       - ./postgres-init:/docker-entrypoint-initdb.d:ro
@@ -114,6 +115,14 @@ services:
       # bypass row-level security even where it is FORCEd, so serving from it would
       # switch off tenant isolation entirely and silently.
       SIEMBIOT_APP_DATABASE_URL: postgresql+psycopg://siembiot_app:${SIEMBIOT_POSTGRES_APP_PASSWORD}@postgres:5432/${SIEMBIOT_POSTGRES_DB:-siembiot}
+      # The observatory role, for the unauthenticated published pages. It has no
+      # USAGE on the schema holding tenant tables, and the API refuses to start if
+      # that stops being true -- serving public pages from a connection that can
+      # reach private data would break nothing and mean everything.
+      #
+      # Unset means the observatory is not served at all, which is the safe default
+      # for a deployment that has not decided it wants to publish.
+      SIEMBIOT_PUBLIC_DATABASE_URL: postgresql+psycopg://siembiot_public:${SIEMBIOT_POSTGRES_PUBLIC_PASSWORD}@postgres:5432/${SIEMBIOT_POSTGRES_DB:-siembiot}
       SIEMBIOT_PUBLIC_BASE_URL: ${SIEMBIOT_PUBLIC_BASE_URL:-http://localhost:3000}
       # Required outside development. The API refuses to start without it, which is the
       # intended behaviour: a missing gateway secret means identity headers would be

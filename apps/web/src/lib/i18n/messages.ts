@@ -281,6 +281,23 @@ const ro = {
   "maturity.unknownExplained":
     "„Nu știu” nu se punctează ca „nu”. Reduce completitudinea, pentru că a nu ști este altceva decât a nu avea.",
 
+  // -- publicare ------------------------------------------------------------
+  // Consimțământul și publicarea sunt două fapte diferite. O interfață care le
+  // confundă ajunge să spună cuiva că este publicat când nu este.
+  "publication.heading": "Publicare în observatorul public",
+  "publication.explainer":
+    "Poți alege ca profilul acestui domeniu să fie vizibil public: banda de rezultat, acoperirea și verificările pe care metodologia le clasifică drept publicabile. Scorul numeric, dovezile și orice identificator nu se publică niciodată.",
+  "publication.needsVerification":
+    "Publicarea necesită control verificat asupra domeniului. Observarea publică nu cere dovada controlului, dar publicarea unui profil sub numele instituției este altceva.",
+  "publication.grant": "Acceptă publicarea",
+  "publication.withdraw": "Retrage publicarea",
+  "publication.consentedNotPublished":
+    "Ai acceptat publicarea. Nu este publicat încă nimic: profilul apare doar după o evaluare finalizată și după avizul de publicare al platformei.",
+  "publication.published": "Publicat din {when}.",
+  "publication.granted": "Publicarea a fost acceptată.",
+  "publication.withdrawn": "Profilul public a fost eliminat.",
+  "publication.changeFailed": "Setarea de publicare nu a putut fi modificată.",
+
   "severity.critical": "Critic",
   "severity.high": "Ridicat",
   "severity.medium": "Mediu",
@@ -664,6 +681,21 @@ const en: Messages = {
   "maturity.answer.not_applicable": "Does not apply.",
   "maturity.unknownExplained":
     "“I do not know” does not score as “no”. It reduces completeness, because not knowing is different from not having.",
+
+  // -- publication ----------------------------------------------------------
+  "publication.heading": "Publication in the public observatory",
+  "publication.explainer":
+    "You can choose to make this domain's profile publicly visible: the result band, the coverage, and the checks the methodology classifies as publishable. The numeric score, the evidence and any identifier are never published.",
+  "publication.needsVerification":
+    "Publication requires verified control of the domain. Public observation needs no proof of control, but publishing a profile under the institution's name is a different matter.",
+  "publication.grant": "Agree to publication",
+  "publication.withdraw": "Withdraw publication",
+  "publication.consentedNotPublished":
+    "You have agreed to publication. Nothing is published yet: a profile appears only after a completed assessment and the platform's own publication review.",
+  "publication.published": "Published since {when}.",
+  "publication.granted": "Publication was agreed.",
+  "publication.withdrawn": "The public profile was removed.",
+  "publication.changeFailed": "The publication setting could not be changed.",
 
   "severity.critical": "Critical",
   "severity.high": "High",
