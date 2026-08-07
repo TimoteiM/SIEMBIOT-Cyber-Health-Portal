@@ -1018,6 +1018,7 @@ export interface components {
             reason_code?: string | null;
             /** References */
             references?: string[];
+            remediation?: components["schemas"]["RemediationResponse"] | null;
             /** Remediation Template */
             remediation_template?: string | null;
             /** Resolved At */
@@ -1238,6 +1239,54 @@ export interface components {
             name: string;
             /** Slug */
             slug: string;
+        };
+        /**
+         * RemediationResponse
+         * @description What to do about a finding, in both languages.
+         *
+         *     `review_status` is part of the contract rather than a detail: guidance drafted
+         *     from a standard and guidance signed off by a reviewer carry different weight, and
+         *     a reader who cannot tell them apart will act on both the same way.
+         */
+        RemediationResponse: {
+            /** Caveat En */
+            caveat_en?: string | null;
+            /** Caveat Ro */
+            caveat_ro?: string | null;
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /**
+             * Effort
+             * @enum {string}
+             */
+            effort: "low" | "medium" | "high";
+            /** References */
+            references?: string[];
+            /**
+             * Review Status
+             * @enum {string}
+             */
+            review_status: "draft" | "reviewed";
+            /** Steps En */
+            steps_en?: string[];
+            /** Steps Ro */
+            steps_ro?: string[];
+            /** Summary En */
+            summary_en: string;
+            /** Summary Ro */
+            summary_ro: string;
+            /** Template Id */
+            template_id: string;
+            /** Verification En */
+            verification_en: string;
+            /** Verification Ro */
+            verification_ro: string;
+            /** Version */
+            version: string;
         };
         /** ScopeManifestResponse */
         ScopeManifestResponse: {

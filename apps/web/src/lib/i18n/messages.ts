@@ -173,6 +173,16 @@ const ro = {
   "findings.confidenceFreshness": "Dovadă mai veche ({percent}%)",
   "findings.confidenceSource": "Sursă mai puțin sigură ({percent}%)",
 
+  "remediation.heading": "Ce poți face",
+  "remediation.steps": "Pași",
+  "remediation.verification": "Cum verifici",
+  "remediation.caveat": "De reținut înainte",
+  "remediation.draft": "Îndrumare în lucru, încă nerevizuită",
+  "remediation.effortLow": "Efort mic",
+  "remediation.effortMedium": "Efort mediu",
+  "remediation.effortHigh": "Efort mare",
+  "remediation.missing": "Nu avem încă îndrumare scrisă pentru această verificare.",
+
   "severity.critical": "Critic",
   "severity.high": "Ridicat",
   "severity.medium": "Mediu",
@@ -453,6 +463,16 @@ const en: Messages = {
   "findings.confidenceAttribution": "Attribution uncertain ({percent}%)",
   "findings.confidenceFreshness": "Older evidence ({percent}%)",
   "findings.confidenceSource": "Less reliable source ({percent}%)",
+
+  "remediation.heading": "What you can do",
+  "remediation.steps": "Steps",
+  "remediation.verification": "How to check",
+  "remediation.caveat": "Read before you start",
+  "remediation.draft": "Draft guidance, not yet reviewed",
+  "remediation.effortLow": "Low effort",
+  "remediation.effortMedium": "Medium effort",
+  "remediation.effortHigh": "High effort",
+  "remediation.missing": "We have no written guidance for this check yet.",
 
   "severity.critical": "Critical",
   "severity.high": "High",

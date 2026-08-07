@@ -1,0 +1,106 @@
+{
+  "_comment": "Remediation guidance for pillar A (DNS and delegation). Deliberately outside the scoring digest: correcting a sentence here must not invalidate every stored score snapshot. Every template is review_status 'draft' until a named owner signs it off; the interface says so rather than presenting draft guidance as settled advice. Steps are standards-grounded and provider-neutral, because this platform does not know whose DNS or web server anyone runs, and invented vendor instructions would be followed literally.",
+  "pillar": "dns",
+  "templates": [
+    {
+      "template_id": "dnssec_enable",
+      "version": "1.0.0",
+      "review_status": "draft",
+      "effort": "medium",
+      "references": ["rfc4033", "rfc4035"],
+      "summary_ro": "Semnează zona DNS și publică înregistrarea DS la registrar, ca rezolverele să poată respinge răspunsuri falsificate.",
+      "summary_en": "Sign the DNS zone and publish the DS record at the registrar, so resolvers can reject forged answers.",
+      "steps_ro": [
+        "Activează semnarea zonei la furnizorul DNS (majoritatea oferă semnare automată cu rotație a cheilor).",
+        "Preia înregistrarea DS sau cheia DNSKEY generată de furnizor.",
+        "Publică DS la registrar, în zona părinte. Fără acest pas zona este semnată, dar nimeni nu verifică semnătura.",
+        "Confirmă lanțul de încredere de la rădăcină până la domeniu."
+      ],
+      "steps_en": [
+        "Enable zone signing at the DNS provider; most offer automatic signing with key rotation.",
+        "Take the DS record, or the DNSKEY, that the provider generates.",
+        "Publish the DS at the registrar, in the parent zone. Without this the zone is signed but nobody checks the signature.",
+        "Confirm the chain of trust from the root down to the domain."
+      ],
+      "verification_ro": "O nouă evaluare raportează starea 'signed_and_delegated'. Un rezolver validator returnează răspunsuri cu bitul AD setat.",
+      "verification_en": "A new assessment reports state 'signed_and_delegated'. A validating resolver returns answers with the AD bit set.",
+      "caveat_ro": "DNSSEC configurat greșit face domeniul complet nerezolvabil, nu doar nesemnat. Publică DS numai după ce zona este semnată și propagată, și nu schimba niciodată furnizorul DNS fără a retrage întâi DS.",
+      "caveat_en": "Misconfigured DNSSEC makes the domain entirely unresolvable, not merely unsigned. Publish the DS only after the zone is signed and propagated, and never change DNS provider without withdrawing the DS first."
+    },
+    {
+      "template_id": "caa_publish",
+      "version": "1.0.0",
+      "review_status": "draft",
+      "effort": "low",
+      "references": ["rfc8659"],
+      "summary_ro": "Publică înregistrări CAA care numesc exact autoritățile de certificare autorizate să emită pentru domeniu.",
+      "summary_en": "Publish CAA records naming exactly which certificate authorities may issue for the domain.",
+      "steps_ro": [
+        "Inventariază autoritățile de certificare folosite în prezent, inclusiv cele din spatele unui CDN sau al unui furnizor de găzduire.",
+        "Publică o înregistrare 'issue' pentru fiecare autoritate legitimă.",
+        "Publică 'issuewild' separat dacă folosești certificate wildcard; altfel restricționează-le explicit.",
+        "Adaugă 'iodef' cu o adresă monitorizată, ca să primești raport când o emitere este refuzată."
+      ],
+      "steps_en": [
+        "Inventory the certificate authorities currently in use, including any behind a CDN or hosting provider.",
+        "Publish an 'issue' record for each legitimate authority.",
+        "Publish 'issuewild' separately if wildcard certificates are used; otherwise restrict them explicitly.",
+        "Add 'iodef' with a monitored address, so a refused issuance is reported to you."
+      ],
+      "verification_ro": "Interogarea CAA pentru domeniu returnează exact autoritățile intenționate. Reînnoirea următoare a certificatului reușește.",
+      "verification_en": "A CAA query for the domain returns exactly the intended authorities. The next certificate renewal succeeds.",
+      "caveat_ro": "O înregistrare CAA care omite autoritatea folosită efectiv blochează reînnoirea certificatului, iar eșecul apare abia la expirare. Verifică lista înainte de publicare, nu după.",
+      "caveat_en": "A CAA record that omits the authority actually in use blocks certificate renewal, and the failure surfaces only at expiry. Check the list before publishing, not after."
+    },
+    {
+      "template_id": "nameserver_diversify",
+      "version": "1.0.0",
+      "review_status": "draft",
+      "effort": "high",
+      "references": ["rfc1034"],
+      "summary_ro": "Distribuie serverele de nume între furnizori independenți, ca o indisponibilitate a unui furnizor să nu scoată domeniul din DNS.",
+      "summary_en": "Spread nameservers across independent providers, so one provider's outage does not remove the domain from DNS.",
+      "steps_ro": [
+        "Alege un al doilea furnizor DNS, cu infrastructură și sistem autonom diferite de primul.",
+        "Replică zona la al doilea furnizor, prin transfer de zonă sau prin automatizarea existentă.",
+        "Adaugă serverele de nume ale ambilor furnizori la registrar.",
+        "Include ambii furnizori în procedura de modificare a zonei, ca să nu apară divergențe."
+      ],
+      "steps_en": [
+        "Choose a second DNS provider with different infrastructure and a different autonomous system from the first.",
+        "Replicate the zone to the second provider, by zone transfer or through existing automation.",
+        "Add both providers' nameservers at the registrar.",
+        "Include both providers in the zone change procedure, so the copies cannot diverge."
+      ],
+      "verification_ro": "O nouă evaluare observă servere de nume la mai mulți furnizori. Ambele seturi răspund identic pentru aceleași interogări.",
+      "verification_en": "A new assessment observes nameservers at more than one provider. Both sets answer identically for the same queries.",
+      "caveat_ro": "Aceasta este o observație de reziliență, nu o vulnerabilitate. Un singur furnizor bun poate fi o alegere rezonabilă; costul și complexitatea unei a doua zone sunt reale, iar două zone divergente sunt mai rele decât una singură.",
+      "caveat_en": "This is a resilience observation, not a vulnerability. One good provider can be a reasonable choice; the cost and complexity of a second zone are real, and two diverging zones are worse than one."
+    },
+    {
+      "template_id": "registration_renew",
+      "version": "1.0.0",
+      "review_status": "draft",
+      "effort": "low",
+      "references": ["rfc7483"],
+      "summary_ro": "Prelungește înregistrarea domeniului și elimină dependența de o singură reînnoire manuală.",
+      "summary_en": "Extend the domain registration and remove the dependency on a single manual renewal.",
+      "steps_ro": [
+        "Reînnoiește domeniul pe mai mulți ani, dacă registrul permite.",
+        "Activează reînnoirea automată și verifică faptul că metoda de plată este valabilă.",
+        "Activează blocarea la registrar, împotriva transferurilor neautorizate.",
+        "Folosește o adresă de contact a organizației, nu a unei persoane care poate pleca."
+      ],
+      "steps_en": [
+        "Renew the domain for several years, if the registry allows it.",
+        "Enable automatic renewal and confirm the payment method is current.",
+        "Enable registrar lock against unauthorized transfers.",
+        "Use an organizational contact address, not a person's, since people leave."
+      ],
+      "verification_ro": "Datele RDAP arată o dată de expirare îndepărtată și starea de blocare la transfer.",
+      "verification_en": "RDAP data shows a distant expiry date and a transfer-lock status.",
+      "caveat_ro": null,
+      "caveat_en": null
+    }
+  ]
+}

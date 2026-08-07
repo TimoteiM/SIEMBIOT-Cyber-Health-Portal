@@ -1,0 +1,206 @@
+{
+  "_comment": "Remediation guidance for pillar C (web and TLS). HSTS and CSP in particular are changes a browser remembers or enforces strictly, so both carry caveats about the staged path. Anything a visitor's browser caches for a year deserves to be described honestly before it is switched on.",
+  "pillar": "web_tls",
+  "templates": [
+    {
+      "template_id": "https_enable",
+      "version": "1.0.0",
+      "review_status": "draft",
+      "effort": "medium",
+      "references": ["rfc9110"],
+      "summary_ro": "Servește site-ul prin HTTPS cu un certificat valid, emis pentru numele efectiv folosit.",
+      "summary_en": "Serve the site over HTTPS with a valid certificate issued for the name actually in use.",
+      "steps_ro": [
+        "Obține un certificat pentru toate numele prin care este accesat site-ul, inclusiv varianta cu și fără 'www'.",
+        "Configurează serverul să asculte pe 443 și să prezinte întregul lanț de certificare, nu doar certificatul final.",
+        "Automatizează reînnoirea; certificatele expirate sunt cea mai frecventă cauză de indisponibilitate evitabilă.",
+        "Verifică site-ul pentru resurse încărcate prin HTTP, care ar produce conținut mixt."
+      ],
+      "steps_en": [
+        "Obtain a certificate for every name the site is reached by, including with and without 'www'.",
+        "Configure the server to listen on 443 and to present the full certificate chain, not only the leaf.",
+        "Automate renewal; expired certificates are the most common avoidable outage.",
+        "Check the site for resources loaded over HTTP, which would produce mixed content."
+      ],
+      "verification_ro": "O nouă evaluare stabilește o conexiune TLS validă și primește un răspuns pe 443.",
+      "verification_en": "A new assessment completes a valid TLS connection and receives a response on 443.",
+      "caveat_ro": null,
+      "caveat_en": null
+    },
+    {
+      "template_id": "http_redirect_configure",
+      "version": "1.0.0",
+      "review_status": "draft",
+      "effort": "low",
+      "references": ["rfc9110"],
+      "summary_ro": "Redirecționează tot traficul HTTP către HTTPS, într-un singur pas, către același nume.",
+      "summary_en": "Redirect all HTTP traffic to HTTPS, in a single hop, to the same name.",
+      "steps_ro": [
+        "Configurează portul 80 să răspundă cu o redirecționare permanentă către aceeași cale prin HTTPS.",
+        "Evită lanțurile de redirecționări; fiecare pas suplimentar rămâne o oportunitate de interceptare.",
+        "Păstrează calea și parametrii cererii, ca legăturile existente să continue să funcționeze.",
+        "Redirecționează abia după ce HTTPS funcționează pentru toate numele."
+      ],
+      "steps_en": [
+        "Configure port 80 to answer with a permanent redirect to the same path over HTTPS.",
+        "Avoid redirect chains; every extra hop remains an opportunity to intercept.",
+        "Preserve the request path and parameters, so existing links keep working.",
+        "Redirect only once HTTPS works for every name."
+      ],
+      "verification_ro": "O nouă evaluare observă redirecționarea de la HTTP la HTTPS.",
+      "verification_en": "A new assessment observes the redirect from HTTP to HTTPS.",
+      "caveat_ro": null,
+      "caveat_en": null
+    },
+    {
+      "template_id": "certificate_renew",
+      "version": "1.0.0",
+      "review_status": "draft",
+      "effort": "low",
+      "references": ["rfc5280"],
+      "summary_ro": "Reînnoiește certificatul și automatizează procesul, ca expirarea să nu mai fie posibilă.",
+      "summary_en": "Renew the certificate and automate the process, so expiry stops being possible.",
+      "steps_ro": [
+        "Emite un certificat nou și instalează-l împreună cu lanțul intermediar complet.",
+        "Automatizează reînnoirea, cu declanșare cu mult înainte de expirare.",
+        "Monitorizează data de expirare independent de automatizare, ca o automatizare oprită să fie observată.",
+        "Repetă pentru fiecare terminator TLS: echilibratoare de sarcină, CDN, servere de mail."
+      ],
+      "steps_en": [
+        "Issue a new certificate and install it together with the full intermediate chain.",
+        "Automate renewal, triggering well before expiry.",
+        "Monitor the expiry date independently of the automation, so a stopped automation is noticed.",
+        "Repeat for every TLS terminator: load balancers, CDN, mail servers."
+      ],
+      "verification_ro": "O nouă evaluare observă un certificat valabil, cu lanțul complet.",
+      "verification_en": "A new assessment observes a valid certificate with a complete chain.",
+      "caveat_ro": null,
+      "caveat_en": null
+    },
+    {
+      "template_id": "certificate_reissue_with_hostname",
+      "version": "1.0.0",
+      "review_status": "draft",
+      "effort": "low",
+      "references": ["rfc6125"],
+      "summary_ro": "Reemite certificatul astfel încât numele efectiv folosit să apară în extensia subjectAltName.",
+      "summary_en": "Reissue the certificate so the name actually in use appears in the subjectAltName extension.",
+      "steps_ro": [
+        "Enumeră toate numele prin care serviciul este accesat de vizitatori.",
+        "Cere un certificat care le conține pe toate în subjectAltName; câmpul Common Name nu mai este consultat de browsere.",
+        "Instalează certificatul la fiecare punct care termină TLS.",
+        "Confirmă că nu a rămas niciun nume servit de un certificat care nu îl acoperă."
+      ],
+      "steps_en": [
+        "List every name visitors use to reach the service.",
+        "Request a certificate containing them all in subjectAltName; browsers no longer consult Common Name.",
+        "Install the certificate at every point that terminates TLS.",
+        "Confirm no name is left served by a certificate that does not cover it."
+      ],
+      "verification_ro": "O nouă evaluare confirmă potrivirea dintre numele cerut și certificatul prezentat.",
+      "verification_en": "A new assessment confirms the requested name matches the presented certificate.",
+      "caveat_ro": null,
+      "caveat_en": null
+    },
+    {
+      "template_id": "tls_disable_deprecated",
+      "version": "1.0.0",
+      "review_status": "draft",
+      "effort": "medium",
+      "references": ["rfc8996"],
+      "summary_ro": "Dezactivează TLS 1.0 și 1.1, care sunt formal depreciate, și păstrează TLS 1.2 și 1.3.",
+      "summary_en": "Disable TLS 1.0 and 1.1, which are formally deprecated, and keep TLS 1.2 and 1.3.",
+      "steps_ro": [
+        "Verifică în jurnalele serverului ce versiuni folosesc efectiv clienții actuali.",
+        "Dezactivează TLS 1.0 și 1.1 la fiecare punct care termină TLS.",
+        "Activează TLS 1.3 dacă nu este deja activ.",
+        "Repetă pentru serviciile auxiliare: API-uri, servere de mail, portaluri administrative."
+      ],
+      "steps_en": [
+        "Check the server logs for which versions current clients actually use.",
+        "Disable TLS 1.0 and 1.1 at every point that terminates TLS.",
+        "Enable TLS 1.3 if it is not already on.",
+        "Repeat for auxiliary services: APIs, mail servers, administrative portals."
+      ],
+      "verification_ro": "O nouă evaluare nu mai reușește să negocieze protocoalele depreciate.",
+      "verification_en": "A new assessment no longer succeeds in negotiating the deprecated protocols.",
+      "caveat_ro": "Clienții foarte vechi și unele sisteme integrate pierd accesul. Verifică jurnalele înainte, mai ales dacă serviciul este folosit de instituții cu echipamente vechi; pentru o instituție publică, excluderea unui grup de cetățeni este un cost real, nu doar unul tehnic.",
+      "caveat_en": "Very old clients and some embedded systems lose access. Check the logs first, particularly where the service is used by institutions with old equipment; for a public body, cutting off a group of citizens is a real cost, not merely a technical one."
+    },
+    {
+      "template_id": "hsts_enable",
+      "version": "1.0.0",
+      "review_status": "draft",
+      "effort": "low",
+      "references": ["rfc6797"],
+      "summary_ro": "Trimite antetul Strict-Transport-Security, crescând durata treptat.",
+      "summary_en": "Send the Strict-Transport-Security header, increasing the lifetime in stages.",
+      "steps_ro": [
+        "Confirmă că HTTPS funcționează pentru toate numele, inclusiv subdomeniile pe care le vei include.",
+        "Trimite antetul cu o durată scurtă, de exemplu câteva minute, și verifică.",
+        "Crește treptat durata până la cel puțin un an.",
+        "Adaugă 'includeSubDomains' abia după ce fiecare subdomeniu servește HTTPS valid."
+      ],
+      "steps_en": [
+        "Confirm HTTPS works for every name, including any subdomains you will include.",
+        "Send the header with a short lifetime, a few minutes say, and check.",
+        "Raise the lifetime in stages, up to at least a year.",
+        "Add 'includeSubDomains' only once every subdomain serves valid HTTPS."
+      ],
+      "verification_ro": "O nouă evaluare observă antetul cu durata configurată.",
+      "verification_en": "A new assessment observes the header with the configured lifetime.",
+      "caveat_ro": "Browserul reține instrucțiunea pentru toată durata declarată; nu o poți retrage de la vizitatorii care au primit-o deja. Cu 'includeSubDomains', orice subdomeniu fără HTTPS valid devine inaccesibil. Înscrierea pe lista de preîncărcare este și mai greu de anulat și nu ar trebui făcută înainte de o perioadă lungă de funcționare stabilă.",
+      "caveat_en": "The browser remembers the instruction for the whole declared lifetime; you cannot withdraw it from visitors who already have it. With 'includeSubDomains', any subdomain without valid HTTPS becomes unreachable. Preload-list submission is harder still to undo and should not be done before a long period of stable operation."
+    },
+    {
+      "template_id": "security_headers_configure",
+      "version": "1.0.0",
+      "review_status": "draft",
+      "effort": "medium",
+      "references": ["owasp_secure_headers"],
+      "summary_ro": "Configurează antetele de securitate de bază, cu politica de conținut introdusă în modul de raportare întâi.",
+      "summary_en": "Configure the baseline security headers, introducing the content policy in report-only mode first.",
+      "steps_ro": [
+        "Trimite 'X-Content-Type-Options: nosniff' și o politică de încadrare, prin CSP 'frame-ancestors'.",
+        "Stabilește o politică 'Referrer-Policy' potrivită.",
+        "Publică politica de securitate a conținutului întâi ca 'Content-Security-Policy-Report-Only' și colectează încălcările.",
+        "Corectează sursele legitime semnalate, apoi treci politica în modul de aplicare."
+      ],
+      "steps_en": [
+        "Send 'X-Content-Type-Options: nosniff' and a framing policy, via CSP 'frame-ancestors'.",
+        "Set an appropriate 'Referrer-Policy'.",
+        "Publish the content security policy first as 'Content-Security-Policy-Report-Only' and collect violations.",
+        "Fix the legitimate sources it flags, then move the policy into enforcing mode."
+      ],
+      "verification_ro": "O nouă evaluare observă antetele configurate.",
+      "verification_en": "A new assessment observes the configured headers.",
+      "caveat_ro": "O politică de conținut aplicată direct blochează scripturi și stiluri legitime, iar pagina se strică vizibil pentru vizitatori. Modul de raportare există exact pentru a găsi aceste surse înainte, nu după.",
+      "caveat_en": "A content policy applied straight away blocks legitimate scripts and styles, and the page visibly breaks for visitors. Report-only mode exists precisely to find those sources beforehand rather than afterwards."
+    },
+    {
+      "template_id": "cookie_attributes_harden",
+      "version": "1.0.0",
+      "review_status": "draft",
+      "effort": "low",
+      "references": ["rfc6265bis"],
+      "summary_ro": "Marchează modulele cookie cu Secure, HttpOnly și un atribut SameSite potrivit.",
+      "summary_en": "Mark cookies with Secure, HttpOnly and an appropriate SameSite attribute.",
+      "steps_ro": [
+        "Adaugă 'Secure' la toate modulele cookie, ca să nu fie trimise niciodată prin HTTP.",
+        "Adaugă 'HttpOnly' acolo unde valoarea nu trebuie citită din JavaScript.",
+        "Stabilește 'SameSite' explicit, potrivit rolului fiecărui modul cookie.",
+        "Verifică modulele cookie adăugate de componente terțe, nu doar pe cele proprii."
+      ],
+      "steps_en": [
+        "Add 'Secure' to every cookie, so none is ever sent over HTTP.",
+        "Add 'HttpOnly' wherever the value need not be read from JavaScript.",
+        "Set 'SameSite' explicitly, according to each cookie's role.",
+        "Check cookies set by third-party components, not only your own."
+      ],
+      "verification_ro": "O nouă evaluare observă atributele pe modulele cookie de pe paginile publice.",
+      "verification_en": "A new assessment observes the attributes on cookies from public pages.",
+      "caveat_ro": "'HttpOnly' pe un modul cookie citit intenționat din JavaScript strică funcționalitatea. Verifică rolul fiecăruia înainte, nu aplica atributele uniform.",
+      "caveat_en": "'HttpOnly' on a cookie deliberately read from JavaScript breaks functionality. Check each cookie's role first rather than applying the attributes uniformly."
+    }
+  ]
+}

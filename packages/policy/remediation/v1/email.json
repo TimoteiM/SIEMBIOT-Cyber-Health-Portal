@@ -1,0 +1,129 @@
+{
+  "_comment": "Remediation guidance for pillar B (email trust). Every template here can interrupt legitimate mail if applied in one step, which is why each carries a caveat naming the staged path. Guidance that silently costs an institution its incoming mail is worse than no guidance at all.",
+  "pillar": "email",
+  "templates": [
+    {
+      "template_id": "spf_publish",
+      "version": "1.0.0",
+      "review_status": "draft",
+      "effort": "medium",
+      "references": ["rfc7208"],
+      "summary_ro": "Publică o singură înregistrare SPF care enumeră exact sursele autorizate să trimită în numele domeniului.",
+      "summary_en": "Publish a single SPF record listing exactly the sources authorized to send on the domain's behalf.",
+      "steps_ro": [
+        "Inventariază tot ce trimite legitim: serverul propriu, furnizorul de e-mail, sistemele de facturare, platformele de newsletter.",
+        "Publică o singură înregistrare TXT 'v=spf1' la vârful domeniului. Două înregistrări SPF sunt o eroare, nu o completare.",
+        "Începe cu '~all' (soft fail) cât timp verifici rapoartele, apoi treci la '-all'.",
+        "Publică SPF și pentru domeniile de la care nu trimiți nimic, cu 'v=spf1 -all'."
+      ],
+      "steps_en": [
+        "Inventory everything that legitimately sends: your own server, the mail provider, invoicing systems, newsletter platforms.",
+        "Publish a single 'v=spf1' TXT record at the domain apex. Two SPF records are an error, not an addition.",
+        "Start with '~all' (soft fail) while you check reports, then move to '-all'.",
+        "Publish SPF for domains that send nothing too, as 'v=spf1 -all'."
+      ],
+      "verification_ro": "O nouă evaluare găsește exact o înregistrare SPF validă. Rapoartele DMARC arată că sursele legitime trec verificarea.",
+      "verification_en": "A new assessment finds exactly one valid SPF record. DMARC reports show legitimate sources passing.",
+      "caveat_ro": "SPF permite maximum 10 interogări DNS; depășirea limitei invalidează întreaga înregistrare, iar mesajele legitime încep să eșueze. Fiecare 'include' consumă din acest buget. Treci la '-all' abia după ce rapoartele confirmă că nimic legitim nu lipsește.",
+      "caveat_en": "SPF allows at most 10 DNS lookups; exceeding the limit invalidates the whole record and legitimate mail starts failing. Every 'include' spends from that budget. Move to '-all' only after reports confirm nothing legitimate is missing."
+    },
+    {
+      "template_id": "dmarc_stage_to_enforcement",
+      "version": "1.0.0",
+      "review_status": "draft",
+      "effort": "medium",
+      "references": ["rfc7489"],
+      "summary_ro": "Publică DMARC și treci gradual la aplicare, după ce rapoartele confirmă că tot traficul legitim este aliniat.",
+      "summary_en": "Publish DMARC and move to enforcement in stages, once reports confirm all legitimate traffic is aligned.",
+      "steps_ro": [
+        "Publică '_dmarc' cu 'p=none' și o adresă 'rua' monitorizată. Aceasta nu schimbă încă tratamentul mesajelor.",
+        "Citește rapoartele agregate câteva săptămâni și identifică sursele legitime care nu se aliniază.",
+        "Corectează alinierea SPF și DKIM pentru fiecare sursă legitimă găsită.",
+        "Treci la 'p=quarantine', apoi, după o nouă perioadă de observare, la 'p=reject'."
+      ],
+      "steps_en": [
+        "Publish '_dmarc' with 'p=none' and a monitored 'rua' address. This does not change how mail is treated yet.",
+        "Read the aggregate reports for a few weeks and identify legitimate sources that do not align.",
+        "Fix SPF and DKIM alignment for each legitimate source found.",
+        "Move to 'p=quarantine', then, after a further observation period, to 'p=reject'."
+      ],
+      "verification_ro": "O nouă evaluare raportează o politică de aplicare. Rapoartele agregate nu mai conțin surse legitime nealiniate.",
+      "verification_en": "A new assessment reports an enforcing policy. Aggregate reports no longer contain unaligned legitimate sources.",
+      "caveat_ro": "Trecerea directă la 'p=reject' înainte de a citi rapoartele face ca mesajele legitime să fie respinse definitiv, nu marcate. Etapele nu sunt o formalitate: ele există pentru că aproape nicio organizație nu își cunoaște de la început toate sursele de e-mail.",
+      "caveat_en": "Going straight to 'p=reject' before reading reports causes legitimate mail to be rejected outright, not flagged. The stages are not a formality: almost no organization knows all its own sending sources at the outset."
+    },
+    {
+      "template_id": "dkim_publish_selector",
+      "version": "1.0.0",
+      "review_status": "draft",
+      "effort": "medium",
+      "references": ["rfc6376"],
+      "summary_ro": "Semnează mesajele cu DKIM și publică cheia publică sub un selector declarat.",
+      "summary_en": "Sign messages with DKIM and publish the public key under a declared selector.",
+      "steps_ro": [
+        "Generează o pereche de chei de cel puțin 2048 de biți la fiecare sistem care trimite mesaje.",
+        "Publică cheia publică la '<selector>._domainkey' pentru fiecare selector.",
+        "Activează semnarea la trimitere și confirmă că domeniul din semnătură se aliniază cu adresa expeditorului.",
+        "Declară selectoarele în portal, ca evaluările următoare să le poată verifica: selectoarele nu pot fi ghicite."
+      ],
+      "steps_en": [
+        "Generate a key pair of at least 2048 bits at each sending system.",
+        "Publish the public key at '<selector>._domainkey' for each selector.",
+        "Enable signing on send and confirm the signing domain aligns with the sender address.",
+        "Declare the selectors in the portal so later assessments can check them: selectors cannot be guessed."
+      ],
+      "verification_ro": "O nouă evaluare găsește cheia publicată pentru selectoarele declarate. Rapoartele DMARC arată DKIM trecut și aliniat.",
+      "verification_en": "A new assessment finds the published key for the declared selectors. DMARC reports show DKIM passing and aligned.",
+      "caveat_ro": "Nu retrage o cheie veche imediat după rotație: mesajele deja în tranzit se validează cu cheia sub care au fost semnate. Păstrează selectorul anterior publicat câteva zile.",
+      "caveat_en": "Do not withdraw an old key immediately after rotation: mail already in transit validates against the key it was signed with. Keep the previous selector published for a few days."
+    },
+    {
+      "template_id": "mta_sts_publish",
+      "version": "1.0.0",
+      "review_status": "draft",
+      "effort": "medium",
+      "references": ["rfc8461"],
+      "summary_ro": "Publică o politică MTA-STS, ca serverele care trimit către tine să refuze livrarea fără TLS valid.",
+      "summary_en": "Publish an MTA-STS policy, so sending servers refuse delivery without valid TLS.",
+      "steps_ro": [
+        "Publică fișierul de politică prin HTTPS la 'mta-sts.<domeniu>/.well-known/mta-sts.txt', cu certificat valid.",
+        "Enumeră în politică exact numele MX pe care le folosești.",
+        "Publică înregistrarea TXT '_mta-sts' cu un identificator de versiune care se schimbă la fiecare modificare.",
+        "Rulează întâi cu 'mode: testing', apoi treci la 'mode: enforce'."
+      ],
+      "steps_en": [
+        "Publish the policy file over HTTPS at 'mta-sts.<domain>/.well-known/mta-sts.txt', with a valid certificate.",
+        "List in the policy exactly the MX names you use.",
+        "Publish the '_mta-sts' TXT record with a version identifier that changes on every edit.",
+        "Run with 'mode: testing' first, then move to 'mode: enforce'."
+      ],
+      "verification_ro": "O nouă evaluare găsește politica și înregistrarea TXT consecvente. Rapoartele TLS-RPT nu semnalează eșecuri.",
+      "verification_en": "A new assessment finds the policy and the TXT record consistent. TLS-RPT reports show no failures.",
+      "caveat_ro": "În 'enforce', un MX absent din politică sau un certificat expirat pe un server de mail oprește livrarea către tine, iar expeditorul primește eșec. Publică TLS-RPT înainte de a trece la enforce, ca să vezi problemele înainte să coste mesaje.",
+      "caveat_en": "In 'enforce', an MX missing from the policy or an expired certificate on a mail server stops delivery to you, and the sender sees a failure. Publish TLS-RPT before moving to enforce, so problems are visible before they cost mail."
+    },
+    {
+      "template_id": "tls_rpt_publish",
+      "version": "1.0.0",
+      "review_status": "draft",
+      "effort": "low",
+      "references": ["rfc8460"],
+      "summary_ro": "Publică TLS-RPT ca să primești rapoarte când livrarea securizată către domeniul tău eșuează.",
+      "summary_en": "Publish TLS-RPT to receive reports when secure delivery to your domain fails.",
+      "steps_ro": [
+        "Publică o înregistrare TXT la '_smtp._tls' cu 'v=TLSRPTv1' și o adresă 'rua'.",
+        "Direcționează rapoartele către o cutie poștală sau un sistem care este citit efectiv.",
+        "Verifică primele rapoarte, ca să confirmi că sosesc."
+      ],
+      "steps_en": [
+        "Publish a TXT record at '_smtp._tls' with 'v=TLSRPTv1' and a 'rua' address.",
+        "Point the reports at a mailbox or system that is actually read.",
+        "Check the first reports to confirm they arrive."
+      ],
+      "verification_ro": "O nouă evaluare găsește înregistrarea TLS-RPT. Rapoartele încep să sosească de la expeditorii mari în câteva zile.",
+      "verification_en": "A new assessment finds the TLS-RPT record. Reports start arriving from large senders within a few days.",
+      "caveat_ro": "Rapoartele conțin numele domeniilor care îți trimit mesaje. Trimite-le către o adresă din organizație, nu către un serviciu terț neverificat.",
+      "caveat_en": "Reports contain the names of domains sending you mail. Send them to an address inside the organization, not to an unvetted third-party service."
+    }
+  ]
+}

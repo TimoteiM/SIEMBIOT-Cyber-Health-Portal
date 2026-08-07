@@ -1191,6 +1191,16 @@
             "title": "References",
             "type": "array"
           },
+          "remediation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RemediationResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "remediation_template": {
             "anyOf": [
               {
@@ -1625,6 +1635,114 @@
           "created_at"
         ],
         "title": "OrganizationResponse",
+        "type": "object"
+      },
+      "RemediationResponse": {
+        "additionalProperties": false,
+        "description": "What to do about a finding, in both languages.\n\n`review_status` is part of the contract rather than a detail: guidance drafted\nfrom a standard and guidance signed off by a reviewer carry different weight, and\na reader who cannot tell them apart will act on both the same way.",
+        "properties": {
+          "caveat_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caveat En"
+          },
+          "caveat_ro": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caveat Ro"
+          },
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "effort": {
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Effort",
+            "type": "string"
+          },
+          "references": {
+            "items": {
+              "type": "string"
+            },
+            "title": "References",
+            "type": "array"
+          },
+          "review_status": {
+            "enum": [
+              "draft",
+              "reviewed"
+            ],
+            "title": "Review Status",
+            "type": "string"
+          },
+          "steps_en": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Steps En",
+            "type": "array"
+          },
+          "steps_ro": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Steps Ro",
+            "type": "array"
+          },
+          "summary_en": {
+            "title": "Summary En",
+            "type": "string"
+          },
+          "summary_ro": {
+            "title": "Summary Ro",
+            "type": "string"
+          },
+          "template_id": {
+            "title": "Template Id",
+            "type": "string"
+          },
+          "verification_en": {
+            "title": "Verification En",
+            "type": "string"
+          },
+          "verification_ro": {
+            "title": "Verification Ro",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "template_id",
+          "version",
+          "review_status",
+          "effort",
+          "summary_ro",
+          "summary_en",
+          "verification_ro",
+          "verification_en"
+        ],
+        "title": "RemediationResponse",
         "type": "object"
       },
       "ScopeManifestResponse": {

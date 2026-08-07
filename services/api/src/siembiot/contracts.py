@@ -369,6 +369,31 @@ class FindingConfidenceResponse(ContractModel):
     freshness: float
 
 
+class RemediationResponse(ContractModel):
+    """What to do about a finding, in both languages.
+
+    `review_status` is part of the contract rather than a detail: guidance drafted
+    from a standard and guidance signed off by a reviewer carry different weight, and
+    a reader who cannot tell them apart will act on both the same way.
+    """
+
+    template_id: str
+    version: str
+    review_status: Literal["draft", "reviewed"]
+    effort: Literal["low", "medium", "high"]
+    summary_ro: str
+    summary_en: str
+    steps_ro: list[str] = Field(default_factory=list)
+    steps_en: list[str] = Field(default_factory=list)
+    verification_ro: str
+    verification_en: str
+    #: Present only where following the guidance can break something. Absent means no
+    #: obvious failure mode, not that the caveat was omitted for brevity.
+    caveat_ro: str | None = None
+    caveat_en: str | None = None
+    references: list[str] = Field(default_factory=list)
+
+
 class FindingResponse(ContractModel):
     id: UUID
     check_id: str
@@ -387,9 +412,10 @@ class FindingResponse(ContractModel):
     title_en: str
     rationale_ro: str
     rationale_en: str
-    #: Named by the catalog; the templates themselves are not written yet, so this is
-    #: an identifier a reader can look up rather than prose the API invented.
+    #: Named by the catalog. `remediation` carries the guidance itself; the bare
+    #: identifier stays so a client can reference it even when guidance is missing.
     remediation_template: str | None = None
+    remediation: RemediationResponse | None = None
     references: list[str] = Field(default_factory=list)
     confidence: FindingConfidenceResponse
     #: How long this has been true. A finding first seen months ago is a different

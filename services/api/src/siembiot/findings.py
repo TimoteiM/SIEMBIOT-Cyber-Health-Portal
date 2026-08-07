@@ -28,11 +28,13 @@ from siembiot.contracts import (
     FindingConfidenceResponse,
     FindingResponse,
     FindingSummaryResponse,
+    RemediationResponse,
 )
 from siembiot.db import Database
 from siembiot.errors import AppError
 from siembiot.identity import Principal
 from siembiot.organizations import authorize
+from siembiot.remediation import Remediation, load_remediation
 
 #: Most urgent first. Severity is not alphabetical and not a number in the database, so
 #: the ordering lives here rather than in the query.
@@ -71,7 +73,31 @@ def _latest_assessment(connection: Connection, domain_id: UUID) -> dict[str, Any
     return dict(row) if row is not None else None
 
 
-def _finding_response(row: RowMapping, metadata: Mapping[str, CheckMetadata]) -> FindingResponse:
+def _remediation_response(entry: Remediation | None) -> RemediationResponse | None:
+    if entry is None:
+        return None
+    return RemediationResponse(
+        template_id=entry.template_id,
+        version=entry.version,
+        review_status=entry.review_status,
+        effort=entry.effort,
+        summary_ro=entry.summary_ro,
+        summary_en=entry.summary_en,
+        steps_ro=list(entry.steps_ro),
+        steps_en=list(entry.steps_en),
+        verification_ro=entry.verification_ro,
+        verification_en=entry.verification_en,
+        caveat_ro=entry.caveat_ro,
+        caveat_en=entry.caveat_en,
+        references=list(entry.references),
+    )
+
+
+def _finding_response(
+    row: RowMapping,
+    metadata: Mapping[str, CheckMetadata],
+    remediation: Mapping[str, Remediation],
+) -> FindingResponse:
     check_id = str(row["check_id"])
     # A check the catalog no longer describes still has to render. Dropping it would
     # quietly shorten the list, and a shorter list of weaknesses is the one mistake
@@ -95,6 +121,14 @@ def _finding_response(row: RowMapping, metadata: Mapping[str, CheckMetadata]) ->
         rationale_ro=entry.rationale_ro if entry else "",
         rationale_en=entry.rationale_en if entry else "",
         remediation_template=entry.remediation_template if entry else None,
+        # Absent guidance renders as an identifier rather than as nothing: a reader
+        # who can see the template name can look it up, whereas a silently empty
+        # section reads as "there is nothing to do".
+        remediation=_remediation_response(
+            remediation.get(entry.remediation_template)
+            if entry and entry.remediation_template
+            else None
+        ),
         references=list(entry.references) if entry else [],
         confidence=FindingConfidenceResponse(
             attribution=float(row["attribution_confidence"]),
@@ -167,8 +201,9 @@ def build_findings_router() -> APIRouter:
         # holding a database connection open while parsing JSON serves nobody.
         version = str(latest["methodology_version"]) if latest else "1.0.0"
         metadata = load_check_metadata(version)
+        guidance = load_remediation(version)
 
-        findings = [_finding_response(row, metadata) for row in rows]
+        findings = [_finding_response(row, metadata, guidance) for row in rows]
         # Most urgent first, then by check identifier so the order is stable between
         # requests -- a list that reshuffles is one a reader cannot scan twice.
         findings.sort(key=lambda item: (_SEVERITY_RANK.get(item.severity, 99), item.check_id))

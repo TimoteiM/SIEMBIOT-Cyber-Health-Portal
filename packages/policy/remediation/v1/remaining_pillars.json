@@ -1,0 +1,139 @@
+{
+  "_comment": "Remediation guidance for pillars D (exposure), E (operational hygiene) and F (governance). Two of these are deliberately not technical fixes: an asset candidate needs a human decision rather than a configuration change, and a reputation listing is somebody else's judgement that has to be investigated before it is disputed.",
+  "pillars": [
+    {
+      "pillar": "exposure",
+      "templates": [
+        {
+          "template_id": "asset_review_candidates",
+          "version": "1.0.0",
+          "review_status": "draft",
+          "effort": "low",
+          "references": ["rfc6962"],
+          "summary_ro": "Revizuiește numele descoperite public și decide explicit care aparțin organizației.",
+          "summary_en": "Review the publicly discovered names and decide explicitly which belong to the organization.",
+          "steps_ro": [
+            "Deschide lista de candidați și citește motivul atribuirii pentru fiecare.",
+            "Acceptă numele pe care organizația le controlează efectiv.",
+            "Respinge numele care apar dintr-un certificat partajat sau dintr-o coincidență de nume.",
+            "Repetă revizuirea periodic; suprafața se schimbă fără să te anunțe cineva."
+          ],
+          "steps_en": [
+            "Open the candidate list and read the attribution reason for each.",
+            "Accept the names the organization actually controls.",
+            "Reject names that appear from a shared certificate or a coincidence of naming.",
+            "Repeat the review periodically; the surface changes without anyone announcing it."
+          ],
+          "verification_ro": "Nu mai există candidați nerevizuiți pentru domeniu.",
+          "verification_en": "No unreviewed candidates remain for the domain.",
+          "caveat_ro": "Acceptarea unui nume îl include în perimetrul evaluat, deci în ce va fi contactat la evaluările următoare. Nu accepta un nume doar pentru că pare înrudit: un certificat partajat nu spune nimic despre proprietate.",
+          "caveat_en": "Accepting a name brings it into the assessed perimeter, and so into what later assessments will contact. Do not accept a name merely because it looks related: a shared certificate says nothing about ownership."
+        },
+        {
+          "template_id": "wildcard_dns_review",
+          "version": "1.0.0",
+          "review_status": "draft",
+          "effort": "medium",
+          "references": ["rfc4592"],
+          "summary_ro": "Revizuiește înregistrarea DNS wildcard și înlocuiește-o cu intrări explicite acolo unde este posibil.",
+          "summary_en": "Review the wildcard DNS record and replace it with explicit entries where possible.",
+          "steps_ro": [
+            "Identifică ce depinde efectiv de wildcard; adesea sunt doar câteva nume.",
+            "Publică înregistrări explicite pentru acele nume.",
+            "Elimină wildcard-ul, sau restrânge-l la subzona care chiar are nevoie de el.",
+            "Confirmă că un nume inexistent returnează NXDOMAIN, nu o adresă."
+          ],
+          "steps_en": [
+            "Identify what actually depends on the wildcard; often it is only a few names.",
+            "Publish explicit records for those names.",
+            "Remove the wildcard, or narrow it to the subzone that genuinely needs it.",
+            "Confirm a non-existent name returns NXDOMAIN rather than an address."
+          ],
+          "verification_ro": "O nouă evaluare nu mai observă răspuns pentru nume aleatorii sub domeniu.",
+          "verification_en": "A new assessment no longer sees an answer for random names under the domain.",
+          "caveat_ro": "Un wildcard poate fi o alegere deliberată, de exemplu pentru subdomenii per client. Aceasta este o observație despre suprafață, nu o eroare de configurare; eliminarea lui fără inventar rupe serviciile care se bazau pe el.",
+          "caveat_en": "A wildcard can be a deliberate choice, for per-tenant subdomains say. This is an observation about surface, not a misconfiguration; removing it without an inventory breaks the services that relied on it."
+        }
+      ]
+    },
+    {
+      "pillar": "hygiene",
+      "templates": [
+        {
+          "template_id": "reputation_investigate_listing",
+          "version": "1.0.0",
+          "review_status": "draft",
+          "effort": "medium",
+          "references": ["provider_terms"],
+          "summary_ro": "Investighează motivul listării înainte de a cere delistarea, pentru că listarea poate fi întemeiată.",
+          "summary_en": "Investigate the reason for the listing before requesting delisting, because the listing may be justified.",
+          "steps_ro": [
+            "Identifică ce listă raportează domeniul și pe ce motiv.",
+            "Verifică dacă motivul este real: un cont compromis, o pagină încărcată de un atacator, un formular folosit pentru trimitere de spam.",
+            "Remediază cauza înainte de orice cerere de delistare.",
+            "Cere delistarea prin procedura furnizorului, după remediere."
+          ],
+          "steps_en": [
+            "Identify which list reports the domain, and on what grounds.",
+            "Check whether the reason is real: a compromised account, a page uploaded by an attacker, a form used to send spam.",
+            "Fix the cause before making any delisting request.",
+            "Request delisting through the provider's process, after the fix."
+          ],
+          "verification_ro": "O nouă evaluare nu mai găsește listarea, după procesarea cererii.",
+          "verification_en": "A new assessment no longer finds the listing, once the request has been processed.",
+          "caveat_ro": "Cererea de delistare fără remediere este de obicei refuzată și poate prelungi listarea. O listare este judecata unui terț, nu o măsurătoare a acestui portal: verific-o independent înainte să o accepți sau să o contești.",
+          "caveat_en": "A delisting request without a fix is usually refused and can prolong the listing. A listing is a third party's judgement, not a measurement made by this portal: check it independently before either accepting or disputing it."
+        }
+      ]
+    },
+    {
+      "pillar": "governance",
+      "templates": [
+        {
+          "template_id": "banner_suppress_versions",
+          "version": "1.0.0",
+          "review_status": "draft",
+          "effort": "low",
+          "references": ["owasp_secure_headers"],
+          "summary_ro": "Elimină numerele exacte de versiune din antetele de răspuns.",
+          "summary_en": "Remove exact version numbers from response headers.",
+          "steps_ro": [
+            "Configurează serverul web să nu publice versiunea în antetul 'Server'.",
+            "Elimină antetele adăugate de platforma aplicației care dezvăluie versiuni.",
+            "Verifică și paginile de eroare, care adesea scapă de configurare."
+          ],
+          "steps_en": [
+            "Configure the web server not to publish its version in the 'Server' header.",
+            "Remove headers added by the application platform that disclose versions.",
+            "Check error pages too, which often escape the configuration."
+          ],
+          "verification_ro": "O nouă evaluare nu mai observă numere de versiune în antete.",
+          "verification_en": "A new assessment no longer sees version numbers in the headers.",
+          "caveat_ro": "Ascunderea versiunii nu repară o vulnerabilitate; reduce doar ușurința cu care este găsită. Nu înlocuiește actualizarea software-ului și nu ar trebui tratată ca atare.",
+          "caveat_en": "Hiding the version repairs no vulnerability; it only reduces how easily one is found. It is not a substitute for updating the software and should not be treated as one."
+        },
+        {
+          "template_id": "assessment_rerun",
+          "version": "1.0.0",
+          "review_status": "draft",
+          "effort": "low",
+          "references": [],
+          "summary_ro": "Rulează o evaluare nouă, pentru că dovezile actuale au depășit fereastra de prospețime.",
+          "summary_en": "Run a new assessment, because the current evidence is past its freshness window.",
+          "steps_ro": [
+            "Pornește o evaluare nouă pentru domeniu.",
+            "Compară rezultatul cu cel anterior, ca să vezi ce s-a schimbat."
+          ],
+          "steps_en": [
+            "Start a new assessment for the domain.",
+            "Compare the result with the previous one, to see what changed."
+          ],
+          "verification_ro": "Evaluarea cea mai recentă se încadrează în fereastra de prospețime.",
+          "verification_en": "The most recent assessment falls inside the freshness window.",
+          "caveat_ro": "Aceasta nu este o constatare despre securitatea domeniului, ci despre vechimea dovezilor pe care le avem. Un rezultat vechi poate fi în continuare corect; pur și simplu nu putem afirma asta.",
+          "caveat_en": "This is not a finding about the domain's security but about the age of the evidence we hold. An old result may still be correct; we simply cannot assert that it is."
+        }
+      ]
+    }
+  ]
+}

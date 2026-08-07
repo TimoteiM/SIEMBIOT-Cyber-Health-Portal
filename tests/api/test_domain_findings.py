@@ -432,3 +432,115 @@ def test_every_catalog_check_can_be_rendered(
         finding = client.get(findings_url(tenant)).json()["findings"][0]
     assert finding["title_ro"] != check_id
     assert finding["pillar_letter"] in {"A", "B", "C", "D", "E", "F"}
+
+
+# -- remediation -------------------------------------------------------------
+
+
+def test_a_finding_carries_the_guidance_for_fixing_it(
+    postgres_database: dict[str, str],
+) -> None:
+    """The point of the catalogue: a finding that says what to do, not only what is wrong."""
+    tenant = seed(postgres_database["owner_url"])
+    add_finding(postgres_database["owner_url"], tenant, check_id="B.spf_present", severity="high")
+    with client_for(postgres_database, tenant) as client:
+        finding = client.get(findings_url(tenant)).json()["findings"][0]
+
+    guidance = finding["remediation"]
+    assert guidance["template_id"] == "spf_publish"
+    assert guidance["steps_ro"] and guidance["steps_en"]
+    assert guidance["verification_ro"] and guidance["verification_en"]
+    assert "rfc7208" in guidance["references"]
+
+
+def test_draft_guidance_says_that_it_is_draft(postgres_database: dict[str, str]) -> None:
+    """Advice drafted from a standard and advice signed off carry different weight.
+
+    A reader who cannot tell them apart will act on both the same way, so the status
+    is part of the contract rather than a note in a file nobody reads.
+    """
+    tenant = seed(postgres_database["owner_url"])
+    add_finding(
+        postgres_database["owner_url"], tenant, check_id="A.dnssec_enabled", severity="medium"
+    )
+    with client_for(postgres_database, tenant) as client:
+        finding = client.get(findings_url(tenant)).json()["findings"][0]
+
+    assert finding["remediation"]["review_status"] in {"draft", "reviewed"}
+
+
+def test_guidance_that_can_break_something_says_so(
+    postgres_database: dict[str, str],
+) -> None:
+    """The failure modes are the part that matters.
+
+    Enforcing DMARC rejects real mail, HSTS is remembered for as long as it claims, and
+    misconfigured DNSSEC makes a domain unresolvable rather than merely unsigned.
+    Advice that omits the failure mode is advice that costs somebody an outage.
+    """
+    tenant = seed(postgres_database["owner_url"])
+    for check_id in ("B.dmarc_enforced", "C.hsts_present", "A.dnssec_enabled"):
+        add_finding(postgres_database["owner_url"], tenant, check_id=check_id, severity="high")
+
+    with client_for(postgres_database, tenant) as client:
+        findings = client.get(findings_url(tenant)).json()["findings"]
+
+    for finding in findings:
+        caveat = finding["remediation"]["caveat_ro"]
+        assert caveat, f"{finding['check_id']} can break things and says nothing about it"
+        assert finding["remediation"]["caveat_en"]
+
+
+def test_a_finding_without_guidance_still_renders(
+    postgres_database: dict[str, str],
+) -> None:
+    """Missing guidance is an absent section, never a fabricated one."""
+    tenant = seed(postgres_database["owner_url"])
+    add_finding(postgres_database["owner_url"], tenant, check_id="Z.retired_check", severity="high")
+    with client_for(postgres_database, tenant) as client:
+        finding = client.get(findings_url(tenant)).json()["findings"][0]
+
+    assert finding["remediation"] is None
+    assert finding["remediation_template"] is None
+
+
+def test_every_check_in_the_catalog_has_guidance() -> None:
+    """A check whose guidance is missing shows a weakness and no way to act on it.
+
+    Checked over the whole catalogue rather than per finding, so adding a check
+    without writing its remediation fails here rather than in front of a reader.
+    """
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "services" / "api" / "src"))
+    from siembiot.check_metadata import load_check_metadata
+    from siembiot.remediation import load_remediation
+
+    checks = load_check_metadata()
+    guidance = load_remediation()
+
+    referenced = {
+        check.remediation_template for check in checks.values() if check.remediation_template
+    }
+    assert referenced - set(guidance) == set(), "checks referencing guidance that does not exist"
+    assert set(guidance) - referenced == set(), "guidance no check references"
+    # Every check names one. A check with no template is a check nobody can act on.
+    assert all(check.remediation_template for check in checks.values())
+
+
+def test_guidance_is_complete_in_both_languages() -> None:
+    """Half-translated advice is worse than untranslated advice: it reads as finished."""
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "services" / "api" / "src"))
+    from siembiot.remediation import load_remediation
+
+    for template in load_remediation().values():
+        assert template.summary_ro.strip() and template.summary_en.strip()
+        assert template.verification_ro.strip() and template.verification_en.strip()
+        assert len(template.steps_ro) == len(template.steps_en), template.template_id
+        assert template.steps_ro and template.steps_en
+        # A caveat exists in both languages or in neither.
+        assert bool(template.caveat_ro) == bool(template.caveat_en), template.template_id
