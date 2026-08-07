@@ -46,6 +46,7 @@ const ro = {
   "nav.overview": "Prezentare generală",
   "nav.domains": "Domenii",
   "nav.assessments": "Evaluări",
+  "nav.maturity": "Autoevaluare",
   "nav.team": "Echipă și roluri",
   "nav.audit": "Jurnal de audit",
   "nav.empty": "Creează o organizație pentru a debloca domeniile, echipa și jurnalul de audit.",
@@ -230,6 +231,56 @@ const ro = {
   "roadmap.saved": "Planul a fost salvat.",
   "roadmap.saveFailed": "Planul nu a putut fi salvat.",
 
+  // -- autoevaluare ---------------------------------------------------------
+  // Formularea evită peste tot cuvântul „scor” pentru rezultatul declarat: este o
+  // declarație a organizației, nu o măsurătoare, iar cele două nu se adună.
+  "maturity.eyebrow": "Autoevaluare",
+  "maturity.title": "Ce nu se poate observa din exterior",
+  "maturity.intro":
+    "Evaluarea tehnică vede domeniul din afară. Nu poate vedea dacă copiile de siguranță se restaurează, dacă cineva ar observa un incident noaptea sau dacă accesul este retras când pleacă un angajat. Acestea se întreabă.",
+  "maturity.draftNotice":
+    "Întrebările sunt în stadiul de proiect și nu au trecut încă printr-o revizuire de securitate.",
+  "maturity.declared": "Rezultat declarat de organizație",
+  "maturity.declaredExplained":
+    "Un rezultat declarat, nu măsurat. Nu se combină cu scorul evaluării tehnice: sunt două feluri diferite de dovadă, iar o medie ar permite unei declarații încrezătoare să acopere o slăbiciune observată.",
+  "maturity.completeness": "Completitudine",
+  "maturity.withheld": "Rezultat indisponibil",
+  "maturity.insufficientCompleteness":
+    "Sub {floor}% completitudine nu se afișează niciun rezultat. Un procent calculat din prea puține răspunsuri arată ca o concluzie, dar nu este una.",
+  "maturity.nothingApplicable":
+    "Toate întrebările au fost marcate ca neaplicabile, deci nu există nimic de evaluat.",
+  "maturity.answered": "Răspunse: {answered} din {total} întrebări aplicabile",
+  "maturity.contradicted": "Declarații pe care evaluarea le contrazice: {count}",
+  "maturity.sectionScore": "Rezultat declarat: {percentage}%",
+  "maturity.sectionUnanswered": "Fără răspunsuri",
+  "maturity.notAnswered": "Fără răspuns",
+  "maturity.reference": "NIS2, articolul 21 alineatul (2) litera ({letter})",
+  "maturity.answeredBy": "{name}, {when}",
+  "maturity.saved": "Răspunsul a fost salvat.",
+  "maturity.saveFailed": "Răspunsul nu a putut fi salvat.",
+  "maturity.loading": "Se încarcă chestionarul…",
+  "maturity.loadFailed": "Chestionarul nu a putut fi încărcat.",
+
+  // Relația dintre ce declară organizația și ce observă platforma. Dezacordul
+  // primește un paragraf, nu o etichetă: este lucrul cel mai util de pe ecran.
+  "maturity.contradictedNotice":
+    "Ați declarat că această măsură este aplicată, dar evaluarea observă contrariul. Fie măsura nu funcționează, fie a fost aplicată undeva unde evaluarea nu ajunge.",
+  "maturity.understatedNotice":
+    "Evaluarea observă că această măsură funcționează, deși ați declarat că nu este aplicată. Merită verificat: efortul poate fi îndreptat altundeva.",
+  "maturity.consistentNotice": "Evaluarea tehnică este de acord cu acest răspuns.",
+  "maturity.notObservedNotice":
+    "Platforma nu a putut verifica acest răspuns. „Nu am putut privi” nu înseamnă „am confirmat”.",
+
+  "maturity.answer.absent": "Nu există.",
+  "maturity.answer.informal": "Se face, dar nu este documentat sau consecvent.",
+  "maturity.answer.documented": "Documentat și aplicat consecvent.",
+  "maturity.answer.verified": "Documentat, aplicat și testat în ultimele 12 luni.",
+  "maturity.answer.unknown": "Nu știu.",
+  "maturity.answer.not_applicable": "Nu se aplică.",
+  // Spus explicit, pentru că este singura opțiune care nu se comportă cum pare.
+  "maturity.unknownExplained":
+    "„Nu știu” nu se punctează ca „nu”. Reduce completitudinea, pentru că a nu ști este altceva decât a nu avea.",
+
   "severity.critical": "Critic",
   "severity.high": "Ridicat",
   "severity.medium": "Mediu",
@@ -387,6 +438,7 @@ const en: Messages = {
   "nav.overview": "Overview",
   "nav.domains": "Domains",
   "nav.assessments": "Assessments",
+  "nav.maturity": "Self-assessment",
   "nav.team": "Team and roles",
   "nav.audit": "Audit log",
   "nav.empty": "Create an organization to unlock domains, the team and the audit log.",
@@ -567,6 +619,51 @@ const en: Messages = {
   "roadmap.resolvedWithoutAction": "Resolved with no recorded action",
   "roadmap.saved": "The plan was saved.",
   "roadmap.saveFailed": "The plan could not be saved.",
+
+  // -- self-assessment ------------------------------------------------------
+  "maturity.eyebrow": "Self-assessment",
+  "maturity.title": "What cannot be observed from outside",
+  "maturity.intro":
+    "The technical assessment sees the domain from outside. It cannot see whether backups restore, whether anybody would notice an incident at night, or whether access is withdrawn when somebody leaves. Those get asked.",
+  "maturity.draftNotice":
+    "These questions are a draft and have not yet been through security review.",
+  "maturity.declared": "Declared by the organisation",
+  "maturity.declaredExplained":
+    "A declared result, not a measured one. It is not combined with the technical score: they are different kinds of evidence, and an average would let a confident declaration cover a weakness that was observed.",
+  "maturity.completeness": "Completeness",
+  "maturity.withheld": "No result available",
+  "maturity.insufficientCompleteness":
+    "Below {floor}% completeness no result is shown. A percentage drawn from too few answers looks like a conclusion without being one.",
+  "maturity.nothingApplicable":
+    "Every question was marked not applicable, so there is nothing to assess.",
+  "maturity.answered": "Answered: {answered} of {total} applicable questions",
+  "maturity.contradicted": "Declarations the assessment disagrees with: {count}",
+  "maturity.sectionScore": "Declared: {percentage}%",
+  "maturity.sectionUnanswered": "No answers",
+  "maturity.notAnswered": "Not answered",
+  "maturity.reference": "NIS2, Article 21(2)({letter})",
+  "maturity.answeredBy": "{name}, {when}",
+  "maturity.saved": "The answer was saved.",
+  "maturity.saveFailed": "The answer could not be saved.",
+  "maturity.loading": "Loading the questionnaire…",
+  "maturity.loadFailed": "The questionnaire could not be loaded.",
+
+  "maturity.contradictedNotice":
+    "You declared this measure is in place, but the assessment observes otherwise. Either the measure is not working, or it was applied somewhere the assessment does not reach.",
+  "maturity.understatedNotice":
+    "The assessment observes this working, although you declared it is not in place. Worth checking: effort may be better spent elsewhere.",
+  "maturity.consistentNotice": "The technical assessment agrees with this answer.",
+  "maturity.notObservedNotice":
+    "The platform could not check this answer. “We could not look” does not mean “we confirmed”.",
+
+  "maturity.answer.absent": "Not in place.",
+  "maturity.answer.informal": "Done, but not written down or not consistent.",
+  "maturity.answer.documented": "Documented and applied consistently.",
+  "maturity.answer.verified": "Documented, applied, and tested in the last 12 months.",
+  "maturity.answer.unknown": "I do not know.",
+  "maturity.answer.not_applicable": "Does not apply.",
+  "maturity.unknownExplained":
+    "“I do not know” does not score as “no”. It reduces completeness, because not knowing is different from not having.",
 
   "severity.critical": "Critical",
   "severity.high": "High",

@@ -33,6 +33,7 @@ const DOMAINS = "M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14ZM3 10h14M10 3c2 2.3 2 11.7 
 const TEAM = "M7 9a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Zm6.5 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM3 16v-1a4 4 0 0 1 8 0v1m2-4.5a4 4 0 0 1 4 4V16";
 const AUDIT = "M6 3h8l2 2v12H4V5l2-2Zm1 6h6M7 12h6M7 15h4";
 const ASSESSMENTS = "M4 16V8m4 8V5m4 11v-6m4 6V9M3 17h14";
+const MATURITY = "M6 3h8l2 2v12H4V5l2-2Zm1 5.5 1.5 1.5L12 6.5M7 13h6";
 
 /**
  * The shell is hidden on unauthenticated routes: a visitor who is not signed in has
@@ -47,6 +48,7 @@ function navItems(organizationId: string | null): NavItem[] {
     { href: "/onboarding", labelKey: "nav.overview", icon: <Icon path={OVERVIEW} /> },
     { href: `${base}/domains`, labelKey: "nav.domains", icon: <Icon path={DOMAINS} /> },
     { href: `${base}/assessments`, labelKey: "nav.assessments", icon: <Icon path={ASSESSMENTS} /> },
+    { href: `${base}/maturity`, labelKey: "nav.maturity", icon: <Icon path={MATURITY} /> },
     { href: `${base}/team`, labelKey: "nav.team", icon: <Icon path={TEAM} /> },
     { href: `${base}/audit`, labelKey: "nav.audit", icon: <Icon path={AUDIT} /> },
   ];

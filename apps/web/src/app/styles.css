@@ -841,3 +841,63 @@ details > summary:hover { color: var(--text-primary); }
   flex-basis: 100%;
   margin-top: 0.3rem;
 }
+
+/* -- self-assessment -------------------------------------------------------- */
+
+/*
+  The declared result is styled deliberately unlike the assessment score. That score
+  gets a band, a colour and the largest type on its page because it rests on
+  observation; this one is a paragraph heading in ordinary weight. Making the two look
+  alike is the first step towards somebody averaging them.
+*/
+.maturity-summary {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.15rem;
+  margin: 1.25rem 0;
+  display: grid;
+  gap: 0.5rem;
+}
+.maturity-verdict {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+.maturity-summary p { margin: 0; }
+
+.maturity-section { margin-top: 2rem; }
+.maturity-section .section-heading { align-items: flex-start; }
+
+.maturity-questions {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 1.1rem;
+}
+.maturity-question {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.maturity-question > label { font-weight: 500; }
+.maturity-question p { margin: 0; font-size: 0.875rem; }
+.maturity-question select {
+  width: auto;
+  justify-self: start;
+  max-width: 100%;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.875rem;
+}
+/*
+  Agreement and "we could not look" are quiet lines. Only the disagreement is given a
+  bordered block, because it is the only one that asks somebody to go and do something.
+*/
+.maturity-observed { font-size: 0.8125rem; }
+/*
+  Not uppercased like the eyebrow it sits where: "(a)" becoming "(A)" quotes a different
+  letter of the article than the one being cited.
+*/
+.maturity-reference { font-size: 0.8125rem; }
