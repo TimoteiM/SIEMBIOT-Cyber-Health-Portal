@@ -5,9 +5,11 @@
 # the identity headers directly -- see docs/security/identity-boundary.md.
 #
 # Deliberately infrastructure only. The API and web application run on the host via
-# `make api-serve` and `make web-serve`, because production container images are
-# Milestone 10 work and `scripts/verify_repo.py` fails the build if a Dockerfile
-# appears early. Every image is digest-pinned so a local stack is reproducible.
+# `make api-serve` and `make web-serve`, which is the fastest loop to work in.
+#
+# The containerised stack lives in production-like.compose.yml and runs the real
+# images, read-only and unprivileged. That one answers "does it deploy"; this one
+# answers "does the change work". Both are digest-pinned so either is reproducible.
 services:
   postgres:
     image: postgres@sha256:f3bd19c606e442c3d7bdfa8002e03fe260a1023351e0ea4598032022b68dd6e3

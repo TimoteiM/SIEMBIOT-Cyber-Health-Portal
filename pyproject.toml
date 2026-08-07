@@ -57,6 +57,11 @@ select = ["E", "F", "I", "N", "S", "UP"]
 # invoking `docker` from PATH, which is deliberate: an operator's docker may be
 # anywhere, and a hardcoded path would make the script work on exactly one machine.
 "scripts/smoke_test.py" = ["S310", "S603", "S607"]
+# The backup tool shells out to docker, psql and pg_dump, resolved from PATH for the
+# same reason: an operator's tooling lives wherever they installed it. Table names are
+# never interpolated without first being checked against IRREPLACEABLE_TABLES, since a
+# manifest can arrive from wherever a backup was copied from.
+"scripts/backup.py" = ["S603", "S607"]
 
 [tool.mypy]
 python_version = "3.13"

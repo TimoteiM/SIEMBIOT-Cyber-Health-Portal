@@ -105,12 +105,59 @@ the history endpoint marks such comparisons as incomparable for exactly this rea
 touches the broker. Work resumes when Redis returns, because the sweep reads due work
 from PostgreSQL rather than from the queue.
 
+## Backup and restore
+
+The database holds the only two things in the product that cannot be rebuilt:
+append-only evidence, and the audit trail of who did what. The schema, the policy
+catalog and the images all live in the repository.
+
+```
+python scripts/backup.py create
+python scripts/backup.py verify artifacts/backups/<name>
+```
+
+**Run `verify`.** A backup nobody has restored is a file, not a backup. `verify`
+restores into a throwaway database, checks it, and drops it — it is the only way to
+know the archive is worth keeping. Wire it into whatever runs the backup, so a broken
+one is discovered on an ordinary Tuesday rather than during an incident.
+
+What the manifest records, and why each would otherwise pass unnoticed:
+
+| Recorded | What its loss would look like |
+| --- | --- |
+| Row counts per irreplaceable table | A restore that "succeeded" with evidence missing |
+| Tables with **forced** row-level security | Isolation still enabled, but the owner reading every tenant |
+| Append-only triggers | Evidence that can be edited afterwards |
+| Schema version | A restore into a cluster the application cannot migrate |
+| Roles | A database nobody can connect to |
+
+The expectations are captured when the backup is taken, not computed at restore time: a
+check that derives its own expectation from the restored database agrees with itself
+whatever was lost.
+
+**Backups contain no credentials.** Roles are dumped with `--no-role-passwords`, so the
+archive holds no secret and does not need to be guarded like one. Set the three
+passwords from your secret store after restoring, exactly as at first install.
+
+To restore for real:
+
+```
+python scripts/backup.py restore artifacts/backups/<name> --into siembiot
+```
+
+Then set the role passwords, run `prod-migrate` if the schema has moved on since, and
+`make smoke`.
+
 ## What is not here yet
 
 Stated rather than implied, because a runbook that omits its gaps reads as complete:
 
-- **No backup or restore procedure.** The database holds append-only evidence and audit
-  events that cannot be reconstructed. This is the largest remaining operational gap.
+- **Backups are not scheduled and not stored off-host.** The tooling works and is
+  verified; nothing runs it on a timer, and `artifacts/` is on the same machine as the
+  database, which is not a backup of anything that fails together.
+- **No point-in-time recovery.** A dump loses everything since it was taken. For
+  evidence that is tolerable; for the audit trail it may not be, and that is a decision
+  somebody should make deliberately.
 - **No metrics, dashboards or alerting.** Logs are structured and redacted, but nothing
   aggregates them and nothing pages anybody.
 - **No TLS termination or identity gateway** in this stack. Both are assumed to be in

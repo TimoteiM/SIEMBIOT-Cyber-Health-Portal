@@ -1,7 +1,7 @@
 .PHONY: bootstrap check contracts-check api-test web-test e2e-auth db-up db-down migrate \
 	test-domain test-network-safety test-collectors test-adapters providers-check fixture-stack \
 	policy-validate test-normalization test-scoring methodology-reproduce observe \
-	worker-serve beat-serve prod-up prod-down prod-migrate smoke
+	worker-serve beat-serve prod-up prod-down prod-migrate smoke backup backup-verify
 
 bootstrap:
 	python scripts/bootstrap.py
@@ -69,6 +69,14 @@ prod-up:
 prod-down:
 	$(PROD_COMPOSE) down
 
+# A backup, and the verification without which it is only a file. `backup-verify`
+# restores into a throwaway database and drops it again.
+backup:
+	python scripts/backup.py create
+
+backup-verify:
+	@python scripts/backup.py verify $(BACKUP)
+
 # Proves the stack serves, rather than merely started: a container that reached
 # "running" has only proved that its entrypoint resolved.
 smoke:
@@ -100,9 +108,11 @@ db-up:
 db-down:
 	docker compose --env-file .env -f infra/compose/postgres.compose.yml down
 
-# Local infrastructure only. Authentication terminates upstream and is owned by another
-# team, so no identity provider runs here. The API and web run on the host, because
-# production images are Milestone 10 work.
+# Local infrastructure only: the API and web run on the host against it, which is the
+# fastest loop to work in. Authentication terminates upstream and is owned by another
+# team, so no identity provider runs here either.
+#
+# For the containerised stack -- the real images, hardened -- use prod-up.
 stack-up:
 	docker compose --env-file .env -f infra/compose/local-stack.compose.yml up -d --wait
 
