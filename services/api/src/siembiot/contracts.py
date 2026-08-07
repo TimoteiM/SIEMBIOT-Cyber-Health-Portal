@@ -550,3 +550,65 @@ class DomainHistoryResponse(ContractModel):
     points: list[HistoryPointResponse] = Field(default_factory=list)
     #: Absent until a domain has two completed runs to compare.
     change: AssessmentChangeResponse | None = None
+
+
+#: What somebody says is happening to the work. Never what the platform believes about
+#: the weakness itself, which is the finding's state.
+ACTION_STATUSES = Literal["planned", "in_progress", "blocked", "completed"]
+
+#: How the assertion and the evidence relate. This is the field worth reading.
+ACTION_VERIFICATION = Literal[
+    # Marked done, and the next assessment agrees the weakness is gone.
+    "confirmed",
+    # Marked done, and the weakness is still observed. Either the fix did not work or
+    # it was applied somewhere the assessment does not reach.
+    "asserted_not_observed",
+    # Gone, without anybody recording that they fixed it. Worth knowing: it may have
+    # been somebody outside the tool, or a change nobody intended.
+    "resolved_without_action",
+    # Still open and still being worked on. The ordinary case.
+    "in_flight",
+]
+
+
+class ActionUpsert(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    status: ACTION_STATUSES = "planned"
+    #: Absent is a real state: unassigned work is common, and requiring a name here
+    #: would produce a fictional one.
+    owner_user_id: UUID | None = None
+    due_at: datetime | None = None
+    note: str | None = Field(default=None, min_length=1, max_length=2000)
+
+
+class ActionResponse(ContractModel):
+    id: UUID
+    finding_id: UUID
+    check_id: str
+    title_ro: str
+    title_en: str
+    severity: FINDING_SEVERITIES
+    status: ACTION_STATUSES
+    owner_user_id: UUID | None = None
+    owner_display_name: str | None = None
+    due_at: datetime | None = None
+    note: str | None = None
+    completed_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+    #: The finding's own state, carried alongside so the two are never read apart.
+    finding_state: FINDING_STATES
+    verification: ACTION_VERIFICATION
+    #: Past its date and not finished. Computed here so every client agrees on it.
+    overdue: bool = False
+
+
+class RoadmapResponse(ContractModel):
+    domain_id: UUID
+    actions: list[ActionResponse] = Field(default_factory=list)
+    #: Open findings with nobody assigned to them. The gap between what is known and
+    #: what anybody intends to do, which is the number a manager actually wants.
+    unplanned_count: int = 0
+    overdue_count: int = 0
+    #: Actions asserted complete whose weakness is still observed.
+    contradicted_count: int = 0

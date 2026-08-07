@@ -812,3 +812,32 @@ details > summary:hover { color: var(--text-primary); }
   font-size: 0.8rem;
   color: var(--text-secondary);
 }
+
+/* -- remediation plan ------------------------------------------------------- */
+
+.plan-control {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding-top: 0.4rem;
+}
+.plan-control label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 400;
+}
+.plan-control select {
+  width: auto;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.85rem;
+}
+/*
+  The contradiction takes the full width beneath the control rather than sitting
+  inline: it is a paragraph somebody needs to read, not a status to glance past.
+*/
+.plan-control .remediation-caveat {
+  flex-basis: 100%;
+  margin-top: 0.3rem;
+}

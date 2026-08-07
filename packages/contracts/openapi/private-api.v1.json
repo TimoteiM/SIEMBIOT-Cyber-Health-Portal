@@ -1,6 +1,224 @@
 {
   "components": {
     "schemas": {
+      "ActionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "check_id": {
+            "title": "Check Id",
+            "type": "string"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due At"
+          },
+          "finding_id": {
+            "format": "uuid",
+            "title": "Finding Id",
+            "type": "string"
+          },
+          "finding_state": {
+            "enum": [
+              "open",
+              "resolved",
+              "regressed",
+              "suppressed",
+              "accepted_risk"
+            ],
+            "title": "Finding State",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "overdue": {
+            "default": false,
+            "title": "Overdue",
+            "type": "boolean"
+          },
+          "owner_display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Display Name"
+          },
+          "owner_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner User Id"
+          },
+          "severity": {
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low",
+              "informational"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "planned",
+              "in_progress",
+              "blocked",
+              "completed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "title_en": {
+            "title": "Title En",
+            "type": "string"
+          },
+          "title_ro": {
+            "title": "Title Ro",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "verification": {
+            "enum": [
+              "confirmed",
+              "asserted_not_observed",
+              "resolved_without_action",
+              "in_flight"
+            ],
+            "title": "Verification",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "finding_id",
+          "check_id",
+          "title_ro",
+          "title_en",
+          "severity",
+          "status",
+          "created_at",
+          "updated_at",
+          "finding_state",
+          "verification"
+        ],
+        "title": "ActionResponse",
+        "type": "object"
+      },
+      "ActionUpsert": {
+        "additionalProperties": false,
+        "properties": {
+          "due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due At"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "owner_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner User Id"
+          },
+          "status": {
+            "default": "planned",
+            "enum": [
+              "planned",
+              "in_progress",
+              "blocked",
+              "completed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "title": "ActionUpsert",
+        "type": "object"
+      },
       "AssessmentAuthorizationCreate": {
         "additionalProperties": false,
         "properties": {
@@ -1989,6 +2207,49 @@
         "title": "RemediationResponse",
         "type": "object"
       },
+      "RoadmapResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/ActionResponse"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "contradicted_count": {
+            "default": 0,
+            "title": "Contradicted Count",
+            "type": "integer"
+          },
+          "domain_id": {
+            "format": "uuid",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "overdue_count": {
+            "default": 0,
+            "title": "Overdue Count",
+            "type": "integer"
+          },
+          "unplanned_count": {
+            "default": 0,
+            "title": "Unplanned Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "domain_id"
+        ],
+        "title": "RoadmapResponse",
+        "type": "object"
+      },
       "ScheduleResponse": {
         "additionalProperties": false,
         "properties": {
@@ -3627,6 +3888,59 @@
         ]
       }
     },
+    "/api/v1/organizations/{organization_id}/domains/{domain_id}/roadmap": {
+      "get": {
+        "operationId": "index_api_v1_organizations__organization_id__domains__domain_id__roadmap_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "domain_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Domain Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoadmapResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Index",
+        "tags": [
+          "roadmap"
+        ]
+      }
+    },
     "/api/v1/organizations/{organization_id}/domains/{domain_id}/schedule": {
       "get": {
         "operationId": "read_api_v1_organizations__organization_id__domains__domain_id__schedule_get",
@@ -3899,6 +4213,70 @@
         "summary": "Deactivate",
         "tags": [
           "emergency-controls"
+        ]
+      }
+    },
+    "/api/v1/organizations/{organization_id}/findings/{finding_id}/action": {
+      "put": {
+        "description": "Record or update the plan for one finding.\n\nAuthorized with `ASSESSMENT_RUN` rather than a read permission: planning work\nis not reading, and the roles that can start an assessment are the ones that\nown what happens to a domain. Deciding *not* to fix something is a different\ndecision and lives with suppressions.",
+        "operationId": "upsert_api_v1_organizations__organization_id__findings__finding_id__action_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "finding_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Finding Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActionUpsert"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upsert",
+        "tags": [
+          "roadmap"
         ]
       }
     },

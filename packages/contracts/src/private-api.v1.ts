@@ -393,6 +393,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/organizations/{organization_id}/domains/{domain_id}/roadmap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Index */
+        get: operations["index_api_v1_organizations__organization_id__domains__domain_id__roadmap_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/organizations/{organization_id}/domains/{domain_id}/schedule": {
         parameters: {
             query?: never;
@@ -440,6 +457,31 @@ export interface paths {
         put?: never;
         /** Deactivate */
         post: operations["deactivate_api_v1_organizations__organization_id__emergency_controls__control_id__deactivate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/findings/{finding_id}/action": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Upsert
+         * @description Record or update the plan for one finding.
+         *
+         *     Authorized with `ASSESSMENT_RUN` rather than a read permission: planning work
+         *     is not reading, and the roles that can start an assessment are the ones that
+         *     own what happens to a domain. Deciding *not* to fix something is a different
+         *     decision and lives with suppressions.
+         */
+        put: operations["upsert_api_v1_organizations__organization_id__findings__finding_id__action_put"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -545,6 +587,91 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ActionResponse */
+        ActionResponse: {
+            /** Check Id */
+            check_id: string;
+            /** Completed At */
+            completed_at?: string | null;
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Due At */
+            due_at?: string | null;
+            /**
+             * Finding Id
+             * Format: uuid
+             */
+            finding_id: string;
+            /**
+             * Finding State
+             * @enum {string}
+             */
+            finding_state: "open" | "resolved" | "regressed" | "suppressed" | "accepted_risk";
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Note */
+            note?: string | null;
+            /**
+             * Overdue
+             * @default false
+             */
+            overdue: boolean;
+            /** Owner Display Name */
+            owner_display_name?: string | null;
+            /** Owner User Id */
+            owner_user_id?: string | null;
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "critical" | "high" | "medium" | "low" | "informational";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "planned" | "in_progress" | "blocked" | "completed";
+            /** Title En */
+            title_en: string;
+            /** Title Ro */
+            title_ro: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Verification
+             * @enum {string}
+             */
+            verification: "confirmed" | "asserted_not_observed" | "resolved_without_action" | "in_flight";
+        };
+        /** ActionUpsert */
+        ActionUpsert: {
+            /** Due At */
+            due_at?: string | null;
+            /** Note */
+            note?: string | null;
+            /** Owner User Id */
+            owner_user_id?: string | null;
+            /**
+             * Status
+             * @default planned
+             * @enum {string}
+             */
+            status: "planned" | "in_progress" | "blocked" | "completed";
+        };
         /** AssessmentAuthorizationCreate */
         AssessmentAuthorizationCreate: {
             /** Consent Text */
@@ -1495,6 +1622,37 @@ export interface components {
             verification_ro: string;
             /** Version */
             version: string;
+        };
+        /** RoadmapResponse */
+        RoadmapResponse: {
+            /** Actions */
+            actions?: components["schemas"]["ActionResponse"][];
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /**
+             * Contradicted Count
+             * @default 0
+             */
+            contradicted_count: number;
+            /**
+             * Domain Id
+             * Format: uuid
+             */
+            domain_id: string;
+            /**
+             * Overdue Count
+             * @default 0
+             */
+            overdue_count: number;
+            /**
+             * Unplanned Count
+             * @default 0
+             */
+            unplanned_count: number;
         };
         /** ScheduleResponse */
         ScheduleResponse: {
@@ -2480,6 +2638,38 @@ export interface operations {
             };
         };
     };
+    index_api_v1_organizations__organization_id__domains__domain_id__roadmap_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                domain_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoadmapResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     read_api_v1_organizations__organization_id__domains__domain_id__schedule_get: {
         parameters: {
             query?: never;
@@ -2637,6 +2827,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EmergencyControlResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upsert_api_v1_organizations__organization_id__findings__finding_id__action_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                finding_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActionUpsert"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionResponse"];
                 };
             };
             /** @description Validation Error */

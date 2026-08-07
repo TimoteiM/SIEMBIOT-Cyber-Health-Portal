@@ -33,6 +33,7 @@ from siembiot.identity import IdentityResolver, build_identity_resolver
 from siembiot.metrics import build_metrics_router
 from siembiot.organizations import build_invitation_router, build_organization_router
 from siembiot.request_context import RequestContextMiddleware, new_request_id
+from siembiot.roadmap import build_roadmap_router
 from siembiot.schedules import build_schedule_router
 
 
@@ -136,6 +137,7 @@ def create_app(
     app.include_router(build_findings_router())
     app.include_router(build_schedule_router())
     app.include_router(build_history_router())
+    app.include_router(build_roadmap_router())
     app.include_router(build_metrics_router())
 
     return app
