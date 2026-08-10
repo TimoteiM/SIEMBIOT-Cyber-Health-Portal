@@ -228,7 +228,10 @@ def test_a_step_that_does_not_apply_is_skipped_rather_than_failed() -> None:
 
     steps = repository.load_steps(assessment)
     assert steps["collect.ct"].state is StepState.SKIPPED
-    assert steps["collect.ct"].last_error == "no_ct_entries"  # the reason survives
+    # `ct_source_unconfigured`, not `no_ct_entries`: this fixture runs with no CT
+    # provider, and the two were reported identically until a domain with a valid
+    # certificate came back as having none in the logs.
+    assert steps["collect.ct"].last_error == "ct_source_unconfigured"
     # This host also has no registry entry -- likewise an answer, not a fault.
     assert steps["collect.rdap"].state is StepState.SKIPPED
 

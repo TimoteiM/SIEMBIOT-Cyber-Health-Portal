@@ -64,6 +64,10 @@ class EmptyCTSource:
         del canonical_domain
         return ()
 
+    @property
+    def is_unconfigured(self) -> bool:
+        return True
+
 
 @dataclass(frozen=True)
 class ObservationReport:

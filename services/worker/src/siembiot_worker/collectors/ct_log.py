@@ -55,12 +55,29 @@ CT_DESCRIPTOR = AdapterDescriptor(
 class CTEntrySource(Protocol):
     def entries(self, canonical_domain: str) -> Iterable[dict[str, Any]]: ...
 
+    @property
+    def is_unconfigured(self) -> bool:
+        """Whether this source can answer at all.
+
+        Distinguishes "the logs hold nothing for this domain" from "no provider is
+        configured, so nobody was asked". They were reported identically until a domain
+        with a working certificate came back as having none.
+
+        Declared without a default on purpose: a protocol default is not inherited, so a
+        source added later would silently claim to be configured.
+        """
+        ...
+
 
 class FixtureCTSource:
     """Reads CT entries from a local fixture directory; makes no network connection."""
 
     def __init__(self, root: Path) -> None:
         self._root = root
+
+    @property
+    def is_unconfigured(self) -> bool:
+        return False
 
     def entries(self, canonical_domain: str) -> Iterable[dict[str, Any]]:
         path = self._root / f"{canonical_domain}.json"
@@ -176,7 +193,12 @@ class CertificateTransparencyCollector(Collector):
         except (OSError, json.JSONDecodeError):
             return self.unavailable("ct_source_unavailable", {"host": host})
         if not entries:
-            return self.not_applicable("no_ct_entries", {"host": host, "candidates": []})
+            # Two very different facts, and they were reported identically until a
+            # domain with a valid certificate came back as having none. `no_ct_entries`
+            # says the logs hold nothing for this organisation; `ct_source_unconfigured`
+            # says we never asked anybody.
+            reason = "ct_source_unconfigured" if self._source.is_unconfigured else "no_ct_entries"
+            return self.not_applicable(reason, {"host": host, "candidates": []})
         candidates, rejected = extract_candidates(entries, host)
         payload: dict[str, Any] = {
             "host": host,

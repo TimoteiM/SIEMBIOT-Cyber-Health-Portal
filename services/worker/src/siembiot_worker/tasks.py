@@ -26,6 +26,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
+from siembiot_worker.collectors.ct_source import BrokeredCTSource
 from siembiot_worker.observation.mode import AssessmentMode
 from siembiot_worker.observation.runtime import build_observation_runtime
 from siembiot_worker.policy.catalog import load_catalog
@@ -162,6 +163,7 @@ def run_assessment(
     """
     catalog = load_catalog()
     accepted = _accepted_assets(organization_id, domain_id)
+    runtime = build_observation_runtime(mode=mode)
     context = AssessmentContext(
         organization_id=organization_id,
         assessment_id=assessment_id,
@@ -170,7 +172,11 @@ def run_assessment(
         # The mode comes from the row, which the API wrote under a check constraint
         # requiring an authorization for the wider mode. Defaulting here instead would
         # let a scheduling bug decide what the platform is allowed to do to a domain.
-        runtime=build_observation_runtime(mode=mode),
+        runtime=runtime,
+        # A real Certificate Transparency index, rather than the empty source that was
+        # the default in every deployed run since asset discovery was written. With the
+        # empty one, `collect.ct` reported "no entries" for every domain on earth.
+        ct_source=BrokeredCTSource(runtime.broker, organization_id, domain_id, assessment_id),
         clock=lambda: datetime.now(UTC),
         declared_dkim_selectors=declared_dkim_selectors,
         accepted_assets=accepted,
