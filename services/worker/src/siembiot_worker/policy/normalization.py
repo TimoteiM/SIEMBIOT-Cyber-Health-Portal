@@ -808,3 +808,60 @@ def normalize_attribution(
             },
         ),
     )
+
+
+def normalize_mail_transport(
+    result: CollectionResult,
+    *,
+    organization_id: UUID,
+    assessment_id: UUID,
+    subject: Subject,
+    now: datetime,
+    window_seconds: int,
+) -> tuple[NormalizedObservation, ...]:
+    """Whether the published mail servers will actually encrypt what arrives.
+
+    `not_applicable` covers two different things, and both are correct as absences: a
+    domain that publishes no MX has no mail to secure, and mail hosts we could not reach
+    say where the assessment ran from rather than what those hosts do. Neither is a
+    domain failing at mail security, and scoring either as one would be a finding
+    manufactured out of our own network conditions.
+    """
+    confidence = _confidence(result, attribution=1.0, now=now, window_seconds=window_seconds)
+    builder = ObservationBuilder(
+        organization_id=organization_id,
+        assessment_id=assessment_id,
+        subject=subject,
+        result=result,
+        confidence=confidence,
+    )
+    if result.status is CollectionStatus.NOT_APPLICABLE:
+        return (builder.make("mail.transport_security", ObservationStatus.ABSENT),)
+    if not result.usable:
+        return (builder.make("mail.transport_security", ObservationStatus.INCONCLUSIVE),)
+
+    payload = result.payload
+    return (
+        builder.make(
+            "mail.transport_security",
+            ObservationStatus.OBSERVED,
+            {
+                "starttls_everywhere": bool(payload.get("starttls_everywhere")),
+                "certificate_valid_everywhere": bool(payload.get("certificate_valid_everywhere")),
+                "hosts_checked": int(payload.get("hosts_checked", 0)),
+                "starttls_offered": int(payload.get("starttls_offered", 0)),
+                "starttls_refused": int(payload.get("starttls_refused", 0)),
+                "starttls_broken": int(payload.get("starttls_broken", 0)),
+                "unreachable": int(payload.get("unreachable", 0)),
+                "hosts": [
+                    {
+                        "host": item.get("host"),
+                        "state": item.get("state"),
+                        "tls_version": item.get("tls_version"),
+                        "certificate_matches_host": item.get("certificate_matches_host"),
+                    }
+                    for item in payload.get("hosts", [])
+                ],
+            },
+        ),
+    )

@@ -17,6 +17,22 @@ from siembiot_worker.policy.catalog import CURRENT_METHODOLOGY_VERSION, load_cat
 #: catalogue, which is precisely what it exists to refuse.
 PUBLISHED_1_0_0_DIGEST = "86421e35d811eee278f75a44c415370d8f3a853de8a0106fc6342726a90f4acf"
 
+#: Everything 1.1.0 adds, listed rather than derived. Deriving it from the catalogue
+#: would let a check be added without anybody deciding to add it -- the inventory is the
+#: point. Three probe the exposed service surface and are authorized-only; the fourth
+#: checks whether the published mail servers encrypt what arrives, which is passive
+#: because an MX record exists to invite exactly that connection.
+ADDED_IN_1_1_0 = {
+    "D.remote_access_exposed",
+    "D.database_exposed",
+    "D.management_interface_exposed",
+    "B.mail_transport_encryption",
+}
+
+#: The subset requiring authorization, split out because the two groups have opposite
+#: properties and a single list would let one silently acquire the other's.
+AUTHORIZED_ONLY_IN_1_1_0 = ADDED_IN_1_1_0 - {"B.mail_transport_encryption"}
+
 
 def test_a_published_methodology_never_changes() -> None:
     """1.1.0 adds three checks by naming an additional directory rather than editing the
@@ -31,11 +47,7 @@ def test_the_new_version_adds_checks_and_nothing_else() -> None:
     newer = load_catalog(version="1.1.0")
 
     added = {check.check_id for check in newer.checks} - {check.check_id for check in older.checks}
-    assert added == {
-        "D.remote_access_exposed",
-        "D.database_exposed",
-        "D.management_interface_exposed",
-    }
+    assert added == ADDED_IN_1_1_0
     # Every check that existed before is unchanged, not merely still present. A reworded
     # rationale or a shifted weight would change what a domain scores for reasons nobody
     # reading the version number would expect.
@@ -47,8 +59,9 @@ def test_the_new_version_adds_checks_and_nothing_else() -> None:
 def test_pillar_weights_are_untouched() -> None:
     """Moving the balance between pillars silently reprices every domain assessed.
 
-    The new checks sit inside attack_surface and change its internal weighting, which is
-    what adding a check to a pillar means. The pillar's share of the score is the same.
+    The new checks sit inside attack_surface and email and change those pillars' internal
+    weighting, which is what adding a check to a pillar means. Each pillar's share of the
+    score is the same.
     """
     assert (
         load_catalog(version="1.1.0").methodology.pillar_weights
@@ -56,20 +69,28 @@ def test_pillar_weights_are_untouched() -> None:
     )
 
 
-def test_the_new_checks_are_authorized_only() -> None:
+def test_the_surface_checks_are_authorized_only() -> None:
     """A passive run cannot open a connection to a port nobody advertised, so it must not
     be scored as though it looked."""
     catalog = load_catalog(version="1.1.0")
-    added = [
-        check
-        for check in catalog.checks
-        if check.check_id
-        in {"D.remote_access_exposed", "D.database_exposed", "D.management_interface_exposed"}
-    ]
-    assert added
+    added = [check for check in catalog.checks if check.check_id in AUTHORIZED_ONLY_IN_1_1_0]
+    assert len(added) == len(AUTHORIZED_ONLY_IN_1_1_0)
     for check in added:
         assert not is_check_available(check, AssessmentMode.PASSIVE_OBSERVATION)
         assert is_check_available(check, AssessmentMode.AUTHORIZED_ASSESSMENT)
+
+
+def test_mail_transport_runs_passively() -> None:
+    """An MX record is a published invitation to connect on 25 and speak SMTP; that is the
+    only thing it is for. Classifying this check as authorized-only would mean the great
+    majority of domains -- every one nobody signed for -- never learn that their mail
+    server takes messages in plaintext, which is a fact anybody sending them mail already
+    discovers."""
+    catalog = load_catalog(version="1.1.0")
+    check = next(c for c in catalog.checks if c.check_id == "B.mail_transport_encryption")
+
+    assert check.collection_mode == "passive"
+    assert is_check_available(check, AssessmentMode.PASSIVE_OBSERVATION)
 
 
 def test_the_new_checks_are_never_publishable() -> None:

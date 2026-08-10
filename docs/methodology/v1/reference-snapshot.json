@@ -50,6 +50,11 @@
       "result": "pass"
     },
     {
+      "check_id": "B.mail_transport_encryption",
+      "reason_code": "not_applicable_for_subject",
+      "result": "not_applicable"
+    },
+    {
       "check_id": "B.mta_sts_enforced",
       "reason_code": "mta_sts_testing_mode",
       "result": "warning"
@@ -243,6 +248,12 @@
           "weight": 10.0
         },
         {
+          "check_id": "B.mail_transport_encryption",
+          "factor": null,
+          "result": "not_applicable",
+          "weight": 8.0
+        },
+        {
           "check_id": "B.mta_sts_enforced",
           "factor": 0.5,
           "result": "warning",
@@ -261,7 +272,7 @@
           "weight": 4.0
         }
       ],
-      "excluded_checks": 0,
+      "excluded_checks": 1,
       "pillar": "email",
       "score": 91.7,
       "scored_checks": 5,
@@ -361,6 +372,6 @@
       "weight": 0.25
     }
   ],
-  "policy_digest": "3e3469574cfda30d1746a94e898ecc1c09ef9c2a9d9de18c4bb84e79ff7f2bad",
+  "policy_digest": "77fc0d7fc40cc7ecc8567ecf7752137b63f6313dbdef42971bfafd7529abcf16",
   "snapshot_id": "33333333-3333-4333-8333-333333333333"
 }

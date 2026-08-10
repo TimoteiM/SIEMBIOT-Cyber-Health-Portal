@@ -26,6 +26,7 @@ from siembiot_worker.collectors.ct_log import CertificateTransparencyCollector, 
 from siembiot_worker.collectors.dns_records import DNSResilienceCollector
 from siembiot_worker.collectors.email_records import EmailTrustCollector
 from siembiot_worker.collectors.http_surface import HTTPSurfaceCollector
+from siembiot_worker.collectors.mail_transport import MailTransportCollector
 from siembiot_worker.collectors.network_attribution import NetworkAttributionCollector
 from siembiot_worker.collectors.port_surface import PortSurfaceCollector
 from siembiot_worker.collectors.rdap import RDAPCollector
@@ -51,6 +52,7 @@ from siembiot_worker.policy.normalization import (
     normalize_dns,
     normalize_email,
     normalize_http,
+    normalize_mail_transport,
     normalize_ports,
     normalize_rdap,
     normalize_tls,
@@ -149,7 +151,25 @@ COLLECTOR_OPERATIONS: dict[str, OperationClass] = {
     "ct": OperationClass.CT_QUERY,
     "ports": OperationClass.PORT_PROBE,
     "asn": OperationClass.DNS_QUERY,
+    "mail_tls": OperationClass.SMTP_STARTTLS,
 }
+
+
+def _mail_hosts(context: AssessmentContext) -> tuple[str, ...]:
+    """The MX hosts the e-mail collector observed, in preference order.
+
+    Read from that observation rather than resolved again, for the reason attribution
+    reads the DNS collector's addresses: a second lookup can answer differently, and
+    transport reported for a mail host the rest of the assessment never saw describes
+    neither. Where the e-mail step failed there is nothing to check, and the collector
+    reports that as not applicable rather than as mail with no encryption.
+    """
+    email = context.collection.get("email")
+    if email is None or not email.usable:
+        return ()
+    hosts = email.payload.get("mx", {}).get("hosts", [])
+    ordered = sorted(hosts, key=lambda entry: entry.get("preference", 0))
+    return tuple(entry["exchange"] for entry in ordered if entry.get("exchange"))
 
 
 def build_handlers(context: AssessmentContext) -> dict[str, StepHandler]:
@@ -196,6 +216,10 @@ def build_handlers(context: AssessmentContext) -> dict[str, StepHandler]:
             )
             return NetworkAttributionCollector(context.broker, context.clock).collect(
                 request, addresses
+            )
+        if name == "mail_tls":
+            return MailTransportCollector(context.broker, context.clock).collect(
+                request, _mail_hosts(context)
             )
         return CertificateTransparencyCollector(
             context.broker, context.ct_source, context.clock
@@ -251,6 +275,8 @@ def build_handlers(context: AssessmentContext) -> dict[str, StepHandler]:
             observations.extend(normalize_ports(ports, **shared))
         if (asn := context.collection.get("asn")) is not None:
             observations.extend(normalize_attribution(asn, **shared))
+        if (mail_tls := context.collection.get("mail_tls")) is not None:
+            observations.extend(normalize_mail_transport(mail_tls, **shared))
 
         if not observations:
             return StepOutcome.fail("no_evidence_collected")

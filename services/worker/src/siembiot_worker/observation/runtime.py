@@ -29,7 +29,9 @@ from siembiot_worker.network_safety.dns_client import (
     DnspythonTransport,
 )
 from siembiot_worker.network_safety.models import BrokerCheckpoint, NetworkBudget, PolicyDecision
+from siembiot_worker.network_safety.port_probe import SocketPortConnector
 from siembiot_worker.network_safety.resolver import SystemResolver
+from siembiot_worker.network_safety.smtp_probe import SocketMailTransportProber
 from siembiot_worker.network_safety.tls_client import SocketTLSConnector, TLSBudget, TLSInspector
 from siembiot_worker.network_safety.transport import BoundedHTTPTransport
 from siembiot_worker.observation.mode import AssessmentMode, allowed_operation_classes
@@ -149,6 +151,13 @@ def build_observation_runtime(
         policy=policy,
         dns_client=BoundedDNSClient(DnspythonTransport(), dns_budget or DNSBudget()),
         tls_inspector=TLSInspector(SocketTLSConnector(), TLSBudget()),
+        # Both probers are constructed here unconditionally, and the mode decides whether
+        # they are ever reached. Leaving one out does not disable a feature loudly: the
+        # broker returns `error` for every port, the collector reports the surface as
+        # inconclusive, and the report says "we could not tell" about a scan that was
+        # never attempted. The port prober was missing exactly this way.
+        prober=SocketPortConnector(),
+        mail_prober=SocketMailTransportProber(),
         budget=OBSERVATION_NETWORK_BUDGET,
         record_decision=policy.decisions.append,
     )

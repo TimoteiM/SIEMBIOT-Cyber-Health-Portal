@@ -40,6 +40,11 @@ class OperationClass(StrEnum):
     #: operation in this product that asks a host something rather than reading what
     #: it publishes, which is why it is authorized-only.
     PORT_PROBE = "port_probe"
+    #: Connecting to a published MX host on 25 and asking whether it offers STARTTLS.
+    #: Passive, by the same test as an HTTP GET: an MX record exists precisely to invite
+    #: this connection, and every mail server on the internet accepts that invitation.
+    #: Not target-owned -- a domain's mail very often runs on somebody else's host.
+    SMTP_STARTTLS = "smtp_starttls"
 
 
 HTTP_OPERATION_CLASSES = frozenset(

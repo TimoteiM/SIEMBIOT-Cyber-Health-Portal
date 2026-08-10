@@ -1,0 +1,33 @@
+{
+  "_comment": "Guidance for the mail transport check added in methodology 1.1.0. Outside the scoring digest like the rest of the remediation catalogue, so correcting a sentence here does not invalidate a stored score.",
+  "pillar": "email",
+  "templates": [
+    {
+      "template_id": "mail_transport_encryption_enable",
+      "version": "1.0.0",
+      "review_status": "draft",
+      "effort": "low",
+      "references": ["rfc3207"],
+      "summary_ro": "Activează STARTTLS pe fiecare server de e-mail publicat, cu un certificat valid pentru numele serverului.",
+      "summary_en": "Enable STARTTLS on every published mail server, with a certificate valid for the server's own name.",
+      "steps_ro": [
+        "Stabilește cine administrează serverele de e-mail. Adesea nu este aceeași persoană care administrează zona DNS, iar politicile publicate acolo nu au efect asupra serverului.",
+        "Activează STARTTLS în configurația serverului de mail. Aproape toate produsele actuale îl suportă; de obicei este o opțiune, nu o instalare.",
+        "Instalează un certificat valabil pentru numele serverului de mail, nu pentru numele domeniului. Sunt lucruri diferite, iar un certificat pentru domeniu nu se potrivește cu numele la care se conectează expeditorii.",
+        "Dacă domeniul publică mai multe servere, verifică fiecare dintre ele. Expeditorii care nu ajung la primul îl vor folosi pe următorul.",
+        "Lasă STARTTLS opțional pentru expeditori la început. Impunerea criptării pentru mesajele primite poate opri corespondența de la instituții care încă nu o suportă."
+      ],
+      "steps_en": [
+        "Establish who administers the mail servers. It is often not the person who administers the DNS zone, and the policies published there have no effect on the server itself.",
+        "Enable STARTTLS in the mail server's configuration. Nearly every current product supports it; this is usually a setting rather than an installation.",
+        "Install a certificate valid for the mail server's own name, not the domain name. They are different things, and a certificate for the domain does not match the name senders connect to.",
+        "Where the domain publishes more than one server, check each of them. Senders that cannot reach the first will use the next.",
+        "Leave STARTTLS optional for senders at first. Requiring encryption for incoming mail can stop correspondence from institutions that do not yet support it."
+      ],
+      "verification_ro": "O nouă evaluare raportează că toate serverele accesibile oferă STARTTLS, iar verificarea B.mail_transport_encryption trece.",
+      "verification_en": "A new assessment reports that every reachable server offers STARTTLS, and B.mail_transport_encryption passes.",
+      "caveat_ro": "Dacă serviciul de e-mail este găzduit la un furnizor, criptarea este cel mai probabil deja activă și nu ai ce configura. Verifică întâi cine găzduiește, înainte să ceri cuiva să schimbe ceva.",
+      "caveat_en": "If the mail service is hosted with a provider, encryption is most likely already on and there is nothing to configure. Establish who hosts it before asking anybody to change anything."
+    }
+  ]
+}

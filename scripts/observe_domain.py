@@ -66,7 +66,13 @@ def render_text(report: ObservationReport, language: str) -> str:
         f"  Methodology  {snapshot.methodology_version}  policy {snapshot.policy_digest[:12]}"
     )
     if report.unavailable_collectors:
-        lines.append(f"  Unavailable  {', '.join(report.unavailable_collectors)}")
+        lines.append(
+            f"  Unavailable  {', '.join(report.unavailable_collectors)}  (evidence missing)"
+        )
+    if report.not_applicable_collectors:
+        lines.append(
+            f"  Not asked    {', '.join(report.not_applicable_collectors)}  (nothing to observe)"
+        )
     lines.append("")
 
     for pillar in snapshot.pillars:
@@ -126,6 +132,7 @@ def render_json(report: ObservationReport) -> str:
             for item in report.findings
         ],
         "unavailable_collectors": list(report.unavailable_collectors),
+        "not_applicable_collectors": list(report.not_applicable_collectors),
         "notice": catalog.methodology.notice,
     }
     return json.dumps(document, indent=2, ensure_ascii=False, sort_keys=True)

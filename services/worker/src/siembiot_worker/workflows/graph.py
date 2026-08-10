@@ -68,6 +68,36 @@ COLLECTION_STEPS: tuple[StepDefinition, ...] = (
     ),
 )
 
+#: Collectors that read another collector's evidence rather than the target directly,
+#: and so cannot start until it has finished.
+#:
+#: Kept as a tuple so `normalize` derives its dependencies from it. Listing them there by
+#: hand is how a collector gets added, runs, and has its evidence normalized only on the
+#: runs where it happened to finish first -- and this repo has already paid for hardcoded
+#: lists three times.
+DEPENDENT_COLLECTION_STEPS: tuple[StepDefinition, ...] = (
+    # Attribution describes the addresses this run actually saw. Resolving again could
+    # legitimately return a different answer -- round-robin, anycast, a short
+    # time-to-live -- and name a network belonging to an address nothing else observed.
+    StepDefinition(
+        "collect.asn",
+        AssessmentState.COLLECTING,
+        depends_on=("collect.dns",),
+        optional=True,
+        deadline_seconds=45.0,
+    ),
+    # Mail transport connects to the MX hosts the e-mail collector observed, for the same
+    # reason. Deadline covers several hosts at an SMTP timeout each, and port 25 being
+    # blocked outbound is a slow failure rather than a fast one.
+    StepDefinition(
+        "collect.mail_tls",
+        AssessmentState.COLLECTING,
+        depends_on=("collect.email",),
+        optional=True,
+        deadline_seconds=90.0,
+    ),
+)
+
 ASSESSMENT_GRAPH: tuple[StepDefinition, ...] = (
     StepDefinition("plan", AssessmentState.PLANNING, deadline_seconds=30.0),
     *(
@@ -81,22 +111,14 @@ ASSESSMENT_GRAPH: tuple[StepDefinition, ...] = (
         )
         for step in COLLECTION_STEPS
     ),
-    # Attribution is the one collector that reads another's evidence rather than the
-    # target. Depending on `collect.dns` means it describes the addresses this run
-    # actually saw; resolving again could legitimately return a different answer --
-    # round-robin, anycast, a short time-to-live -- and name a network belonging to an
-    # address the rest of the assessment never observed.
-    StepDefinition(
-        "collect.asn",
-        AssessmentState.COLLECTING,
-        depends_on=("collect.dns",),
-        optional=True,
-        deadline_seconds=45.0,
-    ),
+    *DEPENDENT_COLLECTION_STEPS,
     StepDefinition(
         "normalize",
         AssessmentState.NORMALIZING,
-        depends_on=(*(step.name for step in COLLECTION_STEPS), "collect.asn"),
+        depends_on=(
+            *(step.name for step in COLLECTION_STEPS),
+            *(step.name for step in DEPENDENT_COLLECTION_STEPS),
+        ),
         deadline_seconds=60.0,
     ),
     StepDefinition("evaluate", AssessmentState.EVALUATING, depends_on=("normalize",)),

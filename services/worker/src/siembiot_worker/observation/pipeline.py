@@ -12,11 +12,13 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from siembiot_worker.adapters.contract import CollectionResult
+from siembiot_worker.adapters.contract import CollectionResult, CollectionStatus
 from siembiot_worker.collectors.ct_log import CertificateTransparencyCollector, CTEntrySource
 from siembiot_worker.collectors.dns_records import DNSResilienceCollector
 from siembiot_worker.collectors.email_records import EmailTrustCollector
 from siembiot_worker.collectors.http_surface import HTTPSurfaceCollector
+from siembiot_worker.collectors.mail_transport import MailTransportCollector
+from siembiot_worker.collectors.network_attribution import NetworkAttributionCollector
 from siembiot_worker.collectors.rdap import RDAPCollector
 from siembiot_worker.collectors.tls_certificate import TLSCertificateCollector
 from siembiot_worker.network_safety.collection_policy import OperationClass
@@ -39,10 +41,12 @@ from siembiot_worker.policy.findings import Finding, derive_findings
 from siembiot_worker.policy.normalization import (
     derive_freshness_observation,
     domain_subject,
+    normalize_attribution,
     normalize_ct,
     normalize_dns,
     normalize_email,
     normalize_http,
+    normalize_mail_transport,
     normalize_rdap,
     normalize_tls,
 )
@@ -83,7 +87,33 @@ class ObservationReport:
 
     @property
     def unavailable_collectors(self) -> tuple[str, ...]:
-        return tuple(sorted(name for name, result in self.collection.items() if not result.usable))
+        """Collectors that tried and could not answer -- a gap in the evidence.
+
+        `not_applicable` is deliberately excluded. A domain with no mail to secure and a
+        CT source nobody configured both produce unusable results, and neither is a
+        failure; listing them under "unavailable" tells the reader something went wrong
+        and sends them looking for a problem that does not exist. Keeping the two apart
+        is the same rule the scoring applies to `not_applicable` against `unknown`.
+        """
+        return tuple(
+            sorted(
+                name
+                for name, result in self.collection.items()
+                if not result.usable and result.status is not CollectionStatus.NOT_APPLICABLE
+            )
+        )
+
+    @property
+    def not_applicable_collectors(self) -> tuple[str, ...]:
+        """Collectors with nothing to say about this domain. Reported, not hidden: the
+        reader is entitled to know which questions were not asked and why."""
+        return tuple(
+            sorted(
+                name
+                for name, result in self.collection.items()
+                if result.status is CollectionStatus.NOT_APPLICABLE
+            )
+        )
 
 
 def observe_domain(
@@ -214,7 +244,34 @@ def _collect(
     results["ct"] = CertificateTransparencyCollector(broker, ct_source).collect(
         runtime.request(OperationClass.CT_QUERY, host)
     )
+    # These two read an earlier collector's evidence rather than the target, so they run
+    # last and take what was actually observed. Both are passive, so the observatory is
+    # entitled to them -- and a passive check the observatory never collects for is a
+    # check that reports `not_applicable` for every public body forever, which reads
+    # exactly like a clean result.
+    results["asn"] = NetworkAttributionCollector(broker).collect(
+        runtime.request(OperationClass.DNS_QUERY, host),
+        _observed_addresses(results["dns"]),
+    )
+    results["mail_tls"] = MailTransportCollector(broker).collect(
+        runtime.request(OperationClass.SMTP_STARTTLS, host),
+        _observed_mail_hosts(results["email"]),
+    )
     return results
+
+
+def _observed_addresses(dns: CollectionResult) -> tuple[str, ...]:
+    if not dns.usable:
+        return ()
+    return tuple(dns.payload.get("addresses", {}).get("ipv4", []))
+
+
+def _observed_mail_hosts(email: CollectionResult) -> tuple[str, ...]:
+    if not email.usable:
+        return ()
+    hosts = email.payload.get("mx", {}).get("hosts", [])
+    ordered = sorted(hosts, key=lambda entry: entry.get("preference", 0))
+    return tuple(entry["exchange"] for entry in ordered if entry.get("exchange"))
 
 
 def _normalize(
@@ -239,6 +296,8 @@ def _normalize(
         *normalize_http(collection["http"], **shared),
         *normalize_rdap(collection["rdap"], **shared),
         *normalize_ct(collection["ct"], **shared),
+        *normalize_attribution(collection["asn"], **shared),
+        *normalize_mail_transport(collection["mail_tls"], **shared),
     )
 
 

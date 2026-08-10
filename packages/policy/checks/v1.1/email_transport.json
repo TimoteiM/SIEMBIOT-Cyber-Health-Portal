@@ -1,0 +1,56 @@
+{
+  "_comment": "Mail transport security, added in methodology 1.1.0. Passive: an MX record exists to invite a connection on port 25, and the prober stops at STARTTLS without ever offering a message. Every other e-mail check in this methodology reads what the zone says about mail; this one is the only check of what the mail server actually does, and the two can disagree because they are frequently edited by different people.",
+  "pillar": "email",
+  "pillar_letter": "B",
+  "checks": [
+    {
+      "check_id": "B.mail_transport_encryption",
+      "version": "1.0.0",
+      "title_ro": "Serverele de e-mail acceptă conexiuni criptate",
+      "title_en": "The mail servers accept encrypted connections",
+      "rationale_ro": "Un server care nu oferă STARTTLS primește mesajele în clar, oricine le-ar putea citi pe drum. Politicile publicate în DNS nu schimbă acest lucru: sunt scrise de cine administrează zona, iar serverul este adesea al altcuiva. Dacă un singur server dintre cele publicate refuză criptarea, expeditorii care ajung la el vor trimite necriptat.",
+      "rationale_en": "A server that does not offer STARTTLS receives messages in plaintext, readable by anyone along the way. The policies published in DNS do not change that: they are written by whoever administers the zone, and the server is frequently somebody else's. If even one of the published servers refuses encryption, senders that reach it will send in the clear.",
+      "collection_mode": "passive",
+      "observation_type": "mail.transport_security",
+      "applicability": {
+        "requires_observation": true
+      },
+      "rules": [
+        {
+          "when": {
+            "status": "absent"
+          },
+          "result": "not_applicable",
+          "reason_code": "no_reachable_mail_hosts"
+        },
+        {
+          "when": {
+            "attribute": "starttls_everywhere",
+            "equals": true
+          },
+          "result": "pass"
+        },
+        {
+          "when": {
+            "attribute": "starttls_everywhere",
+            "equals": false
+          },
+          "result": "fail",
+          "reason_code": "mail_host_without_starttls"
+        },
+        {
+          "when": {
+            "status": "inconclusive"
+          },
+          "result": "unknown",
+          "reason_code": "mail_transport_inconclusive"
+        }
+      ],
+      "weight": 8,
+      "severity": "high",
+      "public_safety_class": "public_profile",
+      "remediation_template": "mail_transport_encryption_enable",
+      "references": ["rfc3207"]
+    }
+  ]
+}

@@ -33,6 +33,13 @@ from siembiot_worker.network_safety.port_probe import (
     PortObservation,
     decode_banner,
 )
+from siembiot_worker.network_safety.smtp_probe import (
+    UNREACHABLE as SMTP_UNREACHABLE,
+)
+from siembiot_worker.network_safety.smtp_probe import (
+    MailTransportObservation,
+    MailTransportProber,
+)
 from siembiot_worker.network_safety.tls_client import (
     ProtocolProbeResult,
     TLSInspector,
@@ -120,6 +127,7 @@ class CollectionNetworkBroker:
         dns_client: BoundedDNSClient,
         tls_inspector: TLSInspector | None = None,
         prober: PortConnector | None = None,
+        mail_prober: MailTransportProber | None = None,
         budget: NetworkBudget | None = None,
         record_decision: Callable[[dict[str, object]], None] | None = None,
     ) -> None:
@@ -129,6 +137,7 @@ class CollectionNetworkBroker:
         self._dns = dns_client
         self._tls = tls_inspector
         self._prober = prober
+        self._mail_prober = mail_prober
         self._budget = budget or COLLECTION_BUDGET
         self._record_decision = record_decision or (lambda _: None)
         self._capacity = threading.BoundedSemaphore(self._budget.max_concurrency)
@@ -235,6 +244,44 @@ class CollectionNetworkBroker:
 
         self._record(request, True, "probed", host, 0, len(observations))
         return tuple(observations)
+
+    # -- mail transport ------------------------------------------------------
+
+    def probe_mail_transport(
+        self, request: CollectionRequest, mail_host: str
+    ) -> MailTransportObservation:
+        """Ask one published MX host whether it offers STARTTLS.
+
+        The mail host is deliberately not the request's host: a domain's mail very often
+        runs on somebody else's machine, and requiring them to match would mean this only
+        ever worked for organisations self-hosting their own mail -- which is to say, the
+        ones least likely to be the interesting case.
+
+        The address policy still applies to whatever the MX name resolves to. An MX
+        record pointing into private space is refused like anything else, and reported as
+        unreachable rather than raised, so one odd mail host cannot fail the assessment.
+        """
+        if request.operation_class is not OperationClass.SMTP_STARTTLS:
+            return MailTransportObservation(mail_host, SMTP_UNREACHABLE)
+        if self._mail_prober is None:
+            return MailTransportObservation(mail_host, SMTP_UNREACHABLE)
+        if not self._capacity.acquire(blocking=False):
+            return MailTransportObservation(mail_host, SMTP_UNREACHABLE)
+
+        try:
+            address = self._pin_address(request, mail_host)
+            observation = self._mail_prober.probe(address, mail_host)
+        except _PolicyDeniedError as exc:
+            self._record(request, False, exc.reason, mail_host, 0, 0)
+            return MailTransportObservation(mail_host, SMTP_UNREACHABLE)
+        finally:
+            # Held across the connection, not just the resolution: the semaphore bounds
+            # how many sockets this worker has open at once, and releasing before the
+            # probe would make it bound nothing at all.
+            self._capacity.release()
+
+        self._record(request, True, observation.state, mail_host, 0, 1)
+        return observation
 
     # -- HTTP ----------------------------------------------------------------
 
