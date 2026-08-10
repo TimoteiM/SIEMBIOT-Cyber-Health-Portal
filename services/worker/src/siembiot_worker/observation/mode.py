@@ -51,7 +51,14 @@ PASSIVE_OPERATION_CLASSES: frozenset[OperationClass] = frozenset(
 #: Operations that require verified control and a signed authorization. Listed
 #: explicitly so the two sets are visibly exhaustive rather than "everything else".
 AUTHORIZED_ONLY_OPERATION_CLASSES: frozenset[OperationClass] = frozenset(
-    {OperationClass.HTTPS_VERIFICATION}
+    {
+        OperationClass.HTTPS_VERIFICATION,
+        # Connecting to a port nobody advertised is the line this product draws. Every
+        # passive operation reads something the target already publishes to everyone; a
+        # port probe asks a question instead, and the answer is only ours to ask because
+        # somebody with authority over the domain signed for it.
+        OperationClass.PORT_PROBE,
+    }
 )
 
 

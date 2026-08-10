@@ -1,0 +1,201 @@
+{
+  "_comment": "The ports an authorized assessment probes, and what an open one means. A curated list rather than a range: scanning every port is a different activity with different legal weight, and a list of services that map to real exposure is what produces a finding somebody acts on. Deliberately outside the scoring digest, like the remediation catalogue -- correcting a sentence here must not invalidate every stored score. Each entry says why the service being reachable from the internet matters, because 'port 3389 is open' is not something a town clerk can act on and 'the remote desktop service is reachable from anywhere on the internet' is.",
+  "version": "1.0.0",
+  "review_status": "draft",
+  "review_date": "2026-08-10",
+
+  "_exposure_comment": "How bad an open port is depends on what answers on it. `remote_access` and `database` are the two that end in ransomware; `management` is the interface that grants control of everything else; `infrastructure` is ordinary to expose and listed so the inventory is complete rather than only alarming.",
+
+  "ports": [
+    {
+      "port": 22,
+      "service": "ssh",
+      "exposure": "remote_access",
+      "severity": "medium",
+      "title_ro": "SSH accesibil public",
+      "title_en": "SSH reachable from the internet",
+      "rationale_ro": "SSH expus public este obișnuit pentru servere, dar este și ținta constantă a atacurilor de forță brută. Contează dacă acceptă parole și dacă are limitare a încercărilor.",
+      "rationale_en": "Public SSH is ordinary for a server, and it is also under constant brute-force attack. What matters is whether it accepts passwords and whether attempts are rate-limited."
+    },
+    {
+      "port": 3389,
+      "service": "rdp",
+      "exposure": "remote_access",
+      "severity": "critical",
+      "title_ro": "Desktop la distanță (RDP) accesibil public",
+      "title_en": "Remote Desktop (RDP) reachable from the internet",
+      "rationale_ro": "RDP expus direct la internet este una dintre cele mai frecvente căi prin care o organizație ajunge criptată de un atac cu răscumpărare. Ar trebui să fie accesibil doar prin VPN sau printr-un gateway cu autentificare multifactor.",
+      "rationale_en": "RDP exposed directly to the internet is one of the most common ways an organisation ends up encrypted by ransomware. It belongs behind a VPN or a gateway with multi-factor authentication."
+    },
+    {
+      "port": 5900,
+      "service": "vnc",
+      "exposure": "remote_access",
+      "severity": "critical",
+      "title_ro": "VNC accesibil public",
+      "title_en": "VNC reachable from the internet",
+      "rationale_ro": "VNC nu criptează traficul în configurația implicită și adesea are parole scurte sau deloc. Expus public, oferă control complet asupra unei stații de lucru.",
+      "rationale_en": "VNC does not encrypt traffic by default and often has a short password or none. Exposed publicly it hands over full control of a workstation."
+    },
+    {
+      "port": 445,
+      "service": "smb",
+      "exposure": "remote_access",
+      "severity": "critical",
+      "title_ro": "Partajare de fișiere Windows (SMB) accesibilă public",
+      "title_en": "Windows file sharing (SMB) reachable from the internet",
+      "rationale_ro": "SMB nu are ce căuta pe internet. Este protocolul folosit de WannaCry și de majoritatea atacurilor care se răspândesc lateral într-o rețea.",
+      "rationale_en": "SMB has no business on the internet. It is the protocol WannaCry used and the one most lateral movement relies on."
+    },
+    {
+      "port": 3306,
+      "service": "mysql",
+      "exposure": "database",
+      "severity": "critical",
+      "title_ro": "Bază de date MySQL accesibilă public",
+      "title_en": "MySQL database reachable from the internet",
+      "rationale_ro": "O bază de date accesibilă direct de pe internet expune toate datele pe care le conține la orice slăbiciune de autentificare. Bazele de date ar trebui să fie accesibile doar din rețeaua aplicației.",
+      "rationale_en": "A database reachable straight from the internet exposes everything it holds to any weakness in authentication. Databases belong on the application's own network."
+    },
+    {
+      "port": 5432,
+      "service": "postgresql",
+      "exposure": "database",
+      "severity": "critical",
+      "title_ro": "Bază de date PostgreSQL accesibilă public",
+      "title_en": "PostgreSQL database reachable from the internet",
+      "rationale_ro": "Vezi MySQL: o bază de date nu ar trebui să accepte conexiuni de oriunde de pe internet.",
+      "rationale_en": "As with MySQL: a database should not accept connections from anywhere on the internet."
+    },
+    {
+      "port": 1433,
+      "service": "mssql",
+      "exposure": "database",
+      "severity": "critical",
+      "title_ro": "Bază de date SQL Server accesibilă public",
+      "title_en": "SQL Server database reachable from the internet",
+      "rationale_ro": "SQL Server expus public este o țintă frecventă pentru atacuri automate asupra conturilor implicite.",
+      "rationale_en": "A publicly exposed SQL Server is a frequent target for automated attacks against default accounts."
+    },
+    {
+      "port": 27017,
+      "service": "mongodb",
+      "exposure": "database",
+      "severity": "critical",
+      "title_ro": "Bază de date MongoDB accesibilă public",
+      "title_en": "MongoDB database reachable from the internet",
+      "rationale_ro": "MongoDB a fost istoric livrat fără autentificare implicită, iar bazele expuse au fost șterse în masă și ținute pentru răscumpărare.",
+      "rationale_en": "MongoDB historically shipped without authentication, and exposed instances have been mass-wiped and held to ransom."
+    },
+    {
+      "port": 6379,
+      "service": "redis",
+      "exposure": "database",
+      "severity": "critical",
+      "title_ro": "Redis accesibil public",
+      "title_en": "Redis reachable from the internet",
+      "rationale_ro": "Redis nu cere autentificare în configurația implicită și permite scrierea de fișiere pe server. Expus public, este de obicei o preluare completă a serverului.",
+      "rationale_en": "Redis requires no authentication by default and can write files on the server. Exposed publicly it is usually a full server takeover."
+    },
+    {
+      "port": 9200,
+      "service": "elasticsearch",
+      "exposure": "database",
+      "severity": "critical",
+      "title_ro": "Elasticsearch accesibil public",
+      "title_en": "Elasticsearch reachable from the internet",
+      "rationale_ro": "Instanțele Elasticsearch expuse sunt o sursă frecventă de scurgeri masive de date, pentru că adesea nu au deloc autentificare.",
+      "rationale_en": "Exposed Elasticsearch instances are a frequent source of large data leaks, because they often have no authentication at all."
+    },
+    {
+      "port": 2375,
+      "service": "docker",
+      "exposure": "management",
+      "severity": "critical",
+      "title_ro": "API Docker accesibil public",
+      "title_en": "Docker API reachable from the internet",
+      "rationale_ro": "API-ul Docker neprotejat permite pornirea de containere pe server, adică execuție de cod cu drepturi depline.",
+      "rationale_en": "An unprotected Docker API allows starting containers on the host, which is code execution with full privileges."
+    },
+    {
+      "port": 10250,
+      "service": "kubelet",
+      "exposure": "management",
+      "severity": "critical",
+      "title_ro": "API Kubelet accesibil public",
+      "title_en": "Kubelet API reachable from the internet",
+      "rationale_ro": "Kubelet expus permite, în funcție de configurație, executarea de comenzi în containerele care rulează.",
+      "rationale_en": "An exposed kubelet can, depending on configuration, allow running commands inside the containers on the node."
+    },
+    {
+      "port": 8080,
+      "service": "http_alt",
+      "exposure": "management",
+      "severity": "medium",
+      "title_ro": "Serviciu web pe port alternativ",
+      "title_en": "Web service on an alternate port",
+      "rationale_ro": "Porturile alternative găzduiesc adesea interfețe de administrare care nu au fost gândite să fie publice și care nu apar în evaluarea site-ului principal.",
+      "rationale_en": "Alternate ports often carry administrative interfaces that were never meant to be public and do not appear in the assessment of the main site."
+    },
+    {
+      "port": 8443,
+      "service": "https_alt",
+      "exposure": "management",
+      "severity": "medium",
+      "title_ro": "Serviciu web securizat pe port alternativ",
+      "title_en": "Secure web service on an alternate port",
+      "rationale_ro": "Ca la 8080: de obicei o consolă de administrare, un firewall sau un dispozitiv de rețea.",
+      "rationale_en": "As with 8080: usually an administration console, a firewall, or a network appliance."
+    },
+    {
+      "port": 21,
+      "service": "ftp",
+      "exposure": "remote_access",
+      "severity": "high",
+      "title_ro": "FTP accesibil public",
+      "title_en": "FTP reachable from the internet",
+      "rationale_ro": "FTP transmite parolele în clar. Dacă mai este necesar transferul de fișiere, ar trebui folosit SFTP.",
+      "rationale_en": "FTP sends passwords in the clear. Where file transfer is still needed, SFTP is the replacement."
+    },
+    {
+      "port": 23,
+      "service": "telnet",
+      "exposure": "remote_access",
+      "severity": "critical",
+      "title_ro": "Telnet accesibil public",
+      "title_en": "Telnet reachable from the internet",
+      "rationale_ro": "Telnet transmite totul în clar, inclusiv parolele. Nu ar trebui să fie activ nicăieri.",
+      "rationale_en": "Telnet sends everything in the clear, passwords included. It should not be enabled anywhere."
+    },
+    {
+      "port": 25,
+      "service": "smtp",
+      "exposure": "infrastructure",
+      "severity": "informational",
+      "title_ro": "Server de e-mail (SMTP)",
+      "title_en": "Mail server (SMTP)",
+      "rationale_ro": "Obișnuit pentru un server de e-mail. Listat pentru ca inventarul să fie complet, nu pentru că ar fi o problemă.",
+      "rationale_en": "Ordinary for a mail server. Listed so the inventory is complete, not because it is a problem."
+    },
+    {
+      "port": 80,
+      "service": "http",
+      "exposure": "infrastructure",
+      "severity": "informational",
+      "title_ro": "Server web (HTTP)",
+      "title_en": "Web server (HTTP)",
+      "rationale_ro": "Obișnuit. Dacă redirecționează către HTTPS este deja evaluat separat.",
+      "rationale_en": "Ordinary. Whether it redirects to HTTPS is assessed separately."
+    },
+    {
+      "port": 443,
+      "service": "https",
+      "exposure": "infrastructure",
+      "severity": "informational",
+      "title_ro": "Server web securizat (HTTPS)",
+      "title_en": "Secure web server (HTTPS)",
+      "rationale_ro": "Obișnuit, și evaluat în detaliu de verificările pilonului C.",
+      "rationale_en": "Ordinary, and assessed in detail by the pillar C checks."
+    }
+  ]
+}

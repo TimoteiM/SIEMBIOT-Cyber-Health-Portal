@@ -8,7 +8,7 @@ address, and re-authorizes again after any redirect.
 from __future__ import annotations
 
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Protocol
 from uuid import UUID
@@ -25,6 +25,11 @@ from siembiot_worker.network_safety.models import (
     NetworkBudget,
     PolicyDecision,
     TransportResponse,
+)
+from siembiot_worker.network_safety.port_probe import (
+    PortConnector,
+    PortObservation,
+    decode_banner,
 )
 from siembiot_worker.network_safety.tls_client import (
     ProtocolProbeResult,
@@ -112,6 +117,7 @@ class CollectionNetworkBroker:
         policy: CollectionPolicyAuthorizer,
         dns_client: BoundedDNSClient,
         tls_inspector: TLSInspector | None = None,
+        prober: PortConnector | None = None,
         budget: NetworkBudget | None = None,
         record_decision: Callable[[dict[str, object]], None] | None = None,
     ) -> None:
@@ -120,6 +126,7 @@ class CollectionNetworkBroker:
         self._policy = policy
         self._dns = dns_client
         self._tls = tls_inspector
+        self._prober = prober
         self._budget = budget or COLLECTION_BUDGET
         self._record_decision = record_decision or (lambda _: None)
         self._capacity = threading.BoundedSemaphore(self._budget.max_concurrency)
@@ -171,6 +178,61 @@ class CollectionNetworkBroker:
             return TLSObservation("error", verification_error=exc.reason), ()
         finally:
             self._capacity.release()
+
+    # -- ports ---------------------------------------------------------------
+
+    def probe_ports(
+        self, request: CollectionRequest, ports: Sequence[int]
+    ) -> tuple[PortObservation, ...]:
+        """Probe a bounded set of ports on the request's host.
+
+        The address is resolved and pinned once, then every port is probed against that
+        same address. Resolving per port would let a name that changes mid-scan move the
+        probe onto a host nobody authorized -- and it would also make the audit record
+        ambiguous about what was actually touched.
+
+        Refusals are returned as observations rather than raised. A run that could not
+        probe is evidence about our reach, and swallowing it would leave the report
+        claiming a clean surface it never looked at.
+        """
+        if request.operation_class is not OperationClass.PORT_PROBE:
+            return tuple(PortObservation(port, "error") for port in ports)
+        if self._prober is None:
+            return tuple(PortObservation(port, "error") for port in ports)
+        if not self._capacity.acquire(blocking=False):
+            return tuple(PortObservation(port, "error") for port in ports)
+
+        host = request.canonical_host
+        try:
+            address = self._pin_address(request, host)
+        except _PolicyDeniedError as exc:
+            self._capacity.release()
+            self._record(request, False, exc.reason, host, 0, 0)
+            return tuple(PortObservation(port, "error") for port in ports)
+
+        observations: list[PortObservation] = []
+        try:
+            for port in ports:
+                # Re-authorized per port, so an emergency control pulled halfway through
+                # stops the scan rather than being noticed at the end of it.
+                self._authorize(request, BrokerCheckpoint.BEFORE_CONNECT, host)
+                state, raw = self._prober.probe(
+                    address,
+                    port,
+                    self._budget.connect_timeout_seconds,
+                    self._budget.read_timeout_seconds,
+                )
+                observations.append(PortObservation(port, state, decode_banner(raw)))
+        except _PolicyDeniedError as exc:
+            self._record(request, False, exc.reason, host, 0, len(observations))
+            # What was already observed is kept. Half a scan is evidence; discarding it
+            # would report the same as never having looked.
+            return tuple(observations)
+        finally:
+            self._capacity.release()
+
+        self._record(request, True, "probed", host, 0, len(observations))
+        return tuple(observations)
 
     # -- HTTP ----------------------------------------------------------------
 

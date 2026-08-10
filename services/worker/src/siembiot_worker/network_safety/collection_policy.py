@@ -36,6 +36,10 @@ class OperationClass(StrEnum):
     TLS_INSPECTION = "tls_inspection"
     RDAP_QUERY = "rdap_query"
     CT_QUERY = "ct_query"
+    #: Opening a TCP connection to a port the target did not advertise. The first
+    #: operation in this product that asks a host something rather than reading what
+    #: it publishes, which is why it is authorized-only.
+    PORT_PROBE = "port_probe"
 
 
 HTTP_OPERATION_CLASSES = frozenset(
