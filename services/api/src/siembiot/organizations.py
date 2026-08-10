@@ -77,6 +77,9 @@ def _organization_response(row: RowMapping) -> OrganizationResponse:
         name=row["name"],
         slug=row["slug"],
         created_at=row["created_at"],
+        # Present only where the query establishes it. `RowMapping.get` rather than
+        # indexing: the single-organization route selects four columns and would raise.
+        role=row.get("role"),
     )
 
 
@@ -91,6 +94,25 @@ def build_organization_router() -> APIRouter:
     ) -> OrganizationResponse:
         organization_id = uuid4()
         database: Database = request.app.state.database
+        try:
+            return _create(request, body, principal, database, organization_id)
+        except IntegrityError as exc:
+            # The slug is unique across the platform, so this is somebody choosing a name
+            # that is taken -- an ordinary thing to do, and until now it surfaced as a 500
+            # with a stack trace in the log and "an internal error occurred" on screen.
+            # A conflict is the caller's to resolve, and they can only resolve it if they
+            # are told which field is at fault.
+            raise AppError(
+                409, "organization_slug_taken", "That short identifier is already in use."
+            ) from exc
+
+    def _create(
+        request: Request,
+        body: OrganizationCreate,
+        principal: Principal,
+        database: Database,
+        organization_id: UUID,
+    ) -> OrganizationResponse:
         with database.tenant_connection(principal.user_id, organization_id) as connection:
             connection.execute(
                 text(
@@ -150,7 +172,7 @@ def build_organization_router() -> APIRouter:
         with database.user_connection(principal.user_id) as connection:
             rows = (
                 connection.execute(
-                    text("SELECT id, name, slug, created_at FROM app_list_my_organizations()")
+                    text("SELECT id, name, slug, created_at, role FROM app_list_my_organizations()")
                 )
                 .mappings()
                 .all()

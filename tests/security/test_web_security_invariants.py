@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -82,3 +83,45 @@ def test_no_page_offers_a_login_flow_this_service_does_not_implement() -> None:
     assert "/api/v1/auth/login" not in sources
     assert "/api/v1/auth/callback" not in sources
     assert "Autentifică-te din nou" not in sources
+
+
+def test_the_local_sign_in_page_cannot_be_mistaken_for_authentication() -> None:
+    """A form with a username and a password is the easiest thing in this product to
+    mistake for a login, and it is not one.
+
+    Identity terminates at a gateway upstream; this page only chooses which identity the
+    development resolver asserts, in place of editing environment variables. The
+    credentials are in the repository. So the page has to be gated on the build mode and
+    has to say what it is, on itself, where somebody deciding whether to trust it will
+    read it.
+    """
+    accounts = (WEB_SOURCE / "lib" / "dev-accounts.ts").read_text(encoding="utf-8")
+    page = (WEB_SOURCE / "app" / "sign-in" / "page.tsx").read_text(encoding="utf-8")
+
+    assert 'process.env.NODE_ENV === "development"' in accounts
+
+    # The disclaimer is rendered, not merely written in a comment somebody has to open
+    # the file to find.
+    assert "signIn.notRealAuthentication" in page
+
+    # It selects an account defined in the repository rather than carrying an identity
+    # of its own, so a forged cookie can only pick between accounts that already exist.
+    middleware = (WEB_SOURCE / "middleware.ts").read_text(encoding="utf-8")
+    assert "accountBySubject" in middleware
+
+    # And it still injects no gateway proof, so the API's production resolver refuses
+    # these headers however the identity was chosen.
+    assert "gateway-secret" not in (page + accounts).lower()
+
+
+def test_the_local_accounts_carry_no_credential_worth_protecting() -> None:
+    """The passwords are the account names, and that is the safeguard.
+
+    A credential that looked plausible in production would eventually be used there.
+    These cannot be, which is why they are allowed to sit in the repository at all.
+    """
+    accounts = (WEB_SOURCE / "lib" / "dev-accounts.ts").read_text(encoding="utf-8")
+    pairs = re.findall(r'username: "([^"]+)",\s+password: "([^"]+)"', accounts)
+    assert pairs, "no accounts found; this test would otherwise pass vacuously"
+    for username, password in pairs:
+        assert username == password, f"{username} has a password worth protecting"

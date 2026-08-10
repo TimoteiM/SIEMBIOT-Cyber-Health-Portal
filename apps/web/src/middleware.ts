@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { accountBySubject, DEV_IDENTITY_COOKIE } from "./lib/dev-accounts";
+
 /**
  * Development-only identity injection.
  *
@@ -21,28 +23,54 @@ import { NextResponse, type NextRequest } from "next/server";
  * this file were somehow reached.
  */
 
-const IDENTITY_HEADERS = {
-  "x-siembiot-identity-issuer": process.env.SIEMBIOT_DEV_IDENTITY_ISSUER ?? "https://idp.local.test",
-  "x-siembiot-identity-subject": process.env.SIEMBIOT_DEV_IDENTITY_SUBJECT ?? "",
-  "x-siembiot-identity-email": process.env.SIEMBIOT_DEV_IDENTITY_EMAIL ?? "",
-  "x-siembiot-identity-name": process.env.SIEMBIOT_DEV_IDENTITY_NAME ?? "",
-} as const;
+const ISSUER = process.env.SIEMBIOT_DEV_IDENTITY_ISSUER ?? "https://idp.local.test";
+
+/**
+ * The identity from the environment, which is how this worked before there was a
+ * sign-in page. Kept as the fallback so an existing local setup, and every script that
+ * exports these variables, carries on unchanged.
+ */
+const CONFIGURED = {
+  subject: process.env.SIEMBIOT_DEV_IDENTITY_SUBJECT ?? "",
+  email: process.env.SIEMBIOT_DEV_IDENTITY_EMAIL ?? "",
+  name: process.env.SIEMBIOT_DEV_IDENTITY_NAME ?? "",
+};
+
+function chosenIdentity(request: NextRequest) {
+  // A cookie set by the development sign-in page. It names an account defined in the
+  // repository rather than carrying an identity of its own, so a forged value can only
+  // select between the two accounts that already exist -- and only in development,
+  // where the API accepts these headers at all.
+  const chosen = request.cookies.get(DEV_IDENTITY_COOKIE)?.value;
+  const account = chosen ? accountBySubject(chosen) : null;
+  if (account) {
+    return { subject: account.subject, email: account.email, name: account.name };
+  }
+  return CONFIGURED;
+}
 
 function developmentIdentityEnabled(): boolean {
-  return (
-    process.env.NODE_ENV === "development" &&
-    Boolean(IDENTITY_HEADERS["x-siembiot-identity-subject"]) &&
-    Boolean(IDENTITY_HEADERS["x-siembiot-identity-email"])
-  );
+  return process.env.NODE_ENV === "development";
 }
 
 export function middleware(request: NextRequest) {
   if (!developmentIdentityEnabled()) {
     return NextResponse.next();
   }
+  const identity = chosenIdentity(request);
+  if (!identity.subject || !identity.email) {
+    return NextResponse.next();
+  }
 
   const headers = new Headers(request.headers);
-  for (const [name, value] of Object.entries(IDENTITY_HEADERS)) {
+  const values: Record<string, string> = {
+    "x-siembiot-identity-issuer": ISSUER,
+    "x-siembiot-identity-subject": identity.subject,
+    "x-siembiot-identity-email": identity.email,
+    "x-siembiot-identity-name": identity.name,
+  };
+  for (const [name, value] of Object.entries(values)) {
+    // Never overwrites: a real gateway in front of a development build still wins.
     if (value && !headers.has(name)) {
       headers.set(name, value);
     }

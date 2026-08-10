@@ -39,7 +39,7 @@ const MATURITY = "M6 3h8l2 2v12H4V5l2-2Zm1 5.5 1.5 1.5L12 6.5M7 13h6";
  * The shell is hidden on unauthenticated routes: a visitor who is not signed in has
  * nothing to navigate to, and showing a workspace nav would misrepresent their access.
  */
-const PUBLIC_ROUTES = new Set(["/"]);
+const PUBLIC_ROUTES = new Set(["/", "/sign-in"]);
 
 /**
  * The observatory is readable by anybody, so it gets no workspace chrome either. Matched

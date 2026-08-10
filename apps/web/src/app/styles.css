@@ -925,3 +925,17 @@ details > summary:hover { color: var(--text-primary); }
 }
 .observatory-checks li { justify-content: flex-start; }
 .observatory-list a { font-weight: 500; }
+
+/* -- choosing an identity, and choosing an organization --------------------- */
+
+.organization-list li,
+.sign-in-accounts li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.organization-list a { font-weight: 500; }
+.sign-in-accounts li > div { display: grid; gap: 0.15rem; }
+.sign-in-accounts p { margin: 0; font-size: 0.8125rem; }

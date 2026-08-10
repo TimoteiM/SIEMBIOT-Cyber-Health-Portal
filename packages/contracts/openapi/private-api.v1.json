@@ -2546,6 +2546,17 @@
             "title": "Name",
             "type": "string"
           },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
           "slug": {
             "title": "Slug",
             "type": "string"

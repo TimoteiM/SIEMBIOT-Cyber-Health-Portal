@@ -57,6 +57,25 @@ PEOPLE = (
     ("demo-it", "it@primaria-exemplu.test", "Andrei Dobre", "security_admin"),
 )
 
+#: Platform staff. They belong to no organization: a platform administrator is not a
+#: member of the tenants it supports, and giving it a membership would be the easy wrong
+#: answer -- indistinguishable afterwards from a customer's own account.
+#:
+#: Reaching a tenant's data goes through `support_access_grants` instead, which
+#: row-level security checks exactly as it does a membership: the grant must be live,
+#: unrevoked, held by a `platform_admin`, and that user must have phishing-resistant MFA.
+#: Nothing here bypasses a policy. The second account exists because the schema refuses a
+#: grant approved by its own beneficiary, which is the control that stops one person
+#: quietly giving themselves access to a customer.
+PLATFORM_PEOPLE = (
+    ("platform-admin", "admin@siembiot.local.test", "Mihai Constantin"),
+    ("platform-approver", "approver@siembiot.local.test", "Ioana Vasilescu"),
+)
+
+#: How long a seeded support grant lasts. Long enough to demonstrate with, short enough
+#: that it is visibly a grant rather than a permanent capability.
+SUPPORT_GRANT_DAYS = 30
+
 #: A plausible mix rather than a flattering one: a small institution that has done the
 #: visible things and not the invisible ones. Only the 17 checks the catalogue permits
 #: on a public profile can ever be published; the rest stay private wherever they land.
@@ -325,6 +344,8 @@ def main() -> int:
             {"organization_id": organization_id, "domain_id": domain_id, "actor": owner_id},
         )
 
+        _write_platform_access(connection, text)
+
         if arguments.approve_publication:
             connection.execute(
                 text(
@@ -357,12 +378,82 @@ def main() -> int:
     for host, value in domains.items():
         print(f"domain        {value}  {host}")
     for subject, (user_id, email, name, role) in people.items():
-        print(f"user          {subject:14} {name:18} {role:20} {email}")
+        print(f"user          {subject:18} {name:22} {role:20} {email}")
+    for subject, email, name in PLATFORM_PEOPLE:
+        print(f"platform      {subject:18} {name:22} {'platform_admin':20} {email}")
     print(f"published     {published}")
     print()
     print("Sign in as one of the subjects above (SIEMBIOT_DEV_IDENTITY_SUBJECT), then open")
     print(f"  /organizations/{organization_id}/domains")
     return 0
+
+
+def _write_platform_access(connection: object, text: object) -> None:
+    """The platform administrator, and a live grant for every organization there is.
+
+    Granted per organization rather than as a global capability, because that is what the
+    schema offers and the difference matters: each grant names the organization, carries a
+    reason, expires, and can be revoked one tenant at a time. "Sees everything" would be a
+    single flag with none of those properties.
+
+    Every organization, including ones this script did not create -- a platform
+    administrator that could only support the demonstration tenant would not demonstrate
+    anything.
+    """
+    people = {
+        subject: (identifier("platform", subject), email, name)
+        for subject, email, name in PLATFORM_PEOPLE
+    }
+    for subject, (user_id, email, name) in people.items():
+        connection.execute(  # type: ignore[attr-defined]
+            text(  # type: ignore[operator]
+                """
+                INSERT INTO users (
+                    id, identity_issuer, identity_subject, email, display_name,
+                    platform_role, mfa_assurance
+                ) VALUES (
+                    :id, 'https://idp.local.test', :subject, :email, :name,
+                    'platform_admin', 'phishing_resistant'
+                )
+                ON CONFLICT (id) DO UPDATE SET
+                    platform_role = 'platform_admin',
+                    mfa_assurance = 'phishing_resistant'
+                """
+            ),
+            {"id": user_id, "subject": subject, "email": email, "name": name},
+        )
+
+    administrator = people["platform-admin"][0]
+    approver = people["platform-approver"][0]
+    organizations = connection.execute(  # type: ignore[attr-defined]
+        text("SELECT id FROM organizations")  # type: ignore[operator]
+    ).scalars()
+    for organization_id in list(organizations):
+        connection.execute(  # type: ignore[attr-defined]
+            text(  # type: ignore[operator]
+                """
+                INSERT INTO support_access_grants (
+                    organization_id, platform_user_id, reason, approved_by_user_id, expires_at
+                )
+                SELECT :organization_id, :administrator,
+                       'Seeded for a local demonstration of platform support access.',
+                       :approver, now() + make_interval(days => :days)
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM support_access_grants
+                    WHERE organization_id = :organization_id
+                      AND platform_user_id = :administrator
+                      AND revoked_at IS NULL
+                      AND expires_at > now()
+                )
+                """
+            ),
+            {
+                "organization_id": organization_id,
+                "administrator": administrator,
+                "approver": approver,
+                "days": SUPPORT_GRANT_DAYS,
+            },
+        )
 
 
 def _write_assessment(

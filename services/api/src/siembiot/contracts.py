@@ -71,6 +71,15 @@ class OrganizationResponse(ContractModel):
     name: str
     slug: str
     created_at: datetime
+    #: How the caller reaches this organization: their membership role, or
+    #: `platform_support` where they reach it through a support access grant rather than
+    #: by belonging to it. Absent when a single organization is fetched by identifier,
+    #: because that route does not establish which of the two applies.
+    #:
+    #: Worth showing rather than inferring. Somebody supporting a customer should be able
+    #: to see that they are looking at someone else's data, and a support grant rendered
+    #: identically to a membership makes that indistinguishable.
+    role: str | None = None
 
 
 class MembershipUpdate(BaseModel):

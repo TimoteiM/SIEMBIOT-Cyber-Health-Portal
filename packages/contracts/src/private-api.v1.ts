@@ -1892,6 +1892,8 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+            /** Role */
+            role?: string | null;
             /** Slug */
             slug: string;
         };

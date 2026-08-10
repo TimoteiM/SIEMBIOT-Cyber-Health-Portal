@@ -66,6 +66,29 @@ const ro = {
     "Litere mici, cifre și cratime. Trebuie să înceapă și să se termine cu o literă sau o cifră.",
   "onboarding.submit": "Continuă",
   "onboarding.sidebar": "Creează o organizație pentru a debloca domeniile, echipa și jurnalul de audit.",
+  "onboarding.chooseEyebrow": "Spații de lucru",
+  "onboarding.chooseTitle": "Organizațiile tale",
+  "onboarding.chooseIntro": "Alege organizația pe care vrei să o vezi.",
+  "onboarding.createAnother": "Creează o organizație nouă",
+  "onboarding.viaSupportAccess": "Acces de suport",
+
+  // -- alegerea identității (numai în dezvoltare) ----------------------------
+  "signIn.eyebrow": "Acces local",
+  "signIn.title": "Alege identitatea",
+  "signIn.notRealAuthentication":
+    "Aceasta nu este o autentificare. În implementările reale identitatea este stabilită de platforma de identitate a organizației, înainte ca cererea să ajungă aici. Pagina există doar pentru lucrul local și nu funcționează în afara mediului de dezvoltare.",
+  "signIn.username": "Utilizator",
+  "signIn.password": "Parolă",
+  "signIn.submit": "Continuă",
+  "signIn.rejected": "Utilizator sau parolă necunoscute.",
+  "signIn.accountsHeading": "Conturi disponibile",
+  "signIn.useAccount": "Folosește",
+  "signIn.adminDescription":
+    "Administrator de platformă. Vede și organizațiile altora, prin acorduri de acces înregistrate și limitate în timp — nu prin ocolirea izolării.",
+  "signIn.expertDescription":
+    "Membru al unei organizații. Vede exact ce vede clientul: propria organizație și nimic altceva.",
+  "signIn.signedInAs": "Conectat ca {name}",
+  "signIn.signOut": "Schimbă identitatea",
 
   // -- assessments ----------------------------------------------------------
   "assessments.eyebrow": "Evaluări",
@@ -509,6 +532,29 @@ const en: Messages = {
     "Lower-case letters, digits and hyphens. Must start and end with a letter or a digit.",
   "onboarding.submit": "Continue",
   "onboarding.sidebar": "Create an organization to unlock domains, the team and the audit log.",
+  "onboarding.chooseEyebrow": "Workspaces",
+  "onboarding.chooseTitle": "Your organizations",
+  "onboarding.chooseIntro": "Choose the organization you want to look at.",
+  "onboarding.createAnother": "Create a new organization",
+  "onboarding.viaSupportAccess": "Support access",
+
+  // -- choosing an identity (development only) ------------------------------
+  "signIn.eyebrow": "Local access",
+  "signIn.title": "Choose an identity",
+  "signIn.notRealAuthentication":
+    "This is not authentication. In real deployments identity is established by the organization's identity platform before the request reaches here. This page exists for local work only and does nothing outside a development build.",
+  "signIn.username": "User",
+  "signIn.password": "Password",
+  "signIn.submit": "Continue",
+  "signIn.rejected": "Unknown user or password.",
+  "signIn.accountsHeading": "Available accounts",
+  "signIn.useAccount": "Use",
+  "signIn.adminDescription":
+    "Platform administrator. Sees other organizations through recorded, time-bounded access grants — not by bypassing isolation.",
+  "signIn.expertDescription":
+    "A member of one organization. Sees exactly what a client sees: their own organization and nothing else.",
+  "signIn.signedInAs": "Signed in as {name}",
+  "signIn.signOut": "Change identity",
 
   "assessments.eyebrow": "Assessments",
   "assessments.title": "External surface assessments",
