@@ -26,6 +26,7 @@ from siembiot_worker.collectors.ct_log import CertificateTransparencyCollector, 
 from siembiot_worker.collectors.dns_records import DNSResilienceCollector
 from siembiot_worker.collectors.email_records import EmailTrustCollector
 from siembiot_worker.collectors.http_surface import HTTPSurfaceCollector
+from siembiot_worker.collectors.network_attribution import NetworkAttributionCollector
 from siembiot_worker.collectors.port_surface import PortSurfaceCollector
 from siembiot_worker.collectors.rdap import RDAPCollector
 from siembiot_worker.collectors.tls_certificate import TLSCertificateCollector
@@ -45,6 +46,7 @@ from siembiot_worker.policy.findings import Finding, derive_findings
 from siembiot_worker.policy.normalization import (
     derive_freshness_observation,
     domain_subject,
+    normalize_attribution,
     normalize_ct,
     normalize_dns,
     normalize_email,
@@ -146,6 +148,7 @@ COLLECTOR_OPERATIONS: dict[str, OperationClass] = {
     "rdap": OperationClass.RDAP_QUERY,
     "ct": OperationClass.CT_QUERY,
     "ports": OperationClass.PORT_PROBE,
+    "asn": OperationClass.DNS_QUERY,
 }
 
 
@@ -184,6 +187,16 @@ def build_handlers(context: AssessmentContext) -> dict[str, StepHandler]:
             )
         if name == "ports":
             return PortSurfaceCollector(context.broker, context.clock).collect(request)
+        if name == "asn":
+            dns = context.collection.get("dns")
+            addresses = (
+                tuple(dns.payload.get("addresses", {}).get("ipv4", []))
+                if dns is not None and dns.usable
+                else ()
+            )
+            return NetworkAttributionCollector(context.broker, context.clock).collect(
+                request, addresses
+            )
         return CertificateTransparencyCollector(
             context.broker, context.ct_source, context.clock
         ).collect(request)
@@ -236,6 +249,8 @@ def build_handlers(context: AssessmentContext) -> dict[str, StepHandler]:
             observations.extend(normalize_ct(ct, **shared))
         if (ports := context.collection.get("ports")) is not None:
             observations.extend(normalize_ports(ports, **shared))
+        if (asn := context.collection.get("asn")) is not None:
+            observations.extend(normalize_attribution(asn, **shared))
 
         if not observations:
             return StepOutcome.fail("no_evidence_collected")

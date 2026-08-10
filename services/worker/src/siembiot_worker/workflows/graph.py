@@ -81,10 +81,22 @@ ASSESSMENT_GRAPH: tuple[StepDefinition, ...] = (
         )
         for step in COLLECTION_STEPS
     ),
+    # Attribution is the one collector that reads another's evidence rather than the
+    # target. Depending on `collect.dns` means it describes the addresses this run
+    # actually saw; resolving again could legitimately return a different answer --
+    # round-robin, anycast, a short time-to-live -- and name a network belonging to an
+    # address the rest of the assessment never observed.
+    StepDefinition(
+        "collect.asn",
+        AssessmentState.COLLECTING,
+        depends_on=("collect.dns",),
+        optional=True,
+        deadline_seconds=45.0,
+    ),
     StepDefinition(
         "normalize",
         AssessmentState.NORMALIZING,
-        depends_on=tuple(step.name for step in COLLECTION_STEPS),
+        depends_on=(*(step.name for step in COLLECTION_STEPS), "collect.asn"),
         deadline_seconds=60.0,
     ),
     StepDefinition("evaluate", AssessmentState.EVALUATING, depends_on=("normalize",)),

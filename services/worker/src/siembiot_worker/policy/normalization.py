@@ -746,3 +746,57 @@ def normalize_ports(
             },
         ),
     )
+
+
+def normalize_attribution(
+    result: CollectionResult,
+    *,
+    organization_id: UUID,
+    assessment_id: UUID,
+    subject: Subject,
+    now: datetime,
+    window_seconds: int,
+) -> tuple[NormalizedObservation, ...]:
+    """Who announces the addresses this domain resolves to.
+
+    `not_applicable` where nothing resolved, because the DNS collector has already said
+    why and repeating it here would put one problem in front of the reader twice under
+    two names. `inconclusive` where the lookups failed, which says the attribution
+    service was unreachable rather than that these addresses belong to nobody.
+    """
+    confidence = _confidence(result, attribution=1.0, now=now, window_seconds=window_seconds)
+    builder = ObservationBuilder(
+        organization_id=organization_id,
+        assessment_id=assessment_id,
+        subject=subject,
+        result=result,
+        confidence=confidence,
+    )
+    if result.status is CollectionStatus.NOT_APPLICABLE:
+        return (builder.make("network.attribution", ObservationStatus.ABSENT),)
+    if not result.usable:
+        return (builder.make("network.attribution", ObservationStatus.INCONCLUSIVE),)
+
+    payload = result.payload
+    return (
+        builder.make(
+            "network.attribution",
+            ObservationStatus.OBSERVED,
+            {
+                "operators": payload.get("operators", []),
+                "operator_count": int(payload.get("operator_count", 0)),
+                "countries": payload.get("countries", []),
+                "addresses": [
+                    {
+                        "address": item.get("address"),
+                        "asn": item.get("asn"),
+                        "prefix": item.get("prefix"),
+                        "operator": item.get("operator"),
+                        "country": item.get("country"),
+                    }
+                    for item in payload.get("addresses", [])
+                    if item.get("resolved")
+                ],
+            },
+        ),
+    )
