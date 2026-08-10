@@ -655,6 +655,16 @@ details > summary:hover { color: var(--text-primary); }
   margin: 0;
   font-size: 1rem;
 }
+/* Sits on its own line above the title, so the title is read as the requirement it
+   qualifies rather than as another badge in the row. */
+.requirement-unmet {
+  flex-basis: 100%;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--danger, #d98a94);
+}
 
 .finding-meta {
   display: flex;

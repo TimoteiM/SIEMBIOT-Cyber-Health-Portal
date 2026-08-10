@@ -204,6 +204,9 @@ const ro = {
   "findings.noAssessment":
     "Nicio evaluare finalizată pentru acest domeniu. Pornește una din pagina Evaluări.",
   "findings.bySeverity": "Constatări pe severitate",
+  // Titlul unei verificări descrie starea dorită. Fără această etichetă, un titlu
+  // afișat sub o insignă de severitate se citește ca și cum starea bună ar fi problema.
+  "findings.requirementUnmet": "Cerință neîndeplinită",
   "findings.group": "{severity} ({count})",
   "findings.coverageRemainder": "Acoperire {percent}% — restul verificărilor nu au putut fi evaluate",
   "findings.insufficientBody":
@@ -668,6 +671,7 @@ const en: Messages = {
   "findings.noAssessment":
     "No completed assessment for this domain. Start one from the Assessments page.",
   "findings.bySeverity": "Findings by severity",
+  "findings.requirementUnmet": "Requirement not met",
   "findings.group": "{severity} ({count})",
   "findings.coverageRemainder": "Coverage {percent}% — the remaining checks could not be evaluated",
   "findings.insufficientBody":

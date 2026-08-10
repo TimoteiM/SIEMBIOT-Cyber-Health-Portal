@@ -2894,6 +2894,44 @@
         "title": "RemediationResponse",
         "type": "object"
       },
+      "ReportGrantResponse": {
+        "additionalProperties": false,
+        "description": "Where to download the report, and for how long.\n\nThe token is returned exactly once, here. It is stored hashed, so this response is\nthe only moment it exists in readable form -- by design.",
+        "properties": {
+          "assessment_id": {
+            "format": "uuid",
+            "title": "Assessment Id",
+            "type": "string"
+          },
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "download_path": {
+            "title": "Download Path",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "locale": {
+            "title": "Locale",
+            "type": "string"
+          }
+        },
+        "required": [
+          "download_path",
+          "locale",
+          "assessment_id",
+          "expires_at"
+        ],
+        "title": "ReportGrantResponse",
+        "type": "object"
+      },
       "RoadmapResponse": {
         "additionalProperties": false,
         "properties": {
@@ -4805,6 +4843,69 @@
         ]
       }
     },
+    "/api/v1/organizations/{organization_id}/domains/{domain_id}/reports": {
+      "post": {
+        "operationId": "mint_api_v1_organizations__organization_id__domains__domain_id__reports_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "domain_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Domain Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "locale",
+            "required": false,
+            "schema": {
+              "default": "ro",
+              "title": "Locale",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportGrantResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mint",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
     "/api/v1/organizations/{organization_id}/domains/{domain_id}/roadmap": {
       "get": {
         "operationId": "index_api_v1_organizations__organization_id__domains__domain_id__roadmap_get",
@@ -5649,6 +5750,41 @@
         "summary": "Ready",
         "tags": [
           "system"
+        ]
+      }
+    },
+    "/api/v1/reports/{token}": {
+      "get": {
+        "operationId": "download_api_v1_reports__token__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download",
+        "tags": [
+          "reports"
         ]
       }
     },
