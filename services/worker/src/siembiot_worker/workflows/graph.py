@@ -61,6 +61,11 @@ COLLECTION_STEPS: tuple[StepDefinition, ...] = (
     StepDefinition("collect.http", AssessmentState.COLLECTING, optional=True),
     StepDefinition("collect.rdap", AssessmentState.COLLECTING, optional=True),
     StepDefinition("collect.ct", AssessmentState.COLLECTING, optional=True),
+    # Skipped outright in a passive run. Longer deadline than the rest because its
+    # duration is a port count multiplied by a timeout rather than one request.
+    StepDefinition(
+        "collect.ports", AssessmentState.COLLECTING, optional=True, deadline_seconds=120.0
+    ),
 )
 
 ASSESSMENT_GRAPH: tuple[StepDefinition, ...] = (

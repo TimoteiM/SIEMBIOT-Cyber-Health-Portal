@@ -32,6 +32,16 @@ from typing import Protocol
 #: or an SMTP greeting; far too little to be a data collection mechanism.
 MAX_BANNER_BYTES = 256
 
+#: Timeouts for a single port, deliberately shorter than the general collection budget.
+#:
+#: The adapter contract caps any collector at thirty seconds, and a scan is the one
+#: collector whose duration is the port count multiplied by a timeout. At these values a
+#: catalogue of nineteen ports fits with room to spare even if every port is silent --
+#: and a test asserts that arithmetic, so growing the catalogue cannot quietly push the
+#: scan past the contract it declares.
+PROBE_CONNECT_TIMEOUT_SECONDS = 1.0
+PROBE_READ_TIMEOUT_SECONDS = 0.4
+
 #: States a probe can end in, kept distinct because they mean different things to the
 #: person reading the report. `filtered` is a firewall doing its job; `closed` is a host
 #: that answered and said no; `open` is a service. Collapsing the first two into "not

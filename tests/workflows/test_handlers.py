@@ -511,3 +511,28 @@ def test_nothing_is_probed_without_somebody_accepting_it() -> None:
 
     assert context.asset_evaluations == ()
     assert repository.load_steps(assessment)["assess.assets"].state is StepState.SKIPPED
+
+
+# -- the authorized-only collector -------------------------------------------
+
+
+def test_a_passive_run_never_probes_a_port() -> None:
+    """The step is skipped, not attempted and refused.
+
+    The broker would refuse it anyway. But a refusal recorded against a run nobody
+    authorized reads as an attempt that was blocked, and the honest record is that the
+    question was never asked.
+    """
+    engine, repository, context, assessment, engine_clock = build("strong.example.test")
+    assert context.runtime.mode is AssessmentMode.PASSIVE_OBSERVATION
+    drive(engine, assessment, engine_clock)
+
+    record = repository.load_steps(assessment)["collect.ports"]
+    assert record.state is StepState.SKIPPED
+    assert record.last_error == "requires_authorized_assessment"
+    assert "ports" not in context.collection
+    assert not [
+        observation
+        for observation in context.observations
+        if observation.observation_type == "surface.ports"
+    ]

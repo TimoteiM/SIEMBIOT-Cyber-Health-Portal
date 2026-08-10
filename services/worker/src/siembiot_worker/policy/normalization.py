@@ -687,3 +687,62 @@ def iter_observations(
 ) -> Iterator[NormalizedObservation]:
     for group in groups:
         yield from group
+
+
+def normalize_ports(
+    result: CollectionResult,
+    *,
+    organization_id: UUID,
+    assessment_id: UUID,
+    subject: Subject,
+    now: datetime,
+    window_seconds: int,
+) -> tuple[NormalizedObservation, ...]:
+    """The exposed service inventory, as one observation.
+
+    One observation rather than one per port. A port is not a subject: what a reader
+    needs to know is what this host exposes, and thirty rows saying "closed" would bury
+    the two that say otherwise.
+
+    A scan that reached nothing is inconclusive, never an empty inventory. "We found no
+    open ports" and "our probes never arrived" look identical in a summary and mean
+    opposite things about an institution's safety.
+    """
+    confidence = _confidence(result, attribution=1.0, now=now, window_seconds=window_seconds)
+    builder = ObservationBuilder(
+        organization_id=organization_id,
+        assessment_id=assessment_id,
+        subject=subject,
+        result=result,
+        confidence=confidence,
+    )
+    if not result.usable:
+        return (builder.make("surface.ports", ObservationStatus.INCONCLUSIVE),)
+
+    payload = result.payload
+    open_ports = [item for item in payload.get("ports", []) if item.get("state") == "open"]
+    return (
+        builder.make(
+            "surface.ports",
+            ObservationStatus.OBSERVED,
+            {
+                "open_count": int(payload.get("open_count", 0)),
+                "probed_count": int(payload.get("probed_count", 0)),
+                "worst_exposure": payload.get("worst_exposure"),
+                "open_by_exposure": payload.get("open_by_exposure", {}),
+                # Only the open ones are carried into the observation. A closed port is
+                # the absence of a service, and an inventory of absences is not evidence
+                # anybody reads.
+                "open_ports": [
+                    {
+                        "port": item["port"],
+                        "service": item["service"],
+                        "exposure": item["exposure"],
+                        "severity": item["severity"],
+                        "banner": item.get("banner"),
+                    }
+                    for item in open_ports
+                ],
+            },
+        ),
+    )

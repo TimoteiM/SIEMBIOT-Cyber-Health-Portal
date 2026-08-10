@@ -26,10 +26,12 @@ from siembiot_worker.collectors.ct_log import CertificateTransparencyCollector, 
 from siembiot_worker.collectors.dns_records import DNSResilienceCollector
 from siembiot_worker.collectors.email_records import EmailTrustCollector
 from siembiot_worker.collectors.http_surface import HTTPSurfaceCollector
+from siembiot_worker.collectors.port_surface import PortSurfaceCollector
 from siembiot_worker.collectors.rdap import RDAPCollector
 from siembiot_worker.collectors.tls_certificate import TLSCertificateCollector
 from siembiot_worker.network_safety.collection_broker import CollectionNetworkBroker
 from siembiot_worker.network_safety.collection_policy import OperationClass
+from siembiot_worker.observation.mode import allowed_operation_classes
 from siembiot_worker.observation.pipeline import EmptyCTSource
 from siembiot_worker.observation.runtime import ObservationRuntime
 from siembiot_worker.policy.catalog import HOST_SCOPED_OBSERVATION_PREFIXES, PolicyCatalog
@@ -47,6 +49,7 @@ from siembiot_worker.policy.normalization import (
     normalize_dns,
     normalize_email,
     normalize_http,
+    normalize_ports,
     normalize_rdap,
     normalize_tls,
 )
@@ -142,6 +145,7 @@ COLLECTOR_OPERATIONS: dict[str, OperationClass] = {
     "http": OperationClass.HTTP_SURFACE,
     "rdap": OperationClass.RDAP_QUERY,
     "ct": OperationClass.CT_QUERY,
+    "ports": OperationClass.PORT_PROBE,
 }
 
 
@@ -178,6 +182,8 @@ def build_handlers(context: AssessmentContext) -> dict[str, StepHandler]:
             return RDAPCollector(context.broker, context.rdap_endpoint, context.clock).collect(
                 request
             )
+        if name == "ports":
+            return PortSurfaceCollector(context.broker, context.clock).collect(request)
         return CertificateTransparencyCollector(
             context.broker, context.ct_source, context.clock
         ).collect(request)
@@ -185,6 +191,12 @@ def build_handlers(context: AssessmentContext) -> dict[str, StepHandler]:
     def collect(name: str, operation_class: OperationClass) -> StepHandler:
         def run(step: StepContext) -> StepOutcome:
             step.check_cancelled()
+            # A passive run does not attempt the operation and then get refused; it never
+            # asks. The broker would refuse anyway, but a refusal recorded against a run
+            # nobody authorized reads as an attempt that was blocked rather than one that
+            # was never made.
+            if operation_class not in allowed_operation_classes(context.runtime.mode):
+                return StepOutcome.skip("requires_authorized_assessment")
             result = collect_one(name, operation_class)
             context.collection[name] = result
             return _collection_outcome(name, result)
@@ -222,6 +234,8 @@ def build_handlers(context: AssessmentContext) -> dict[str, StepHandler]:
             observations.extend(normalize_rdap(rdap, **shared))
         if (ct := context.collection.get("ct")) is not None:
             observations.extend(normalize_ct(ct, **shared))
+        if (ports := context.collection.get("ports")) is not None:
+            observations.extend(normalize_ports(ports, **shared))
 
         if not observations:
             return StepOutcome.fail("no_evidence_collected")

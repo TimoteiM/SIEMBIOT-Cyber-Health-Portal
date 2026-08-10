@@ -28,6 +28,10 @@ class AdapterGroup(StrEnum):
     CERTIFICATE_TRANSPARENCY = "certificate_transparency"
     TLS_HTTP = "tls_http"
     PASSIVE_ASSET_INTELLIGENCE = "passive_asset_intelligence"
+    #: Adapters that connect to something the target did not advertise. The only
+    #: group that requires a signed authorization, and named so that a reader
+    #: scanning this list can see which adapters those are.
+    ACTIVE_PROBE = "active_probe"
     REPUTATION = "reputation"
     NOTIFICATION = "notification"
     MODEL_PROVIDER = "model_provider"

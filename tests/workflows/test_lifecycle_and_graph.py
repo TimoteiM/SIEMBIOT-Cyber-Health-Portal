@@ -8,6 +8,7 @@ from __future__ import annotations
 import pytest
 from siembiot_worker.workflows.graph import (
     ASSESSMENT_GRAPH,
+    COLLECTION_STEPS,
     DEFAULT_GRAPH,
     GraphError,
     StepDefinition,
@@ -152,15 +153,15 @@ def test_only_the_planning_step_is_ready_at_the_start() -> None:
 
 
 def test_collectors_become_ready_together_once_planning_succeeds() -> None:
+    """Every collector, in parallel, and nothing else.
+
+    Compared against the graph's own collector list rather than a copy of it. A literal
+    here means adding a collector fails this test for no reason worth the reader's time,
+    and the property being checked -- they all become ready at once, and no later step
+    does -- is about the shape of the graph rather than about which collectors exist.
+    """
     ready = DEFAULT_GRAPH.ready({"plan": StepState.SUCCEEDED})
-    assert {step.name for step in ready} == {
-        "collect.dns",
-        "collect.email",
-        "collect.tls",
-        "collect.http",
-        "collect.rdap",
-        "collect.ct",
-    }
+    assert {step.name for step in ready} == {step.name for step in COLLECTION_STEPS}
 
 
 def test_a_failed_optional_collector_does_not_stall_the_run() -> None:

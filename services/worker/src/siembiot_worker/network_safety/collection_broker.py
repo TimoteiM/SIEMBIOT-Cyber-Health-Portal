@@ -27,6 +27,8 @@ from siembiot_worker.network_safety.models import (
     TransportResponse,
 )
 from siembiot_worker.network_safety.port_probe import (
+    PROBE_CONNECT_TIMEOUT_SECONDS,
+    PROBE_READ_TIMEOUT_SECONDS,
     PortConnector,
     PortObservation,
     decode_banner,
@@ -219,8 +221,8 @@ class CollectionNetworkBroker:
                 state, raw = self._prober.probe(
                     address,
                     port,
-                    self._budget.connect_timeout_seconds,
-                    self._budget.read_timeout_seconds,
+                    min(self._budget.connect_timeout_seconds, PROBE_CONNECT_TIMEOUT_SECONDS),
+                    min(self._budget.read_timeout_seconds, PROBE_READ_TIMEOUT_SECONDS),
                 )
                 observations.append(PortObservation(port, state, decode_banner(raw)))
         except _PolicyDeniedError as exc:
