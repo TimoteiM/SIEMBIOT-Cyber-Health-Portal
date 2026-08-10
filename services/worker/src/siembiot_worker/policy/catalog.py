@@ -76,6 +76,18 @@ class Rule:
     reason_code: str | None = None
 
 
+#: Observations that describe *one host* rather than the zone or the organization.
+#:
+#: A certificate, a redirect, a security header and a cookie belong to whatever answered
+#: on that name. DNSSEC, SPF and registration expiry belong to the domain no matter how
+#: many hosts it has, and asking them again per host would produce the same answer with
+#: a different subject attached -- inflating coverage without observing anything new.
+#:
+#: Read off `observation_type` rather than listed per check, so a check added later is
+#: classified by what it looks at instead of by somebody remembering this list.
+HOST_SCOPED_OBSERVATION_PREFIXES: tuple[str, ...] = ("http.", "tls.")
+
+
 @dataclass(frozen=True)
 class Check:
     check_id: str

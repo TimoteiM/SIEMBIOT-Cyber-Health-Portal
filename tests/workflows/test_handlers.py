@@ -440,3 +440,74 @@ def test_recovery_leaves_skipped_collectors_skipped() -> None:
 
     for name in skipped:
         assert name.removeprefix("collect.") not in resumed.collection
+
+
+# -- the surface beyond the apex ---------------------------------------------
+
+
+def test_an_accepted_host_is_assessed_and_the_domain_score_is_not_moved() -> None:
+    """Accepting a candidate used to change a row and nothing else.
+
+    The twenty-two checks all ran against the authorized domain, so an institution could
+    accept `vpn.primaria.ro` into scope and see no difference at all. Most of what gets
+    exploited lives on a subdomain nobody remembered.
+
+    The second half of this test matters as much as the first: the score is defined over
+    the authorized domain under methodology 1.0.0, so assessing more hosts must not
+    silently change the number reported for the domain.
+    """
+    engine, repository, context, assessment, engine_clock = build("strong.example.test")
+    context.accepted_assets = ("www.strong.example.test",)
+    drive(engine, assessment, engine_clock)
+
+    assert context.asset_evaluations, "no accepted host was assessed"
+    subjects = {evaluation.subject.identifier for evaluation in context.asset_evaluations}
+    assert subjects == {"www.strong.example.test"}
+
+    # The domain's own results are untouched by the extra host.
+    assert all(
+        evaluation.subject.identifier == "strong.example.test" for evaluation in context.evaluations
+    )
+    assert context.snapshot is not None
+    scored_subjects = {evaluation.subject.identifier for evaluation in context.evaluations}
+    assert scored_subjects == {"strong.example.test"}
+
+
+def test_only_host_scoped_checks_run_against_an_accepted_host() -> None:
+    """A zone's answers must not be repeated under every hostname.
+
+    DNSSEC, SPF and registration expiry belong to the domain however many hosts it has.
+    Re-asking them per host would report one answer many times and read as broader
+    coverage than was actually observed.
+    """
+    engine, repository, context, assessment, engine_clock = build("strong.example.test")
+    context.accepted_assets = ("www.strong.example.test",)
+    drive(engine, assessment, engine_clock)
+
+    pillars = {evaluation.check_id.split(".")[0] for evaluation in context.asset_evaluations}
+    assert pillars <= {"C", "F"}, f"a zone-scoped check ran per host: {pillars}"
+    assert not [
+        evaluation
+        for evaluation in context.asset_evaluations
+        if evaluation.check_id.startswith(("A.", "B.", "D.", "E."))
+    ]
+
+
+def test_findings_cover_every_assessed_host() -> None:
+    """Otherwise a broken subdomain is assessed and then never reported."""
+    engine, repository, context, assessment, engine_clock = build("weak.example.test")
+    context.accepted_assets = ("www.weak.example.test",)
+    drive(engine, assessment, engine_clock)
+
+    subjects = {finding.subject.identifier for finding in context.findings}
+    assert "www.weak.example.test" in subjects
+
+
+def test_nothing_is_probed_without_somebody_accepting_it() -> None:
+    """Discovery is not ownership. A name in a certificate log is a candidate."""
+    engine, repository, context, assessment, engine_clock = build("strong.example.test")
+    assert context.accepted_assets == ()
+    drive(engine, assessment, engine_clock)
+
+    assert context.asset_evaluations == ()
+    assert repository.load_steps(assessment)["assess.assets"].state is StepState.SKIPPED

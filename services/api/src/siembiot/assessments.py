@@ -14,6 +14,7 @@ from typing import cast
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Request
+from siembiot_worker.workflows.graph import ASSESSMENT_GRAPH
 from sqlalchemy import Connection, text
 from sqlalchemy.engine import RowMapping
 
@@ -34,24 +35,16 @@ from siembiot.errors import AppError
 from siembiot.identity import Principal
 from siembiot.organizations import authorize
 
-#: Kept in step with the worker's graph. The API reports progress against the steps a
-#: run is expected to have, so a run that has not started yet still reports honestly
+#: The steps a run is expected to walk, so one that has not started yet reports honestly
 #: rather than showing an empty, complete-looking bar.
-EXPECTED_STEP_NAMES: tuple[str, ...] = (
-    "plan",
-    "collect.dns",
-    "collect.email",
-    "collect.tls",
-    "collect.http",
-    "collect.rdap",
-    "collect.ct",
-    "normalize",
-    "evaluate",
-    "score",
-    "findings",
-    "agent_analysis",
-    "report",
-)
+#:
+#: Read from the worker's graph rather than copied. It used to be a literal list with a
+#: comment asking whoever edited the graph to keep it in step, and the first step added
+#: after that comment was written did not reach it: the interface reported 13 of 13
+#: complete while a fourteenth step was running. The API already imports the worker
+#: package for the shared network-safety boundary, so there is nothing to be gained by
+#: keeping a second copy of this.
+EXPECTED_STEP_NAMES: tuple[str, ...] = tuple(step.name for step in ASSESSMENT_GRAPH)
 #: Mirrors siembiot_worker.observation.mode.AssessmentMode. Duplicated rather than
 #: imported so that a request handler does not pull in the collection machinery to name
 #: two strings; the migration's check constraint is what keeps the two honest. The API

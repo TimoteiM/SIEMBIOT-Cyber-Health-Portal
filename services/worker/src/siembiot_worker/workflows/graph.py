@@ -84,7 +84,21 @@ ASSESSMENT_GRAPH: tuple[StepDefinition, ...] = (
     ),
     StepDefinition("evaluate", AssessmentState.EVALUATING, depends_on=("normalize",)),
     StepDefinition("score", AssessmentState.EVALUATING, depends_on=("evaluate",)),
-    StepDefinition("findings", AssessmentState.EVALUATING, depends_on=("score",)),
+    # Every host somebody accepted into scope, assessed for what is true of a host
+    # rather than of the zone. Optional, and after `score` on purpose: the score covers
+    # the authorized domain under methodology 1.0.0, so a subdomain that cannot be
+    # reached must not be able to change the number reported for the domain.
+    StepDefinition(
+        "assess.assets",
+        AssessmentState.EVALUATING,
+        depends_on=("score",),
+        optional=True,
+        deadline_seconds=300.0,
+    ),
+    # Both, not just the optional one: depending on `assess.assets` alone would let a
+    # failed `normalize` skip scoring and still produce findings and a report, because
+    # an optional step that was skipped does not block its dependants.
+    StepDefinition("findings", AssessmentState.EVALUATING, depends_on=("score", "assess.assets")),
     StepDefinition(
         "agent_analysis",
         AssessmentState.AGENT_ANALYSIS,

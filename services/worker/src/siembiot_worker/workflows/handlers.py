@@ -32,7 +32,7 @@ from siembiot_worker.network_safety.collection_broker import CollectionNetworkBr
 from siembiot_worker.network_safety.collection_policy import OperationClass
 from siembiot_worker.observation.pipeline import EmptyCTSource
 from siembiot_worker.observation.runtime import ObservationRuntime
-from siembiot_worker.policy.catalog import PolicyCatalog
+from siembiot_worker.policy.catalog import HOST_SCOPED_OBSERVATION_PREFIXES, PolicyCatalog
 from siembiot_worker.policy.evaluation import evaluate_assessment
 from siembiot_worker.policy.evidence import (
     CheckEvaluation,
@@ -83,9 +83,19 @@ class AssessmentContext:
     ct_source: CTEntrySource = field(default_factory=EmptyCTSource)
     probe_tls_protocols: bool = False
 
+    #: Hosts a person accepted into scope, assessed alongside the domain itself. Empty
+    #: unless somebody reviewed a discovered candidate and said yes: discovery is not
+    #: ownership, so nothing is probed because a certificate log mentioned it.
+    accepted_assets: tuple[str, ...] = ()
+
     collection: dict[str, CollectionResult] = field(default_factory=dict)
     observations: tuple[NormalizedObservation, ...] = ()
     evaluations: tuple[CheckEvaluation, ...] = ()
+    #: Kept apart from `observations` and `evaluations` rather than merged into them.
+    #: The score is computed from the domain's own results under methodology 1.0.0, and
+    #: one shared list would let a subdomain silently move the domain's number.
+    asset_observations: tuple[NormalizedObservation, ...] = ()
+    asset_evaluations: tuple[CheckEvaluation, ...] = ()
     snapshot: ScoreSnapshot | None = None
     findings: tuple[Finding, ...] = ()
     asset_candidates: tuple[AssetCandidate, ...] = ()
@@ -284,11 +294,85 @@ def build_handlers(context: AssessmentContext) -> dict[str, StepHandler]:
             coverage=snapshot.coverage.percentage,
         )
 
+    def assess_assets(step: StepContext) -> StepOutcome:
+        """Assess each accepted host for what is true of a host.
+
+        Until now the twenty-two checks all ran against the authorized domain and
+        nothing else, so an institution could accept `vpn.primaria.ro` into scope and see
+        no difference at all -- the accept button changed a row and nothing looked at the
+        host. Most of what actually gets exploited lives on a subdomain nobody
+        remembered, so this is where the surface stops being one name.
+
+        Only the host-scoped checks run: a certificate, a redirect, a header and a cookie
+        belong to whatever answered on that name, while DNSSEC and SPF belong to the zone
+        however many hosts it has. Re-asking the zone's questions per host would repeat
+        one answer under many subjects and read as broader coverage than was observed.
+        """
+        step.check_cancelled()
+        if not context.accepted_assets:
+            return StepOutcome.skip("no_accepted_assets")
+
+        checks = tuple(
+            check
+            for check in context.catalog.checks
+            if check.observation_type.startswith(HOST_SCOPED_OBSERVATION_PREFIXES)
+        )
+        observations: list[NormalizedObservation] = []
+        evaluations: list[CheckEvaluation] = []
+        now = context.clock()
+
+        for host in context.accepted_assets:
+            step.check_cancelled()
+            subject = domain_subject(host)
+            request = context.runtime.request(OperationClass.HTTP_SURFACE, host)
+            http_result = HTTPSurfaceCollector(context.broker, context.clock).collect(request)
+            tls_request = context.runtime.request(OperationClass.TLS_INSPECTION, host)
+            tls_result = TLSCertificateCollector(context.broker, context.clock).collect(
+                tls_request, probe_protocols=context.probe_tls_protocols
+            )
+            host_observations = (
+                *normalize_http(
+                    http_result,
+                    organization_id=context.organization_id,
+                    assessment_id=context.assessment_id,
+                    subject=subject,
+                    now=now,
+                    window_seconds=context.freshness_window_seconds,
+                ),
+                *normalize_tls(
+                    tls_result,
+                    organization_id=context.organization_id,
+                    assessment_id=context.assessment_id,
+                    subject=subject,
+                    now=now,
+                    window_seconds=context.freshness_window_seconds,
+                ),
+            )
+            observations.extend(host_observations)
+            evaluations.extend(
+                evaluate_assessment(
+                    context.catalog,
+                    host_observations,
+                    organization_id=context.organization_id,
+                    assessment_id=context.assessment_id,
+                    subject=subject,
+                    evaluated_at=now,
+                    checks=checks,
+                )
+            )
+
+        context.asset_observations = tuple(observations)
+        context.asset_evaluations = tuple(evaluations)
+        return StepOutcome.ok(
+            assessed_hosts=len(context.accepted_assets),
+            asset_evaluation_count=len(evaluations),
+        )
+
     def findings(step: StepContext) -> StepOutcome:
         step.check_cancelled()
         context.findings = derive_findings(
             context.catalog,
-            context.evaluations,
+            (*context.evaluations, *context.asset_evaluations),
             organization_id=context.organization_id,
             assessment_id=context.assessment_id,
             observed_at=context.clock(),
@@ -324,6 +408,7 @@ def build_handlers(context: AssessmentContext) -> dict[str, StepHandler]:
             f"collect.{name}": collect(name, operation_class)
             for name, operation_class in COLLECTOR_OPERATIONS.items()
         },
+        "assess.assets": assess_assets,
         "normalize": normalize,
         "evaluate": evaluate,
         "score": score,

@@ -169,8 +169,16 @@ def evaluate_assessment(
     subject: Subject,
     evaluated_at: datetime,
     overrides: Mapping[str, SuppressionDecision] | None = None,
+    checks: Sequence[Check] | None = None,
 ) -> tuple[CheckEvaluation, ...]:
-    """Evaluate every catalog check exactly once for one subject."""
+    """Evaluate a set of checks exactly once for one subject.
+
+    `checks` defaults to the whole catalogue, which is what an assessment of the
+    authorized domain wants. A discovered host is assessed against the host-scoped
+    subset instead: running the zone's DNS and mail checks again for every subdomain
+    would repeat one answer under many subjects and read as broader coverage than was
+    actually observed.
+    """
     by_type: dict[str, NormalizedObservation] = {}
     for observation in observations:
         existing = by_type.get(observation.observation_type)
@@ -188,5 +196,5 @@ def evaluate_assessment(
             evaluated_at=evaluated_at,
             override=active.get(check.check_id),
         )
-        for check in catalog.checks
+        for check in (catalog.checks if checks is None else checks)
     )

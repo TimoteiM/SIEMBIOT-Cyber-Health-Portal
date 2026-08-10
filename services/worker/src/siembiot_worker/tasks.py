@@ -35,6 +35,7 @@ from siembiot_worker.scheduling import (
     expire_stale_verifications,
 )
 from siembiot_worker.telemetry import log_event
+from siembiot_worker.workflows.assets import CandidateState
 from siembiot_worker.workflows.engine import WorkflowEngine
 from siembiot_worker.workflows.evidence_repository import EvidenceRepository, persist_assessment
 from siembiot_worker.workflows.handlers import AssessmentContext, build_handlers
@@ -160,6 +161,7 @@ def run_assessment(
     non-terminal state, which is not a failure: the next delivery continues it.
     """
     catalog = load_catalog()
+    accepted = _accepted_assets(organization_id, domain_id)
     context = AssessmentContext(
         organization_id=organization_id,
         assessment_id=assessment_id,
@@ -171,6 +173,7 @@ def run_assessment(
         runtime=build_observation_runtime(mode=mode),
         clock=lambda: datetime.now(UTC),
         declared_dkim_selectors=declared_dkim_selectors,
+        accepted_assets=accepted,
     )
 
     database = _tenant_engine()
@@ -190,8 +193,11 @@ def run_assessment(
                     assessment_id=assessment_id,
                     domain_id=domain_id,
                     catalog=catalog,
-                    observations=context.observations,
-                    evaluations=context.evaluations,
+                    # The domain's own evidence and every accepted host's, written
+                    # together. They are separate in the context so the score cannot pick
+                    # up a subdomain's result; once scored, they are the same evidence.
+                    observations=(*context.observations, *context.asset_observations),
+                    evaluations=(*context.evaluations, *context.asset_evaluations),
                     snapshot=context.snapshot,
                     findings=context.findings,
                     asset_candidates=context.asset_candidates,
@@ -204,6 +210,26 @@ def run_assessment(
         # failing repeatedly.
         database.dispose()
     return str(state)
+
+
+def _accepted_assets(organization_id: UUID, domain_id: UUID) -> tuple[str, ...]:
+    """Hosts somebody reviewed and accepted into scope.
+
+    Read at the start of the run rather than carried on the queue message: acceptance is
+    a decision that can change between a run being enqueued and it starting, and the
+    decision at the moment of assessment is the one that authorized the traffic.
+    """
+    engine = _tenant_engine()
+    try:
+        with _evidence_transaction(engine, organization_id) as connection:
+            repository = EvidenceRepository(connection, organization_id, domain_id)
+            return tuple(
+                candidate.name
+                for candidate in repository.load_asset_candidates(domain_id)
+                if candidate.state is CandidateState.ACCEPTED
+            )
+    finally:
+        engine.dispose()
 
 
 #: How many runs one sweep will enqueue. A bound, not a policy: anything left over is
