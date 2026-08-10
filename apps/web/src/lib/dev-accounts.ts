@@ -50,6 +50,15 @@ export const DEV_ACCOUNTS: readonly DevAccount[] = [
 
 export const DEV_IDENTITY_COOKIE = "siembiot-dev-identity";
 
+/**
+ * Where a person goes once an identity is chosen.
+ *
+ * One constant rather than a string in each place that navigates. The sign-in page sends
+ * you here, and the landing page sends you here when you are already signed in; if those
+ * two disagreed, signing in and then reopening the app would land you somewhere else.
+ */
+export const SIGNED_IN_HOME = "/onboarding";
+
 export function accountFor(username: string, password: string): DevAccount | null {
   const account = DEV_ACCOUNTS.find((candidate) => candidate.username === username);
   // Not constant-time, and it does not need to be: both credentials are in this file and
@@ -63,4 +72,25 @@ export function accountBySubject(subject: string): DevAccount | null {
 
 export function developmentSignInEnabled(): boolean {
   return process.env.NODE_ENV === "development";
+}
+
+/**
+ * Forget the chosen identity, from the browser.
+ *
+ * Needed because the landing page sends anybody holding this cookie straight into the
+ * application: without a way to drop it, whichever account you picked first would be the
+ * only one you could ever use, and the point of having two is comparing what each sees.
+ *
+ * `max-age=0` on the same path the cookie was set with. A mismatched path leaves the
+ * original in place and the browser simply carries on sending it, which looks exactly
+ * like the button doing nothing.
+ */
+export function signOutDevIdentity(): void {
+  document.cookie = `${DEV_IDENTITY_COOKIE}=; path=/; max-age=0; samesite=lax`;
+}
+
+/** The identity currently chosen, read back from the cookie. */
+export function currentDevAccount(cookieHeader: string): DevAccount | null {
+  const match = new RegExp(`(?:^|;\\s*)${DEV_IDENTITY_COOKIE}=([^;]*)`).exec(cookieHeader);
+  return match ? accountBySubject(decodeURIComponent(match[1])) : null;
 }

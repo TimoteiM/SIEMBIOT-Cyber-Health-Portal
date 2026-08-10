@@ -288,6 +288,15 @@ h2 { font-size: 1.05rem; margin: 0 0 0.5rem; font-weight: 650; }
 }
 .primary:hover { background: #7ba4d1; border-color: #7ba4d1; color: var(--text-on-accent); }
 .secondary { background: transparent; }
+/* Sized to sit beside the top-bar pills rather than tower over them. */
+.button.compact {
+  padding: 0.15rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+}
+.button.compact:hover { color: var(--text-primary); }
 button:disabled, .button:disabled { opacity: 0.5; cursor: not-allowed; }
 /* Forms are grids, so a button would otherwise stretch across the whole column. */
 form > .button, form > button { justify-self: start; }

@@ -1,14 +1,61 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
+import {
+  currentDevAccount,
+  developmentSignInEnabled,
+  signOutDevIdentity,
+  type DevAccount,
+} from "../lib/dev-accounts";
 import { useLocalization } from "../lib/i18n/provider";
 import LanguageSwitcher from "./language-switcher";
 
 import type { MessageKey } from "../lib/i18n";
 
 type NavItem = { href: string; labelKey: MessageKey; icon: ReactNode };
+
+/**
+ * Who you are working as, and the way back out.
+ *
+ * Rendered only in development, because it is the development sign-in it undoes. Without
+ * it the landing page's redirect is a one-way door: it sends anybody holding the cookie
+ * into the application, so the first account chosen would be the only one reachable
+ * without clearing site data by hand.
+ *
+ * The account is read after mount rather than during render. The server has no access to
+ * `document.cookie`, so naming the account during the first render would produce markup
+ * the client immediately contradicts -- a hydration mismatch, for a label.
+ */
+function IdentityBadge() {
+  const { t } = useLocalization();
+  const [account, setAccount] = useState<DevAccount | null>(null);
+
+  useEffect(() => {
+    setAccount(currentDevAccount(document.cookie));
+  }, []);
+
+  if (!developmentSignInEnabled() || !account) return null;
+
+  return (
+    <>
+      <span className="environment">{t("signIn.signedInAs").replace("{name}", account.name)}</span>
+      <button
+        type="button"
+        className="button secondary compact"
+        onClick={() => {
+          signOutDevIdentity();
+          // A full navigation, not a client transition: the identity is injected by
+          // middleware onto the request, so the next one has to leave the browser.
+          window.location.href = "/sign-in";
+        }}
+      >
+        {t("signIn.signOut")}
+      </button>
+    </>
+  );
+}
 
 function Icon({ path }: { path: string }) {
   return (
@@ -94,6 +141,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <span className="top-bar-title">SIEMBIOT Cyber Health Portal</span>
             <span className="top-bar-spacer" />
             <LanguageSwitcher />
+            <IdentityBadge />
             <span className="environment">{t("app.privatePortal")}</span>
           </header>
           <main id="main">
@@ -161,6 +209,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           <span className="top-bar-title">{current ? t(current.labelKey) : t("app.workspace")}</span>
           <span className="top-bar-spacer" />
           <LanguageSwitcher />
+          <IdentityBadge />
           <span className="environment">{t("app.privatePortal")}</span>
         </header>
         <main id="main">

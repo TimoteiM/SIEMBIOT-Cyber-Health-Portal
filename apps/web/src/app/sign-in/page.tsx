@@ -4,7 +4,12 @@ import { FormEvent, useState } from "react";
 
 import { useLocalization } from "../../lib/i18n/provider";
 import type { MessageKey } from "../../lib/i18n";
-import { accountFor, DEV_ACCOUNTS, DEV_IDENTITY_COOKIE } from "../../lib/dev-accounts";
+import {
+  accountFor,
+  DEV_ACCOUNTS,
+  DEV_IDENTITY_COOKIE,
+  SIGNED_IN_HOME,
+} from "../../lib/dev-accounts";
 
 /**
  * Choosing which identity to work as, locally.
@@ -33,7 +38,7 @@ export default function SignInPage() {
     document.cookie = `${DEV_IDENTITY_COOKIE}=${account.subject}; path=/; samesite=lax`;
     // A full navigation rather than a client transition: the identity is injected by
     // middleware on the request, so the next request has to actually leave the browser.
-    window.location.href = "/onboarding";
+    window.location.href = SIGNED_IN_HOME;
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
