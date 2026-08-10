@@ -151,7 +151,7 @@ def observe_domain(
         subject=subject,
         evaluated_at=moment,
     )
-    evaluations = _withhold_unavailable_checks(resolved_catalog, evaluations, resolved_runtime.mode)
+    evaluations = withhold_unavailable_checks(resolved_catalog, evaluations, resolved_runtime.mode)
 
     snapshot = compute_score(
         resolved_catalog,
@@ -242,7 +242,7 @@ def _normalize(
     )
 
 
-def _withhold_unavailable_checks(
+def withhold_unavailable_checks(
     catalog: PolicyCatalog,
     evaluations: tuple[CheckEvaluation, ...],
     mode: AssessmentMode,

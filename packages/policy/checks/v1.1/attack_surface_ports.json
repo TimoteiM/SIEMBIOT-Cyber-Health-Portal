@@ -1,0 +1,133 @@
+{
+  "_comment": "Checks over the exposed service inventory, added in methodology 1.1.0. A separate directory rather than an edit to checks/v1: a published methodology must keep loading exactly the documents it was published with, or every score computed under it stops being reproducible. All three are collection_mode 'authorized' -- a passive run withholds them and reports not_applicable, which leaves the coverage denominator rather than pretending the surface was checked and found clean. All three are private_only: a public page listing which institutions have RDP open would be a target list.",
+  "pillar": "attack_surface",
+  "pillar_letter": "D",
+  "checks": [
+    {
+      "check_id": "D.remote_access_exposed",
+      "version": "1.0.0",
+      "title_ro": "Niciun serviciu de acces la distanță nu este expus public",
+      "title_en": "No remote access service is exposed to the internet",
+      "rationale_ro": "Desktop la distanță, partajarea de fișiere Windows, VNC, Telnet și FTP nu ar trebui să fie accesibile de pe internet. Acesta este drumul obișnuit prin care o organizație ajunge criptată de un atac cu răscumpărare: un serviciu de acces expus, o parolă ghicită, și restul rețelei.",
+      "rationale_en": "Remote desktop, Windows file sharing, VNC, Telnet and FTP should not be reachable from the internet. This is the ordinary route by which an organisation ends up encrypted by ransomware: an exposed access service, a guessed password, and then the rest of the network.",
+      "collection_mode": "authorized",
+      "observation_type": "surface.ports",
+      "applicability": {
+        "requires_observation": true
+      },
+      "rules": [
+        {
+          "when": {
+            "attribute": "remote_access_open",
+            "at_most": 0
+          },
+          "result": "pass"
+        },
+        {
+          "when": {
+            "attribute": "remote_access_open",
+            "at_least": 1
+          },
+          "result": "fail",
+          "reason_code": "remote_access_service_reachable"
+        },
+        {
+          "when": {
+            "status": "inconclusive"
+          },
+          "result": "unknown",
+          "reason_code": "port_scan_inconclusive"
+        }
+      ],
+      "weight": 12,
+      "severity": "critical",
+      "public_safety_class": "private_only",
+      "remediation_template": "remote_access_restrict",
+      "references": ["nist_sp_800_46"]
+    },
+    {
+      "check_id": "D.database_exposed",
+      "version": "1.0.0",
+      "title_ro": "Nicio bază de date nu este accesibilă direct de pe internet",
+      "title_en": "No database is reachable directly from the internet",
+      "rationale_ro": "O bază de date care acceptă conexiuni de oriunde expune tot ce conține la orice slăbiciune de autentificare. Mai multe dintre ele nu cer autentificare în configurația implicită.",
+      "rationale_en": "A database that accepts connections from anywhere exposes everything it holds to any weakness in authentication. Several of them require no authentication in their default configuration.",
+      "collection_mode": "authorized",
+      "observation_type": "surface.ports",
+      "applicability": {
+        "requires_observation": true
+      },
+      "rules": [
+        {
+          "when": {
+            "attribute": "database_open",
+            "at_most": 0
+          },
+          "result": "pass"
+        },
+        {
+          "when": {
+            "attribute": "database_open",
+            "at_least": 1
+          },
+          "result": "fail",
+          "reason_code": "database_port_reachable"
+        },
+        {
+          "when": {
+            "status": "inconclusive"
+          },
+          "result": "unknown",
+          "reason_code": "port_scan_inconclusive"
+        }
+      ],
+      "weight": 12,
+      "severity": "critical",
+      "public_safety_class": "private_only",
+      "remediation_template": "database_restrict",
+      "references": ["nist_sp_800_41"]
+    },
+    {
+      "check_id": "D.management_interface_exposed",
+      "version": "1.0.0",
+      "title_ro": "Nicio interfață de administrare nu este expusă public",
+      "title_en": "No management interface is exposed to the internet",
+      "rationale_ro": "Consolele de administrare pe porturi alternative și API-urile de orchestrare oferă control asupra a ceea ce rulează pe server. Sunt adesea uitate, pentru că nu apar în evaluarea site-ului principal.",
+      "rationale_en": "Administration consoles on alternate ports and orchestration APIs grant control over what runs on the server. They are often forgotten, because they do not appear in the assessment of the main site.",
+      "collection_mode": "authorized",
+      "observation_type": "surface.ports",
+      "applicability": {
+        "requires_observation": true
+      },
+      "rules": [
+        {
+          "when": {
+            "attribute": "management_open",
+            "at_most": 0
+          },
+          "result": "pass"
+        },
+        {
+          "when": {
+            "attribute": "management_open",
+            "at_least": 1
+          },
+          "result": "warning",
+          "reason_code": "management_interface_reachable"
+        },
+        {
+          "when": {
+            "status": "inconclusive"
+          },
+          "result": "unknown",
+          "reason_code": "port_scan_inconclusive"
+        }
+      ],
+      "weight": 6,
+      "severity": "high",
+      "public_safety_class": "private_only",
+      "remediation_template": "management_interface_restrict",
+      "references": ["nist_sp_800_41"]
+    }
+  ]
+}

@@ -289,16 +289,36 @@ def _canonical(value: Any) -> bytes:
     )
 
 
-def load_catalog(root: Path | None = None, version: str = "1.0.0") -> PolicyCatalog:
+#: The methodology a new assessment runs under. Older versions stay loadable forever --
+#: every stored score names the version and digest that produced it, and must remain
+#: reproducible from them.
+CURRENT_METHODOLOGY_VERSION = "1.1.0"
+
+
+def load_catalog(
+    root: Path | None = None, version: str = CURRENT_METHODOLOGY_VERSION
+) -> PolicyCatalog:
     base = root or POLICY_ROOT
     methodology_raw = json.loads(
         (base / "methodology" / f"v{version}.json").read_text(encoding="utf-8")
     )
     methodology = _methodology(methodology_raw)
 
+    # Which check documents this methodology is made of.
+    #
+    # Absent means `["v1"]`, which is what every existing version says by saying nothing,
+    # so their digests are unchanged by this key existing. A later methodology adds a
+    # directory rather than editing an existing one: a published version must keep
+    # loading exactly the documents it was published with, or every score ever computed
+    # under it becomes unreproducible.
+    check_sets = methodology_raw.get("check_sets", ["v1"])
+
     documents: list[Any] = []
     checks: list[Check] = []
-    for path in sorted((base / "checks" / "v1").glob("*.json")):
+    paths = [
+        path for name in check_sets for path in sorted((base / "checks" / name).glob("*.json"))
+    ]
+    for path in paths:
         raw = json.loads(path.read_text(encoding="utf-8"))
         documents.append(raw)
         groups = raw["pillars"] if "pillars" in raw else [raw]

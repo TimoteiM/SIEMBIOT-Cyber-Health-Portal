@@ -29,7 +29,10 @@ from siembiot_worker.network_safety.collection_broker import (  # noqa: E402
     CollectionNetworkBroker,
 )
 from siembiot_worker.network_safety.dns_client import BoundedDNSClient  # noqa: E402
-from siembiot_worker.observation.mode import AssessmentMode  # noqa: E402
+from siembiot_worker.observation.mode import (  # noqa: E402
+    AssessmentMode,
+    is_check_available,
+)
 from siembiot_worker.observation.runtime import (  # noqa: E402
     ModeEnforcingPolicy,
     ObservationRuntime,
@@ -539,3 +542,33 @@ def test_a_passive_run_never_probes_a_port() -> None:
         for observation in context.observations
         if observation.observation_type == "surface.ports"
     ]
+
+
+def test_a_passive_run_is_not_penalised_for_checks_it_may_not_perform() -> None:
+    """Methodology 1.1.0 added three checks only an authorized assessment can collect.
+
+    Without withholding they would evaluate as unknown, which reduces coverage -- and a
+    domain nobody was permitted to scan would lose its band for a scan it was never
+    eligible for. Not applicable leaves the denominator instead, which is what "we were
+    not allowed to look" actually means.
+    """
+    engine, repository, context, assessment, engine_clock = build("strong.example.test")
+    assert context.runtime.mode is AssessmentMode.PASSIVE_OBSERVATION
+    drive(engine, assessment, engine_clock)
+
+    authorized_only = {
+        check.check_id
+        for check in CATALOG.checks
+        if not is_check_available(check, AssessmentMode.PASSIVE_OBSERVATION)
+    }
+    assert authorized_only, "no authorized-only checks; this test would pass vacuously"
+
+    by_id = {item.check_id: item for item in context.evaluations}
+    for check_id in authorized_only:
+        assert by_id[check_id].result == str(Result.NOT_APPLICABLE), check_id
+        # Never unknown, which would reduce coverage, and never a pass, which would
+        # flatter a domain for a surface nobody examined.
+        assert by_id[check_id].result != str(Result.UNKNOWN)
+
+    assert context.snapshot is not None
+    assert authorized_only.isdisjoint(set(context.snapshot.coverage.undetermined_checks))

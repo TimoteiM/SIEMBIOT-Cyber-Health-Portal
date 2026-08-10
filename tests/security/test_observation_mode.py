@@ -173,25 +173,46 @@ def test_a_provider_redirect_to_a_public_registry_is_permitted() -> None:
 # -- catalog availability ----------------------------------------------------
 
 
-def test_every_v1_check_is_passively_collectable() -> None:
-    coverage = mode_coverage(CATALOG, AssessmentMode.PASSIVE_OBSERVATION)
+def test_every_methodology_1_0_check_is_passively_collectable() -> None:
+    """The version the public observatory publishes under.
+
+    Everything in 1.0.0 reads what a domain already publishes, which is what makes an
+    observation of an unenrolled domain lawful. This has to stay true of that version
+    however far later ones go.
+    """
+    from siembiot_worker.policy.catalog import load_catalog
+
+    original = load_catalog(version="1.0.0")
+    coverage = mode_coverage(original, AssessmentMode.PASSIVE_OBSERVATION)
     assert coverage.complete
-    assert len(coverage.available_check_ids) == len(CATALOG.checks)
+    assert len(coverage.available_check_ids) == len(original.checks)
 
 
-def test_a_future_active_check_would_be_withheld_from_passive_mode() -> None:
-    from dataclasses import replace
+def test_the_active_checks_are_withheld_from_passive_mode() -> None:
+    """This used to synthesise an active check because none existed yet.
 
-    active = replace(CATALOG.checks[0], collection_mode="active")
-    assert is_check_available(active, AssessmentMode.AUTHORIZED_ASSESSMENT) is True
-    assert is_check_available(active, AssessmentMode.PASSIVE_OBSERVATION) is False
+    Methodology 1.1.0 added three, so the test uses the real ones: a synthesised check
+    proves the function works, and these prove the catalogue is classified correctly.
+    """
+    withheld = [
+        check
+        for check in CATALOG.checks
+        if not is_check_available(check, AssessmentMode.PASSIVE_OBSERVATION)
+    ]
+    assert {check.check_id for check in withheld} == {
+        "D.remote_access_exposed",
+        "D.database_exposed",
+        "D.management_interface_exposed",
+    }
+    for check in withheld:
+        assert is_check_available(check, AssessmentMode.AUTHORIZED_ASSESSMENT) is True
 
 
 def test_a_withheld_check_is_not_applicable_rather_than_a_pass() -> None:
     """A thin passive run must not look like a clean authorized one."""
     from dataclasses import replace
 
-    from siembiot_worker.observation.pipeline import _withhold_unavailable_checks
+    from siembiot_worker.observation.pipeline import withhold_unavailable_checks
     from siembiot_worker.policy.evidence import CheckEvaluation, Confidence
 
     check = CATALOG.checks[0]
@@ -212,7 +233,7 @@ def test_a_withheld_check_is_not_applicable_rather_than_a_pass() -> None:
         severity=str(check.severity),
         confidence=Confidence(1.0, 1.0, 1.0),
     )
-    withheld = _withhold_unavailable_checks(
+    withheld = withhold_unavailable_checks(
         active_catalog, (evaluation,), AssessmentMode.PASSIVE_OBSERVATION
     )
     assert withheld[0].result == "not_applicable"

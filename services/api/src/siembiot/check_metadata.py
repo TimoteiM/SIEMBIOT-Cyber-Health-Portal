@@ -29,7 +29,13 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from siembiot_worker.policy.catalog import CURRENT_METHODOLOGY_VERSION
+
 POLICY_ROOT = Path(__file__).resolve().parents[4] / "packages" / "policy"
+
+#: Imported rather than copied. A second literal here would be a version string in
+#: two services, and the API's step list already taught this repository what that
+#: costs: it read 13 of 13 complete while a fourteenth step ran.
 
 
 class CheckMetadataError(RuntimeError):
@@ -76,18 +82,34 @@ def _metadata(raw: dict[str, Any], pillar: str, letter: str) -> CheckMetadata:
 
 
 @lru_cache(maxsize=8)
-def load_check_metadata(version: str = "1.0.0") -> dict[str, CheckMetadata]:
+def load_check_metadata(version: str = CURRENT_METHODOLOGY_VERSION) -> dict[str, CheckMetadata]:
     """Every check in the catalog, keyed by identifier.
 
     Cached because the files do not change while the process runs, and a findings list
     would otherwise re-read and re-parse the whole catalog per request.
+
+    Which documents a version is made of comes from the methodology file itself, the same
+    way the worker resolves it. This used to derive the directory from the major version,
+    which meant methodology 1.1.0 -- whose checks live in their own directory so 1.0.0
+    stays byte-identical -- was invisible here: the API would have rendered its findings
+    as bare check identifiers with no title and no rationale, on the screen that exists
+    to explain them.
     """
-    directory = POLICY_ROOT / "checks" / f"v{version.split('.')[0]}"
-    if not directory.is_dir():
+    methodology = POLICY_ROOT / "methodology" / f"v{version}.json"
+    if not methodology.is_file():
+        raise CheckMetadataError(f"no methodology {version}")
+    check_sets = json.loads(methodology.read_text(encoding="utf-8")).get("check_sets", ["v1"])
+
+    paths = [
+        path
+        for name in check_sets
+        for path in sorted((POLICY_ROOT / "checks" / name).glob("*.json"))
+    ]
+    if not paths:
         raise CheckMetadataError(f"no check catalog for methodology {version}")
 
     metadata: dict[str, CheckMetadata] = {}
-    for path in sorted(directory.glob("*.json")):
+    for path in paths:
         raw = json.loads(path.read_text(encoding="utf-8"))
         # Some files carry one pillar, others carry several under "pillars". Both
         # shapes are the catalog's, not ours to normalize at the source.

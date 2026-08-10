@@ -730,6 +730,14 @@ def normalize_ports(
                 "probed_count": int(payload.get("probed_count", 0)),
                 "worst_exposure": payload.get("worst_exposure"),
                 "open_by_exposure": payload.get("open_by_exposure", {}),
+                # Flattened alongside the mapping because a rule compares one attribute
+                # against a number, and a check that had to reach inside a dictionary
+                # would need an expression language the catalogue deliberately does not
+                # have.
+                **{
+                    f"{exposure}_open": int(count)
+                    for exposure, count in payload.get("open_by_exposure", {}).items()
+                },
                 # Only the open ones are carried into the observation. A closed port is
                 # the absence of a service, and an inventory of absences is not evidence
                 # anybody reads.

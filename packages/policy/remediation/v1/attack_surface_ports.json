@@ -1,0 +1,85 @@
+{
+  "_comment": "Guidance for the exposed-service checks added in methodology 1.1.0. Outside the scoring digest like the rest of the remediation catalogue, so correcting a sentence here does not invalidate a stored score. Provider-neutral: this platform does not know whose firewall anybody runs, and invented vendor instructions get followed literally.",
+  "pillar": "attack_surface",
+  "templates": [
+    {
+      "template_id": "remote_access_restrict",
+      "version": "1.0.0",
+      "review_status": "draft",
+      "effort": "medium",
+      "references": ["nist_sp_800_46"],
+      "summary_ro": "Scoate serviciile de acces la distanță de pe internet și pune-le în spatele unui VPN sau al unui portal cu autentificare multifactor.",
+      "summary_en": "Take remote access services off the internet and put them behind a VPN or a portal with multi-factor authentication.",
+      "steps_ro": [
+        "Stabilește cine folosește serviciul și de unde. De obicei lista este mult mai scurtă decât se presupune.",
+        "Blochează portul la firewall pentru tot internetul, permițând doar adresele sau rețeaua VPN de care este nevoie.",
+        "Dacă accesul de la distanță este necesar pentru personal aflat oriunde, folosește un VPN sau un portal cu autentificare multifactor în loc să expui serviciul direct.",
+        "Activează blocarea contului după încercări repetate și înregistrează autentificările reușite și eșuate.",
+        "Verifică din exterior că portul nu mai răspunde."
+      ],
+      "steps_en": [
+        "Establish who uses the service and from where. The list is usually far shorter than assumed.",
+        "Block the port at the firewall for the whole internet, allowing only the addresses or the VPN network that genuinely need it.",
+        "Where remote access is needed for staff anywhere, use a VPN or a portal with multi-factor authentication rather than exposing the service directly.",
+        "Enable lockout after repeated attempts, and log both successful and failed sign-ins.",
+        "Confirm from outside that the port no longer answers."
+      ],
+      "verification_ro": "O nouă evaluare autorizată raportează portul ca filtrat sau închis, iar verificarea D.remote_access_exposed trece.",
+      "verification_en": "A new authorized assessment reports the port as filtered or closed, and D.remote_access_exposed passes.",
+      "caveat_ro": "Blocarea portului deconectează pe oricine îl folosea, inclusiv furnizori de mentenanță despre care s-ar putea să nu știe nimeni. Anunță înainte și păstrează o cale de acces pentru administratori, altfel riști să pierzi accesul la propriul server.",
+      "caveat_en": "Blocking the port disconnects anybody who was using it, including maintenance suppliers nobody may know about. Announce it first and keep an administrative route in, or you risk locking yourself out of your own server."
+    },
+    {
+      "template_id": "database_restrict",
+      "version": "1.0.0",
+      "review_status": "draft",
+      "effort": "medium",
+      "references": ["nist_sp_800_41"],
+      "summary_ro": "Fă baza de date accesibilă doar din rețeaua aplicației, nu de pe internet.",
+      "summary_en": "Make the database reachable only from the application's own network, not from the internet.",
+      "steps_ro": [
+        "Configurează serverul de bază de date să asculte doar pe interfața internă sau pe localhost, nu pe toate adresele.",
+        "Blochează portul la firewall pentru tot internetul.",
+        "Verifică ce conturi există și elimină-le pe cele implicite sau nefolosite.",
+        "Dacă aplicația rulează pe alt server, permite explicit doar adresa aceluia.",
+        "Confirmă din exterior că portul nu mai răspunde."
+      ],
+      "steps_en": [
+        "Configure the database server to listen only on the internal interface or localhost, rather than on every address.",
+        "Block the port at the firewall for the whole internet.",
+        "Review which accounts exist and remove default or unused ones.",
+        "Where the application runs on another server, allow only that server's address explicitly.",
+        "Confirm from outside that the port no longer answers."
+      ],
+      "verification_ro": "O nouă evaluare autorizată raportează portul ca filtrat sau închis, iar verificarea D.database_exposed trece.",
+      "verification_en": "A new authorized assessment reports the port as filtered or closed, and D.database_exposed passes.",
+      "caveat_ro": "Schimbarea adresei pe care ascultă baza de date oprește aplicația dacă aceasta se conecta prin adresa publică. Verifică întâi ce şir de conexiune folosește aplicația.",
+      "caveat_en": "Changing which address the database listens on will stop the application if it was connecting over the public address. Check the application's connection string first."
+    },
+    {
+      "template_id": "management_interface_restrict",
+      "version": "1.0.0",
+      "review_status": "draft",
+      "effort": "low",
+      "references": ["nist_sp_800_41"],
+      "summary_ro": "Stabilește ce rulează pe portul respectiv și, dacă este o interfață de administrare, scoate-o de pe internet.",
+      "summary_en": "Establish what is running on that port and, if it is an administration interface, take it off the internet.",
+      "steps_ro": [
+        "Deschide adresa în browser din afara rețelei organizației și vezi ce răspunde.",
+        "Dacă este o consolă de administrare, un panou de control sau un API de orchestrare, blochează portul la firewall.",
+        "Dacă este un serviciu public legitim, tratează-l ca pe orice alt site: certificat valid, redirecționare către HTTPS, antete de securitate.",
+        "Dacă nu recunoaște nimeni serviciul, află cine l-a pornit înainte să îl oprești."
+      ],
+      "steps_en": [
+        "Open the address in a browser from outside the organisation's network and see what answers.",
+        "If it is an administration console, a control panel or an orchestration API, block the port at the firewall.",
+        "If it is a legitimate public service, treat it like any other site: valid certificate, redirect to HTTPS, security headers.",
+        "If nobody recognises the service, find out who started it before turning it off."
+      ],
+      "verification_ro": "O nouă evaluare autorizată nu mai raportează interfața ca accesibilă, sau serviciul este documentat ca public intenționat.",
+      "verification_en": "A new authorized assessment no longer reports the interface as reachable, or the service is documented as intentionally public.",
+      "caveat_ro": "Un port alternativ deschis nu este automat o problemă. Multe organizații rulează servicii legitime acolo, iar închiderea fără să știi ce era poate opri ceva de care depinde cineva.",
+      "caveat_en": "An open alternate port is not automatically a problem. Plenty of organisations run legitimate services there, and closing one without knowing what it was can stop something somebody depends on."
+    }
+  ]
+}

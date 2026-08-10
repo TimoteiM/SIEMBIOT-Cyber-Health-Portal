@@ -33,7 +33,7 @@ from siembiot_worker.collectors.tls_certificate import TLSCertificateCollector
 from siembiot_worker.network_safety.collection_broker import CollectionNetworkBroker
 from siembiot_worker.network_safety.collection_policy import OperationClass
 from siembiot_worker.observation.mode import allowed_operation_classes
-from siembiot_worker.observation.pipeline import EmptyCTSource
+from siembiot_worker.observation.pipeline import EmptyCTSource, withhold_unavailable_checks
 from siembiot_worker.observation.runtime import ObservationRuntime
 from siembiot_worker.policy.catalog import HOST_SCOPED_OBSERVATION_PREFIXES, PolicyCatalog
 from siembiot_worker.policy.evaluation import evaluate_assessment
@@ -295,13 +295,24 @@ def build_handlers(context: AssessmentContext) -> dict[str, StepHandler]:
 
     def evaluate(step: StepContext) -> StepOutcome:
         step.check_cancelled()
-        context.evaluations = evaluate_assessment(
+        evaluations = evaluate_assessment(
             context.catalog,
             context.observations,
             organization_id=context.organization_id,
             assessment_id=context.assessment_id,
             subject=context.subject,
             evaluated_at=context.clock(),
+        )
+        # A check this mode may not perform is marked not applicable, never left as
+        # unknown and never as a pass.
+        #
+        # Methodology 1.1.0 adds three checks only an authorized assessment can collect.
+        # Without this, every passive run would evaluate them as unknown, which reduces
+        # coverage -- and a domain whose surface nobody was allowed to scan would lose
+        # its band for a scan it was never eligible for. Not applicable leaves the
+        # denominator instead, which is what "we were not permitted to look" means.
+        context.evaluations = withhold_unavailable_checks(
+            context.catalog, evaluations, context.runtime.mode
         )
         return StepOutcome.ok(evaluation_count=len(context.evaluations))
 

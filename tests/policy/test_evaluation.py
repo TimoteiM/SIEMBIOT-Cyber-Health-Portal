@@ -13,7 +13,12 @@ from policy_support import (
     SUBJECT,
     observation,
 )
-from siembiot_worker.policy.catalog import PolicyError, Result, load_catalog
+from siembiot_worker.policy.catalog import (
+    CURRENT_METHODOLOGY_VERSION,
+    PolicyError,
+    Result,
+    load_catalog,
+)
 from siembiot_worker.policy.evaluation import (
     SuppressionDecision,
     evaluate_assessment,
@@ -299,13 +304,13 @@ def test_catalog_rejects_pillar_weights_that_do_not_sum_to_one(tmp_path: Path) -
     import shutil
 
     shutil.copytree(POLICY_SOURCE, tmp_path / "policy")
-    document = json.loads(
-        (tmp_path / "policy" / "methodology" / "v1.0.0.json").read_text(encoding="utf-8")
-    )
+    # The version `load_catalog` actually loads, not a literal. Corrupting v1.0.0
+    # while the default had moved to 1.1.0 left this test loading an untouched file
+    # and passing on a catalogue it had not broken.
+    methodology = tmp_path / "policy" / "methodology" / f"v{CURRENT_METHODOLOGY_VERSION}.json"
+    document = json.loads(methodology.read_text(encoding="utf-8"))
     document["pillar_weights"]["dns"] = 0.9
-    (tmp_path / "policy" / "methodology" / "v1.0.0.json").write_text(
-        json.dumps(document), encoding="utf-8"
-    )
+    methodology.write_text(json.dumps(document), encoding="utf-8")
     with pytest.raises(PolicyError) as error:
         load_catalog(tmp_path / "policy")
     assert error.value.reason == "pillar_weights_do_not_sum_to_one"
