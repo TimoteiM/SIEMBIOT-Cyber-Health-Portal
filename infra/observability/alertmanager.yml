@@ -1,0 +1,57 @@
+# Where an alert goes, and how quickly.
+#
+# The rules distinguish `page` from `warning`, and until now nothing acted on that
+# distinction -- both would have gone nowhere, equally. Routing is what turns a severity
+# label into a difference somebody experiences.
+#
+# The receivers here are webhooks pointing at a configurable endpoint. This repository
+# does not choose a paging provider for a deployment: that is a decision about who is on
+# call and what wakes them, and hardcoding one would either be wrong or be a credential
+# in a configuration file. What it does provide is routing that is already correct, so
+# the remaining work is a URL.
+
+global:
+  # How long a firing alert stays firing after Prometheus stops sending it. Longer than
+  # two evaluation intervals, so a single missed scrape does not resolve an alert that is
+  # still true.
+  resolve_timeout: 5m
+
+route:
+  # Grouped by alert name rather than by instance: three replicas failing the same way is
+  # one problem, and three notifications about it is how people learn to ignore them.
+  group_by: ["alertname"]
+  # Wait a little before the first notification, so alerts that fire together arrive
+  # together.
+  group_wait: 30s
+  group_interval: 5m
+  # A page that is still true after four hours is worth saying again. Repeating more
+  # often than that trains people to silence it.
+  repeat_interval: 4h
+  receiver: warning-receiver
+
+  routes:
+    # `page` means something is wrong that will not fix itself. It jumps the queue and
+    # repeats sooner.
+    - matchers:
+        - severity = "page"
+      receiver: page-receiver
+      group_wait: 10s
+      repeat_interval: 1h
+
+    - matchers:
+        - severity = "warning"
+      receiver: warning-receiver
+
+receivers:
+  - name: page-receiver
+    webhook_configs:
+      # Replaced per deployment. Left as a webhook rather than an e-mail or a chat
+      # integration because every one of those needs a credential, and a credential in a
+      # file like this is how they end up in a repository.
+      - url: "http://alert-sink:9095/page"
+        send_resolved: true
+
+  - name: warning-receiver
+    webhook_configs:
+      - url: "http://alert-sink:9095/warning"
+        send_resolved: true

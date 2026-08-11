@@ -270,6 +270,37 @@ assurance.
 A restore is verified against the chain as well as against row counts -- a substituted
 trail can have exactly the right number of rows.
 
+## Alerting
+
+Prometheus scrapes the API, evaluates the rules in `alerts.yml`, and hands what fires to
+Alertmanager, which routes on severity: `page` notifies quickly and repeats hourly,
+`warning` waits and repeats every four hours.
+
+```bash
+docker compose -f infra/compose/production-like.compose.yml up -d prometheus alertmanager alert-sink
+```
+
+`alert-sink` stands in for whatever pages a person. Deployments replace the two webhook
+URLs in `alertmanager.yml`; this repository does not choose a paging provider, because
+that decision is about who is on call and every alternative wants a credential in a file
+like this one.
+
+**Demonstrated end to end**, which is the only way to know a chain like this works:
+
+| | |
+| --- | --- |
+| API stopped | t+0 |
+| target marked down | t+30s |
+| `ApiDown` pending | t+40s |
+| fires (`for: 2m`) | t+150s |
+| delivered to the **page** receiver | immediately after |
+| API restarted, alert clears | |
+| resolved notification delivered | after `group_interval` |
+
+The resolved notification waits a full `group_interval` behind the firing one. That is
+the configuration working, not a fault, but it is worth knowing before somebody watches
+for one and concludes the chain is broken.
+
 ## What is not here yet
 
 Stated rather than implied, because a runbook that omits its gaps reads as complete:
@@ -282,8 +313,6 @@ Stated rather than implied, because a runbook that omits its gaps reads as compl
 - **No point-in-time recovery.** A dump loses everything since it was taken. For
   evidence that is tolerable; for the audit trail it may not be, and that is a decision
   somebody should make deliberately.
-- **Nothing scrapes the metrics and nothing routes the alerts.** The endpoint and the
-  rules exist and are tested; no Prometheus is deployed, and no alert reaches a person.
 - **No log aggregation.** Logs are structured and redacted but stay on each host.
 - **No dashboards.** The metrics support them; none are defined.
 - **No TLS termination or identity gateway** in this stack. Both are assumed to be in

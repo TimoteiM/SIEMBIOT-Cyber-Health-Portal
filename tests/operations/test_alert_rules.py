@@ -114,3 +114,39 @@ def test_every_rule_waits_before_firing() -> None:
     a restart pages somebody."""
     for rule in rules():
         assert rule.get("for"), f"{rule['alert']} fires on a single scrape"
+
+
+# -- the configuration that has to agree with the rules --------------------------------
+
+PROMETHEUS = ROOT / "infra" / "observability" / "prometheus.yml"
+ALERTMANAGER = ROOT / "infra" / "observability" / "alertmanager.yml"
+
+
+def test_the_job_name_matches_what_the_rules_match_on() -> None:
+    """`ApiDown` matches `up{job="siembiot-api"}`, and that label comes from the scrape
+    configuration. Renaming the job stops the rule working and changes nothing visible:
+    the rule stays in the file, the target stays up, and the alert simply never fires."""
+    scrape = PROMETHEUS.read_text(encoding="utf-8")
+    jobs = set(re.findall(r"job_name:\s*(\S+)", scrape))
+
+    for rule in rules():
+        for job in re.findall(r'job="([^"]+)"', rule.get("expr", "")):
+            assert job in jobs, f"{rule['alert']} matches job {job!r}, which nothing scrapes"
+
+
+def test_every_severity_the_rules_use_is_routed() -> None:
+    """A severity Alertmanager has no route for falls through to the default receiver,
+    which is survivable, or to none, which is not. Either way the label stops meaning
+    what the rule author intended."""
+    routing = ALERTMANAGER.read_text(encoding="utf-8")
+    routed = set(re.findall(r'severity\s*=\s*"([^"]+)"', routing))
+
+    used = {rule["severity"] for rule in rules() if "severity" in rule}
+    assert used <= routed, f"{sorted(used - routed)} is used by a rule and routed nowhere"
+
+
+def test_the_rules_file_prometheus_loads_is_the_one_that_is_tested() -> None:
+    """A second copy of the rules would let this file pass while the deployed stack ran
+    something else."""
+    assert "alerts.yml" in PROMETHEUS.read_text(encoding="utf-8")
+    assert ALERTS.exists()

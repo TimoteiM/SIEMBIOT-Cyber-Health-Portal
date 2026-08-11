@@ -1,0 +1,42 @@
+# What scrapes the platform, and how often.
+#
+# The rules in `alerts.yml` were written before anything read them. A rule nobody
+# evaluates is a comment with unusual syntax, so this file is the other half: it collects
+# the metrics, evaluates the rules against them, and hands whatever fires to Alertmanager.
+#
+# Nothing here is tenant-aware, and it must stay that way. The exporter carries no label
+# that identifies an organization or a target, so this configuration cannot leak one
+# either -- an alert says the platform is unwell, and finding out for whom is the next
+# step rather than something published into a monitoring system.
+
+global:
+  # Fifteen seconds is frequent enough that a two-minute alert has eight samples behind
+  # it, and slow enough that scraping is not itself a load on the API.
+  scrape_interval: 15s
+  # Rules are evaluated on their own clock; the fastest `for` in alerts.yml is two
+  # minutes, so evaluating every fifteen seconds gives every rule several chances to
+  # confirm before it fires.
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+scrape_configs:
+  - job_name: siembiot-api
+    metrics_path: /metrics
+    # `up{job="siembiot-api"}` comes from this job name, and the ApiDown rule matches on
+    # it exactly. Renaming the job silently stops that rule working, which is why the
+    # test suite asserts the two agree.
+    static_configs:
+      - targets: ["api:8000"]
+
+  # Prometheus watching itself. Without it, a Prometheus that has stopped evaluating
+  # rules looks identical to a platform with nothing wrong.
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
