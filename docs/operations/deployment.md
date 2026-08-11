@@ -211,8 +211,32 @@ snapshot computed from them is stamped `evidence_erased_at`, and reports drawn f
 tell the reader the score can no longer be recomputed. Deleting the workings while still
 printing a policy digest would invite exactly the wrong conclusion.
 
-Nothing here removes an organization on request; erasure of a whole tenant is a separate
-operation and is not implemented.
+## Erasing an institution on request
+
+Retention ages data out on a timer. This is the other obligation, and its danger is the
+opposite one: retention risks deleting too much, erasure risks deleting too little --
+because the institution is told it is gone.
+
+```bash
+python scripts/erase_organization.py --organization <uuid>            # prints the plan
+python scripts/erase_organization.py --organization <uuid> --confirm  # performs it
+```
+
+Irreversible, and deliberately manual: no scheduled job runs it, no API exposes it, and it
+connects as the owner rather than under a login of its own. A long-lived credential that
+can delete any institution's entire history is a worse thing to have in a deployment than
+an operator typing a command.
+
+Every table carrying an `organization_id` is found in the catalogue and included, and the
+deletion order comes from the foreign keys. Afterwards the script checks that nothing
+still names the organization and rolls back if anything does -- an erasure that silently
+missed a table is worse than one that failed.
+
+The audit trail goes with it. Audit is chained **per organization**, so removing one
+institution's events removes one whole chain and every other chain still verifies; a
+single global chain would have made erasure and tamper-evidence mutually exclusive. What
+survives is a tombstone in the platform's own chain recording that the organization
+existed and was erased, with counts but never content.
 
 ## The audit trail is tamper-evident
 
