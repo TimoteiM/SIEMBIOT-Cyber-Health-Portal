@@ -320,6 +320,24 @@ def verify(container: str, backup: Path) -> int:
         missing = set(manifest["roles"]) - present
         if missing:
             problems.append(f"roles missing after restore: {sorted(missing)}")
+
+        # The audit trail is one of the two things here that cannot be reconstructed, and
+        # a restore is exactly when it could be quietly replaced. Recomputing the chain in
+        # the restored copy checks that what came back is the history that went in --
+        # matching row counts would not, since a substituted trail can have the same
+        # number of rows.
+        broken = [
+            line
+            for line in psql(
+                container,
+                scratch,
+                "SELECT coalesce(organization_id::text, 'platform') || ' @' || "
+                "sequence_number || ': ' || problem FROM audit_chain_breaks()",
+            ).splitlines()
+            if line
+        ]
+        if broken:
+            problems.extend(f"audit chain broken: {line}" for line in broken)
     finally:
         psql(container, "postgres", f'DROP DATABASE IF EXISTS "{scratch}"')
 
@@ -335,6 +353,7 @@ def verify(container: str, backup: Path) -> int:
     print(f"  ok    {manifest['forced_rls_tables']} tables still enforcing tenant isolation")
     print(f"  ok    {manifest['append_only_triggers']} triggers still making evidence append-only")
     print(f"  ok    roles {', '.join(manifest['roles'])}")
+    print("  ok    audit chain verifies in the restored copy")
     print("\nrestored and verified")
     return 0
 

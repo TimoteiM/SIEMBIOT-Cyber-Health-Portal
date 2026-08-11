@@ -214,12 +214,46 @@ printing a policy digest would invite exactly the wrong conclusion.
 Nothing here removes an organization on request; erasure of a whole tenant is a separate
 operation and is not implemented.
 
+## The audit trail is tamper-evident
+
+`previous_hash` and `event_hash` existed from the first migration and nothing ever wrote
+them, so the trail was append-only and *not* tamper-evident. Those are different
+guarantees: append-only stops the application rewriting history, and a chain is what
+stops whoever holds the database credentials -- which is the case an audit trail exists
+for.
+
+Each event is now chained to the one before it, per organization, by a `BEFORE INSERT`
+trigger rather than by application code: a hash written in `append_audit_event` would
+only cover rows that went through it, and the writes worth detecting are the ones that
+did not.
+
+To check a trail:
+
+```sql
+SELECT * FROM audit_chain_breaks();
+```
+
+An empty result is an intact history. Otherwise it names the first break in each
+organization's chain and what kind it is -- a row altered, or one removed, reordered, or
+inserted with the trigger disabled.
+
+Rows written before this feature carry no hash and are reported as predating it rather
+than as breaks. They were deliberately **not** backfilled: hashing them now would digest
+whatever they say today, so an already-altered row would be certified as genuine and the
+chain would report a spotless history. That is worse than no chain, because it looks like
+assurance.
+
+A restore is verified against the chain as well as against row counts -- a substituted
+trail can have exactly the right number of rows.
+
 ## What is not here yet
 
 Stated rather than implied, because a runbook that omits its gaps reads as complete:
 
-- **Backups are not scheduled and not stored off-host.** The tooling works and is
-  verified; nothing runs it on a timer, and `artifacts/` is on the same machine as the
+- **Backups are not scheduled and not stored off-host.** The tooling works and a
+  restore has been executed and verified against a real database -- schema, row counts,
+  forced row-level security, append-only triggers, roles, and the audit chain. What is
+  missing is a timer and a destination: `artifacts/` is on the same machine as the
   database, which is not a backup of anything that fails together.
 - **No point-in-time recovery.** A dump loses everything since it was taken. For
   evidence that is tolerable; for the audit trail it may not be, and that is a decision
