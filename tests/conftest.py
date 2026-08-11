@@ -21,6 +21,7 @@ OWNER_ALEMBIC_URL = "postgresql+psycopg://siembiot_owner:placeholder@127.0.0.1:5
 APP_URL = "postgresql://siembiot_app:placeholder@127.0.0.1:55432/siembiot_test"
 WORKER_URL = "postgresql://siembiot_worker:placeholder@127.0.0.1:55432/siembiot_test"
 PUBLIC_URL = "postgresql://siembiot_public:placeholder@127.0.0.1:55432/siembiot_test"
+RETENTION_URL = "postgresql://siembiot_retention:placeholder@127.0.0.1:55432/siembiot_test"
 
 
 def run(command: list[str], env: dict[str, str] | None = None) -> None:
@@ -70,12 +71,17 @@ def postgres_database() -> Iterator[dict[str, str]]:
             # role cannot reach tenant data" is a claim worth proving against the real
             # database rather than reading off the grants.
             owner.execute("ALTER ROLE siembiot_public PASSWORD 'placeholder'")
+            # Migration 0018 creates siembiot_retention the same way. It is the only
+            # role that may delete evidence, so "nothing else can" is asserted by
+            # connecting as the others and being refused.
+            owner.execute("ALTER ROLE siembiot_retention PASSWORD 'placeholder'")
 
         yield {
             "owner_url": OWNER_URL,
             "app_url": APP_URL,
             "worker_url": WORKER_URL,
             "public_url": PUBLIC_URL,
+            "retention_url": RETENTION_URL,
         }
     finally:
         run([*compose, "down", "--volumes", "--remove-orphans"], test_env)

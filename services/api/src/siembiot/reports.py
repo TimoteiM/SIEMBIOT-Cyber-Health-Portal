@@ -91,7 +91,8 @@ def _latest_scored_assessment(connection: Connection, domain_id: UUID) -> Any:
         text(
             """
             SELECT a.id AS assessment_id, a.mode, a.completed_at, a.created_at,
-                   s.methodology_version, s.policy_digest, s.document, s.computed_at
+                   s.methodology_version, s.policy_digest, s.document, s.computed_at,
+                   s.evidence_erased_at
             FROM assessments a
             JOIN score_snapshots s ON s.assessment_id = a.id
             WHERE a.domain_id = :domain_id AND s.is_projection = false
@@ -226,6 +227,7 @@ def build_report_document(
         assessment_mode=str(assessment["mode"]),
         observed_at=assessment["computed_at"],
         generated_at=generated_at,
+        evidence_erased_at=assessment["evidence_erased_at"],
         pillars=tuple(
             ReportPillar(
                 pillar=str(pillar["pillar"]),
@@ -371,7 +373,8 @@ def build_report_router() -> APIRouter:
                     text(
                         """
                     SELECT a.id AS assessment_id, a.mode, s.methodology_version,
-                           s.policy_digest, s.document, s.computed_at
+                           s.policy_digest, s.document, s.computed_at,
+                           s.evidence_erased_at
                     FROM assessments a
                     JOIN score_snapshots s ON s.assessment_id = a.id
                     WHERE a.id = :assessment_id AND s.is_projection = false

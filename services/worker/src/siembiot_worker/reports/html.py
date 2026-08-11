@@ -62,6 +62,11 @@ _TEXT: dict[str, dict[str, str]] = {
             "Acestea necesită o autorizare pe care această evaluare nu a avut-o. "
             "Nu au fost încercate."
         ),
+        "evidence_erased": (
+            "Dovezile pe baza cărora a fost calculat acest scor au fost șterse la "
+            "{when}, conform politicii de păstrare a datelor. Scorul rămâne ca "
+            "înregistrare a ceea ce s-a constatat atunci, dar nu mai poate fi recalculat."
+        ),
         "methodology": "Metodologie",
         "mode": "Mod de observare",
         "notice": (
@@ -111,6 +116,11 @@ _TEXT: dict[str, dict[str, str]] = {
         "withheld": "Checks not performed",
         "withheld_note": (
             "These require an authorization this assessment did not hold. They were not attempted."
+        ),
+        "evidence_erased": (
+            "The evidence this score was computed from was removed on {when} under the "
+            "data retention policy. The score stands as a record of what was found at "
+            "the time, but it can no longer be recomputed."
         ),
         "methodology": "Methodology",
         "mode": "Observation mode",
@@ -288,6 +298,19 @@ def _headline(report: ReportDocument, locale: str) -> Element:
     blocks: list[Node] = [element("div", *children, class_="headline")]
     if not report.coverage_sufficient:
         blocks.append(element("p", _text(locale, "band_withheld"), class_="note"))
+    if report.evidence_erased_at is not None:
+        # Said beside the score rather than in the footer with the digests. A reader who
+        # takes the number and stops reading should still have been told that the
+        # workings behind it no longer exist.
+        blocks.append(
+            element(
+                "p",
+                _text(locale, "evidence_erased").replace(
+                    "{when}", _stamp(report.evidence_erased_at)
+                ),
+                class_="caveat",
+            )
+        )
     for warning in report.warnings:
         blocks.append(element("p", warning, class_="note"))
     return element("section", *blocks)

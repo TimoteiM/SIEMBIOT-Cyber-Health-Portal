@@ -30,6 +30,7 @@ from siembiot_worker.collectors.ct_source import BrokeredCTSource
 from siembiot_worker.observation.mode import AssessmentMode
 from siembiot_worker.observation.runtime import build_observation_runtime
 from siembiot_worker.policy.catalog import load_catalog
+from siembiot_worker.retention import SweepResult, record_run, sweep_retention
 from siembiot_worker.scheduling import (
     advance_from,
     due_schedules,
@@ -55,6 +56,12 @@ SWEEP_INTERVAL_SECONDS = 30.0
 #: minutes rather than thirty seconds because the shortest cadence offered is daily:
 #: checking more often would only ask the same question repeatedly and get "not yet".
 SCHEDULE_INTERVAL_SECONDS = 600.0
+
+#: How often expired data is removed. Daily, because the shortest retention period is a
+#: day and running more often would ask the same question and delete nothing. Deliberately
+#: not aligned to midnight: a sweep is a burst of deletes, and every deployment starting
+#: one at the same instant is how a shared database gets a nightly stall.
+RETENTION_INTERVAL_SECONDS = 86_400.0
 
 log = logging.getLogger("siembiot.worker")
 
@@ -266,6 +273,59 @@ def due_assessments() -> tuple[dict[str, Any], ...]:
         engine.dispose()
 
 
+def retention_database_url() -> str:
+    """The role that may forget things, and nothing else.
+
+    Deliberately not the worker's. The worker can insert evidence and cannot remove it,
+    which is what makes a completed assessment trustworthy; retention holds the opposite
+    pair. Keeping them apart means neither job can quietly acquire the other's authority
+    because somebody widened a grant.
+    """
+    url = os.environ.get("SIEMBIOT_RETENTION_DATABASE_URL")
+    if not url:
+        raise RuntimeError(
+            "SIEMBIOT_RETENTION_DATABASE_URL is required to apply retention. It must "
+            "name the siembiot_retention role; no other role may delete evidence."
+        )
+    return url.replace("postgresql://", "postgresql+psycopg://")
+
+
+def _retention_engine() -> Any:
+    from sqlalchemy import create_engine
+
+    return create_engine(retention_database_url(), pool_pre_ping=True)
+
+
+def run_retention() -> int:
+    """Apply the retention schedule once, and record what it did.
+
+    The sweep and the record of it are separate transactions on purpose. If the sweep
+    fails part way, its deletions roll back and the failure is still written down --
+    whereas one transaction would roll the record back too and leave a failed sweep
+    indistinguishable from a night when nothing ran.
+    """
+    engine = _retention_engine()
+    try:
+        try:
+            with engine.begin() as connection:
+                result = sweep_retention(connection)
+        except Exception as error:  # noqa: BLE001 - recorded, then re-raised
+            with engine.begin() as connection:
+                record_run(connection, SweepResult(), error=str(error)[:500])
+            raise
+        with engine.begin() as connection:
+            record_run(connection, result)
+        if result.total or result.snapshots_marked:
+            log.info(
+                "retention removed %d rows and marked %d snapshots",
+                result.total,
+                result.snapshots_marked,
+            )
+        return result.total
+    finally:
+        engine.dispose()
+
+
 def start_due_schedules() -> int:
     """Create an assessment for every schedule that is due, and advance each schedule.
 
@@ -391,6 +451,10 @@ def build_celery_app() -> Any:
                 "task": "siembiot.start_scheduled",
                 "schedule": SCHEDULE_INTERVAL_SECONDS,
             },
+            "apply-retention": {
+                "task": "siembiot.apply_retention",
+                "schedule": RETENTION_INTERVAL_SECONDS,
+            },
         },
     )
 
@@ -430,6 +494,17 @@ def build_celery_app() -> Any:
         domain whose proof lapsed today is not given an authorized run this pass.
         """
         return start_due_schedules()
+
+    @app.task(name="siembiot.apply_retention")
+    def apply_retention() -> int:
+        """Remove data past its retention period.
+
+        Returns how many rows were removed. Runs as the worker role and outside any
+        tenant scope: retention is platform housekeeping across every organization, and
+        binding it to one tenant would silently sweep only that tenant's data while
+        reporting success for all of it.
+        """
+        return run_retention()
 
     @app.task(name="siembiot.sweep")
     def sweep() -> int:

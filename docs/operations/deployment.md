@@ -177,6 +177,43 @@ A failed scrape reports `siembiot_metrics_scrape_ok 0` rather than returning an 
 because a monitoring system that receives nothing looks exactly like one watching a
 quiet, healthy platform.
 
+## Data retention
+
+Every table is classified in `siembiot_worker/retention/policy.py`, and a test fails when
+one is not: "nobody listed it" must never be how a table's retention gets decided.
+
+| Class | Period | What |
+| --- | --- | --- |
+| evidence | 90 days | observations, network operations, scope manifests |
+| operational | 30 days | step attempts, idempotency keys |
+| ephemeral | 1 day past expiry | report grants, domain challenges |
+| record | kept | scores, findings, answers, decisions |
+| accountability | never removed | audit, authorizations, support grants, retention runs |
+| reference | follows its subject | users, organizations, domains, catalogues |
+
+The sweep runs daily from the scheduler and writes a row to `retention_runs` every time,
+including when it removes nothing -- "the job ran and found nothing" and "the job did not
+run" are different facts.
+
+**Only `siembiot_retention` may delete evidence.** It is a separate role with a separate
+credential, held by the scheduler alone: the workers can add evidence and cannot remove
+it, which is what makes a completed assessment trustworthy. It holds `SELECT`/`DELETE` on
+the swept tables, a column-level `UPDATE` on one column of `score_snapshots`, and nothing
+else -- it cannot alter a score, a band or a digest.
+
+**Removal must also be declared.** The evidence tables are append-only by trigger, and the
+single exception is a transaction that sets `app.retention_sweep`. The grant is the
+boundary; the flag is what stops a stray `DELETE` elsewhere from succeeding if a grant is
+ever widened.
+
+**A score outlives its evidence, and says so.** Once observations are removed, every
+snapshot computed from them is stamped `evidence_erased_at`, and reports drawn from it
+tell the reader the score can no longer be recomputed. Deleting the workings while still
+printing a policy digest would invite exactly the wrong conclusion.
+
+Nothing here removes an organization on request; erasure of a whole tenant is a separate
+operation and is not implemented.
+
 ## What is not here yet
 
 Stated rather than implied, because a runbook that omits its gaps reads as complete:
@@ -193,5 +230,4 @@ Stated rather than implied, because a runbook that omits its gaps reads as compl
 - **No dashboards.** The metrics support them; none are defined.
 - **No TLS termination or identity gateway** in this stack. Both are assumed to be in
   front of it; the API's identity resolver is built for exactly that arrangement.
-- **No retention or deletion policy.** Evidence accumulates indefinitely.
 - **No provider budget or cost monitoring.**

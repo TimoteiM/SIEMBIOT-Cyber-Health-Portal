@@ -298,3 +298,24 @@ def test_pillars_without_a_score_say_so_rather_than_showing_zero() -> None:
 
     assert "no score" in html
     assert ">0<" not in html
+
+
+def test_a_score_whose_evidence_was_erased_says_so() -> None:
+    """The report prints a policy digest and a methodology version so a disputed result
+    can be checked against the catalogue that produced it. Once retention has removed the
+    observations it cannot be, and printing those digests without saying so invites
+    exactly the wrong conclusion.
+
+    Said beside the score, not in the footer beside the digests: a reader who takes the
+    number and stops reading should still have been told.
+    """
+    erased = datetime(2026, 11, 2, 3, 0, tzinfo=UTC)
+    for locale, phrase in (("ro", "nu mai poate fi recalculat"), ("en", "no longer be recomputed")):
+        html = render_report(report(evidence_erased_at=erased), locale)
+        assert phrase in html
+        assert "2026-11-02" in html
+        assert html.index(phrase) < html.index(report().policy_digest)
+
+
+def test_a_score_with_evidence_intact_makes_no_such_claim() -> None:
+    assert "no longer be recomputed" not in render_report(report(), "en")

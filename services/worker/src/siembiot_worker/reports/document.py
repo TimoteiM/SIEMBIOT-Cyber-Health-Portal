@@ -63,6 +63,13 @@ class ReportDocument:
     assessment_mode: str
     observed_at: datetime
     generated_at: datetime
+    #: When the observations behind this score were removed under retention.
+    #:
+    #: A report carries a policy digest and a methodology version so a disputed result
+    #: can be checked against the catalogue that produced it. Once the evidence is gone
+    #: it cannot be recomputed, and a document that still printed those digests without
+    #: saying so would invite exactly the wrong conclusion.
+    evidence_erased_at: datetime | None = None
     pillars: tuple[ReportPillar, ...] = ()
     findings: tuple[ReportFinding, ...] = ()
     #: Checks that could not be determined. Named, not counted: "we could not tell about
