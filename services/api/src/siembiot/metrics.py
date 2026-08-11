@@ -40,6 +40,10 @@ from siembiot.db import Database
 CONTENT_TYPE = "text/plain; version=0.0.4; charset=utf-8"
 PREFIX = "siembiot_"
 
+#: Added by `render` rather than read from the database, since it reports whether that
+#: read worked. Named so `collect` can leave it alone instead of emitting a second copy.
+SCRAPE_OK = "metrics_scrape_ok"
+
 #: What each metric means, for whoever meets it in an alert at an unsociable hour.
 HELP: dict[str, str] = {
     "assessments": "Assessments by lifecycle state, across all tenants.",
@@ -116,8 +120,28 @@ def collect(database: Database) -> list[Metric]:
 
 
 def render(metrics: list[Metric], scrape_ok: bool) -> str:
-    body = "\n".join(metric.render() for metric in metrics)
-    ok = Metric("metrics_scrape_ok", [({}, 1.0 if scrape_ok else 0.0)])
+    """The scrape body, always carrying every metric this exporter describes.
+
+    A metric with nothing to report still reports. The database returns rows only for
+    what exists, so an empty table used to remove its series from the scrape entirely --
+    and a missing series is indistinguishable from a zero one, and from an exporter that
+    has broken. `siembiot_network_operations` was absent from every scrape for exactly
+    that reason while an alert rule referred to it, so the rule could never have fired
+    and nothing would ever have said so.
+
+    Filled in here rather than in `collect`, because the guarantee is about what a scrape
+    contains: stated here, it holds however the metrics were gathered.
+    """
+    present = {metric.name for metric in metrics}
+    # Unlabelled, because "there were none at all" is not a fact about any label value.
+    missing = [
+        Metric(name, [({}, 0.0)])
+        for name in sorted(HELP)
+        if name not in present and name != SCRAPE_OK
+    ]
+
+    body = "\n".join(metric.render() for metric in [*metrics, *missing])
+    ok = Metric(SCRAPE_OK, [({}, 1.0 if scrape_ok else 0.0)])
     return (f"{body}\n" if body else "") + ok.render() + "\n"
 
 
