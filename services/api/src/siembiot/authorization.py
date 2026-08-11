@@ -9,6 +9,11 @@ class Role(StrEnum):
     ANALYST = "analyst"
     VIEWER_AUDITOR = "viewer_auditor"
     MATURITY_CONTRIBUTOR = "maturity_contributor"
+    #: Not a membership. Platform staff acting under a recorded, time-bounded support
+    #: grant, which `app_has_support_access` checks on every row-level policy. The name
+    #: matches what `app_list_my_organizations` already reports for grant-derived rows,
+    #: so somebody reading the list and somebody reading an audit entry see one word.
+    PLATFORM_SUPPORT = "platform_support"
 
 
 class Action(StrEnum):
@@ -88,6 +93,32 @@ ROLE_ACTIONS: dict[Role, frozenset[Action]] = {
         }
     ),
     Role.MATURITY_CONTRIBUTOR: frozenset({Action.ORGANIZATION_READ}),
+    # Support can see everything and change nothing.
+    #
+    # Reads, plus running and cancelling an assessment, because diagnosing a customer's
+    # problem usually means reproducing it. Deliberately absent: DOMAIN_MANAGE,
+    # DOMAIN_VERIFY, AUTHORIZATION_MANAGE, ASSET_DECIDE, EMERGENCY_CONTROL_MANAGE and
+    # every membership action.
+    #
+    # That exclusion is the whole boundary. Each of those decides *what may be probed*
+    # or *who may act*, so holding them would let platform staff widen the scope they
+    # then operate in -- and a support grant would stop being support access and start
+    # being control of somebody else's institution. As it stands, a run can only cover
+    # what the organization itself already authorized.
+    Role.PLATFORM_SUPPORT: frozenset(
+        {
+            Action.ORGANIZATION_READ,
+            Action.MEMBERSHIP_READ,
+            Action.AUDIT_READ,
+            Action.DOMAIN_READ,
+            Action.AUTHORIZATION_READ,
+            Action.EMERGENCY_CONTROL_READ,
+            Action.ASSESSMENT_READ,
+            Action.ASSESSMENT_RUN,
+            Action.ASSESSMENT_CANCEL,
+            Action.ASSET_READ,
+        }
+    ),
 }
 
 

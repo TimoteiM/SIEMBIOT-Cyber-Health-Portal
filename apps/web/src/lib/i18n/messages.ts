@@ -203,6 +203,15 @@ const ro = {
   "findings.noData": "Nu există încă date pentru acest domeniu.",
   "findings.noAssessment":
     "Nicio evaluare finalizată pentru acest domeniu. Pornește una din pagina Evaluări.",
+  "reports.download": "Descarcă raportul",
+  "reports.preparing": "Se pregătește…",
+  // Spus înainte de descărcare, nu după. Documentul descrie slăbiciuni ale instituției.
+  "reports.note":
+    "Raportul este confidențial și se descarcă o singură dată. Dacă ai nevoie din nou de el, cere alt link.",
+  "reports.failed": "Raportul nu a putut fi generat.",
+  "error.no_scored_assessment":
+    "Acest domeniu nu are încă o evaluare finalizată despre care să se poată face un raport.",
+  "error.unsupported_locale": "Limba cerută nu este disponibilă pentru raport.",
   "findings.bySeverity": "Constatări pe severitate",
   // Titlul unei verificări descrie starea dorită. Fără această etichetă, un titlu
   // afișat sub o insignă de severitate se citește ca și cum starea bună ar fi problema.
@@ -670,6 +679,14 @@ const en: Messages = {
   "findings.noData": "There is no data for this domain yet.",
   "findings.noAssessment":
     "No completed assessment for this domain. Start one from the Assessments page.",
+  "reports.download": "Download report",
+  "reports.preparing": "Preparing…",
+  "reports.note":
+    "The report is confidential and downloads once. If you need it again, ask for another link.",
+  "reports.failed": "The report could not be produced.",
+  "error.no_scored_assessment":
+    "This domain has no completed assessment to report on yet.",
+  "error.unsupported_locale": "The requested language is not available for the report.",
   "findings.bySeverity": "Findings by severity",
   "findings.requirementUnmet": "Requirement not met",
   "findings.group": "{severity} ({count})",

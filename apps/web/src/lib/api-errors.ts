@@ -34,6 +34,8 @@ const KNOWN_ERROR_KEYS: ReadonlySet<MessageKey> = new Set<MessageKey>([
   "error.unauthorized",
   "error.ownership_not_verified",
   "error.methodology_unavailable",
+  "error.no_scored_assessment",
+  "error.unsupported_locale",
 ]);
 
 export { KNOWN_ERROR_KEYS };

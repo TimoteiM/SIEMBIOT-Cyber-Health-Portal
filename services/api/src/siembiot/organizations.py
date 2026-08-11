@@ -32,6 +32,24 @@ def _request_id(request: Request) -> str:
     return cast(str, request.state.request_id)
 
 
+def _support_role(connection: Connection, organization_id: UUID) -> str | None:
+    """`platform_support` where a live support grant covers this organization.
+
+    Asks the database function that row-level security itself consults, rather than
+    re-writing its conditions here. Those conditions are not simple -- the grant must be
+    unexpired and unrevoked, and the holder must still be a `platform_admin` with
+    phishing-resistant MFA -- and a second copy is a second thing to keep in step. If
+    they ever disagreed, the wrong direction is this one saying yes while the policies
+    say no: every query would then return nothing and read as an empty organization
+    rather than as a refusal.
+    """
+    covered = connection.execute(
+        text("SELECT app_has_support_access(:organization_id)"),
+        {"organization_id": organization_id},
+    ).scalar_one()
+    return Role.PLATFORM_SUPPORT.value if covered else None
+
+
 def authorize(
     connection: Connection,
     request: Request,
@@ -50,6 +68,13 @@ def authorize(
         ),
         {"organization_id": organization_id, "user_id": principal.user_id},
     ).scalar_one_or_none()
+    if role_value is None:
+        # No membership. Platform staff holding a live support grant get here, and row
+        # level security has been letting them read this organization's rows since the
+        # first migration -- so refusing outright made the capability reachable at one
+        # layer and unusable at the other. That is the same shape migration 0016 fixed
+        # for *listing* the organizations a grant covers; this is the acting half.
+        role_value = _support_role(connection, organization_id)
     if role_value is None:
         raise AppError(403, "forbidden", "The requested operation is not permitted.")
     role = Role(role_value)

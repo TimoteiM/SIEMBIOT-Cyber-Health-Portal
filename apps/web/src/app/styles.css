@@ -657,6 +657,13 @@ details > summary:hover { color: var(--text-primary); }
 }
 /* Sits on its own line above the title, so the title is read as the requirement it
    qualifies rather than as another badge in the row. */
+.heading-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 .requirement-unmet {
   flex-basis: 100%;
   font-size: 0.72rem;
