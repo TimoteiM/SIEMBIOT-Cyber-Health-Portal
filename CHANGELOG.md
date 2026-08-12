@@ -38,6 +38,19 @@ All notable changes are documented here. The project has no supported release ye
 - Append-only migration for assessments, observations, evaluations, score snapshots, findings, suppressions, and finding history under row-level security.
 - Published methodology v1 documentation, reference snapshot, and `policy-validate`, `test-normalization`, `test-scoring`, and `methodology-reproduce` targets.
 
+- Milestone 5 durable assessment orchestration: a step graph with per-step retry, idempotency keys, cancellation, and recovery of evidence lost to an in-memory context on resume.
+- Milestone 5 asset discovery from Certificate Transparency, with human review before any discovered host enters scope.
+- Milestone 7 maturity questionnaire, deterministic 0-5 scoring, and a 30/60/90 remediation roadmap.
+- Milestone 8 self-contained bilingual HTML assessment reports, marked CONFIDENTIAL, rendered from the stored snapshot and delivered through a hashed, single-use, five-minute grant bound to the person who asked.
+- Milestone 9 Public Observatory: a separate database role and schema, a moderated projection, consent capture, corrections and takedowns.
+- Milestone 10 data retention: every table classified, evidence expiring at ninety days, and a dedicated role that is the only one able to delete it.
+- Milestone 10 erasure of an organization on request, deriving the tables from the catalogue rather than a list, with a tombstone recording that it happened.
+- Milestone 10 a tamper-evident audit trail: events chained per organization by a database trigger, with `audit_chain_breaks()` to verify one.
+- Milestone 10 Prometheus, Alertmanager and a receiver, demonstrated firing and resolving end to end.
+- Milestone 10 measured performance baselines and a deliberately configured connection pool.
+- Collectors for exposed ports (authorized only), announcing-network attribution, and mail transport security, taking the total from six to nine.
+- Methodology 1.1.0, adding four checks by naming an additional check directory so 1.0.0 keeps loading exactly what it was published with.
+
 ### Security
 
 - DKIM selectors are collected only from organization declarations; selector wordlists are never tried.
@@ -61,6 +74,13 @@ All notable changes are documented here. The project has no supported release ye
 
 ### Verification
 
+- On 2026-08-12, audited the repository against the implementation plan and recorded the result in `docs/product/status-audit-2026-08-12.md`. Commands and exact results:
+  - `python scripts/bootstrap.py` — exit 0, on the second attempt. The first failed with `error: failed to remove directory ...\.venv\...: Access is denied. (os error 5)`, which is OneDrive holding files under sync on this path, not a repository defect. It recurred once and cleared on retry both times.
+  - `python scripts/verify_repo.py` — exit 0, **15/15 gates**: phase0 (395 files, 11 ADRs), repository (6 tests), locks, format, lint, types, unit, contracts, migrations, secrets, images, i18n, sbom, docs, diff.
+  - `python -m uv run --frozen pytest -q` — **1129 passed**, 0 failed, 0 skipped, exit 0.
+  - `corepack pnpm --filter @siembiot/web test` — **60 passed** across 8 files, exit 0.
+- The entry below this one, dated 2026-08-03, recorded 14 gates and 44 Python tests. That understated the suite by one gate and 1085 tests for nine days, because milestones 5 and 7 through 10 were merged without a changelog entry. `CONTRIBUTING.md` now requires one.
+
 - On 2026-08-03, fast-forwarded `main` from `0647393` to the unchanged Milestone 0 commit `40d639f` from `implementation/milestone-0`.
 - Verified the merged `main` state with `python scripts/bootstrap.py` (exit 0), `python scripts/verify_repo.py` (14/14 gates), `python -m uv run --frozen pytest -q` (13 passed), and `git show --check --oneline --stat HEAD` (exit 0).
 - On 2026-08-03, GitHub PR #1 passed remote `phase0` run `30804463289` and `ci` run `30804461427`, then merged Milestone 1 into `main` as merge commit `683fcfe03dbc97e89e5eda77ec2dcacc5098dcb1` without squashing its verified checkpoints.
@@ -68,5 +88,10 @@ All notable changes are documented here. The project has no supported release ye
 
 ### Known limitations
 
-- Tyche/agents, assessment execution, collectors, providers, queues, evidence, scoring, reports, public projection, restricted-egress deployment, and production operational hardening are not implemented yet.
+- **Milestone 6 (Tyche gateway) is not started.** There is no `services/agent-gateway/`, no agent JSON schemas, no `tests/agent_security/`, and no model integration of any kind. The workflow's `agent_analysis` step exists and is a permanent stub returning `skipped_model_disabled`, so the one acceptance clause that is met is "complete workflows remain usable with model disabled". The other three cannot be evidenced because the subject of them does not exist.
+- Milestone 8 has no dedicated e-mail or web/TLS posture page, no providers or settings page, no PDF output, and no visual-regression or accessibility test suite.
+- Milestone 10 has no scheduled off-host backups, no point-in-time recovery, no dashboards, no log aggregation, no provider cost metric, no TLS termination in the stack, no `infra/deploy/`, no container or IaC scanning, and no signed release artifacts.
+- Eight policy documents remain `review_status: draft` and are labelled as draft wherever they are displayed. Milestone 7's acceptance requires a licensing and legal review of the NIS2 Article 21 and CIS v8.1 mappings before they are finalised; that review has not happened.
+- Milestone 9's acceptance requires a recorded counsel and privacy review before live catalogue data. No such record exists.
+- No independent penetration test has been carried out.
 - The upstream Tyche credential exposure remains a production launch blocker outside this repository's authority.

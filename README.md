@@ -208,14 +208,36 @@ there yet. A runbook that omits its gaps reads as complete.
 
 ## Status
 
-Milestones 0–5, 7 and 9 are implemented; 8 and 10 are partly done. The
-[implementation plan](docs/plans/2026-08-03-production-implementation-plan.md) is the
-authority, and [deployment.md](docs/operations/deployment.md) lists the operational gaps
-plainly.
+Per milestone, against the
+[implementation plan](docs/plans/2026-08-03-production-implementation-plan.md). Last
+audited 2026-08-12 — the evidence for every row is in
+[the status audit](docs/product/status-audit-2026-08-12.md).
+
+| # | Milestone | Status |
+| --- | --- | --- |
+| 0 | Repository and reproducible toolchain | complete |
+| 1 | Contracts, database, auth, tenancy, audit | complete |
+| 2 | Domain verification, authorization, network safety | complete |
+| 3 | Provider framework and collectors | complete — nine collectors, plan named six |
+| 4 | Evidence, policy catalogue, scoring, findings | complete — methodology 1.0.0 and 1.1.0 |
+| 5 | Durable orchestration and assets | complete; `docs/operations/jobs.md` not written |
+| **6** | **Tyche gateway and grounded analysis** | **not started** — see below |
+| 7 | Maturity assessment and remediation | built; **awaiting licensing and legal review** of the NIS2 and CIS mappings before the catalogue can be finalised |
+| 8 | Dashboards, findings, history, reports | partly — ten pages and HTML reports are real; no providers, settings or dedicated posture pages, no PDF |
+| 9 | Public Observatory and moderation | built; **awaiting counsel and privacy review** before live catalogue data |
+| 10 | Operations and hardening | partly — retention, erasure, audit chaining, alerting, backup/restore and load baselines done; no scheduled off-host backups, PITR, dashboards, log aggregation or TLS termination |
+| 11 | Demo and release candidate | partly — demo and seed exist; no release gates, no independent penetration test |
+
+**Milestone 6 is not started, and that is stated here rather than folded into a
+summary.** There is no agent gateway service, no agent schemas, and no model integration
+of any kind. The workflow's `agent_analysis` step exists as a permanent stub that reports
+itself skipped, which means the one thing that *is* true is the one that matters most for
+safety: every assessment, finding, score and report this platform produces is
+deterministic, and none of it has ever depended on a model.
 
 Not production-ready. No independent penetration test has been carried out, no
-point-in-time recovery exists, and the questionnaire and remediation catalogues are
-substantially in draft — labelled as such wherever they are shown.
+point-in-time recovery exists, and eight policy documents are still in draft — labelled
+as such wherever they are shown.
 
 ## Documents
 
