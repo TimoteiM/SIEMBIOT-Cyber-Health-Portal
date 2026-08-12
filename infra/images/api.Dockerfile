@@ -31,7 +31,7 @@ RUN uv sync --frozen --no-dev --no-install-project
 
 COPY services ./services
 COPY packages/policy ./packages/policy
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev --extra pdf
 
 
 FROM python@sha256:bf503bb2243c5aad0aa951544dd60d165f992646441d35dea90893703fc26251
@@ -42,6 +42,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH" \
     PYTHONPATH=/app/services/api/src:/app/services/worker/src
+
+# Font and text-shaping libraries for PDF rendering. Named individually rather than by a
+# meta-package: a report renders Romanian diacritics, and a missing font produces a
+# document full of boxes that still looks like a successful render.
+RUN apt-get update \
+    && apt-get install --no-install-recommends --yes \
+        libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
 
 # A fixed uid rather than a name, so file ownership is the same whatever the host
 # resolves. 10001 is outside the range distributions assign to their own accounts.

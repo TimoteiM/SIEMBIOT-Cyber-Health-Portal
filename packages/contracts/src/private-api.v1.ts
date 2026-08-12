@@ -2128,6 +2128,8 @@ export interface components {
              * @constant
              */
             contract_version: "v1";
+            /** Document Format */
+            document_format: string;
             /** Download Path */
             download_path: string;
             /**
@@ -3276,6 +3278,7 @@ export interface operations {
         parameters: {
             query?: {
                 locale?: string;
+                document_format?: string;
             };
             header?: never;
             path: {

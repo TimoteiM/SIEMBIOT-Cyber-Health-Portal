@@ -3020,6 +3020,10 @@
             "title": "Contract Version",
             "type": "string"
           },
+          "document_format": {
+            "title": "Document Format",
+            "type": "string"
+          },
           "download_path": {
             "title": "Download Path",
             "type": "string"
@@ -3037,6 +3041,7 @@
         "required": [
           "download_path",
           "locale",
+          "document_format",
           "assessment_id",
           "expires_at"
         ],
@@ -4985,6 +4990,16 @@
             "schema": {
               "default": "ro",
               "title": "Locale",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "document_format",
+            "required": false,
+            "schema": {
+              "default": "html",
+              "title": "Document Format",
               "type": "string"
             }
           }

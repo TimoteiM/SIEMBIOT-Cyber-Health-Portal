@@ -366,3 +366,66 @@ def test_a_domain_in_another_organization_is_not_reportable(
     )
 
     assert response.status_code == 404
+
+
+# -- PDF ---------------------------------------------------------------------------------
+
+
+def test_the_format_is_fixed_when_the_grant_is_minted(
+    postgres_database: dict[str, str],
+) -> None:
+    """Like the language. A reader's URL must not change the form of a document somebody
+    else is accountable for having sent."""
+    tenant = seed(postgres_database["owner_url"])
+    client = client_for(postgres_database, tenant.user_id)
+
+    grant = mint(client, tenant)
+    assert grant["document_format"] == "html"
+
+    response = client.get(str(grant["download_path"]) + "?document_format=pdf")
+
+    assert response.headers["content-type"].startswith("text/html")
+
+
+def test_an_unknown_format_is_refused(postgres_database: dict[str, str]) -> None:
+    tenant = seed(postgres_database["owner_url"])
+    client = client_for(postgres_database, tenant.user_id)
+
+    response = client.post(
+        f"/api/v1/organizations/{tenant.organization_id}"
+        f"/domains/{tenant.domain_id}/reports?document_format=docx"
+    )
+
+    assert response.status_code == 422
+
+
+def test_pdf_availability_is_decided_at_mint_not_at_download(
+    postgres_database: dict[str, str],
+) -> None:
+    """A deployment without the renderer says so when the report is asked for, rather
+    than when the link is clicked -- by which time it has been sent to somebody.
+
+    Asserted whichever way this environment is configured: with a renderer the grant is
+    issued, without one the refusal names the reason. Both are correct; silently
+    returning HTML under a PDF link is not.
+    """
+    from siembiot_worker.reports.pdf import RENDERER_UNAVAILABLE, renderer_available
+
+    tenant = seed(postgres_database["owner_url"])
+    client = client_for(postgres_database, tenant.user_id)
+
+    response = client.post(
+        f"/api/v1/organizations/{tenant.organization_id}"
+        f"/domains/{tenant.domain_id}/reports?document_format=pdf"
+    )
+
+    if renderer_available():
+        assert response.status_code == 201
+        assert response.json()["document_format"] == "pdf"
+        downloaded = client.get(response.json()["download_path"])
+        assert downloaded.headers["content-type"] == "application/pdf"
+        assert downloaded.content[:5] == b"%PDF-"
+        assert downloaded.headers["content-disposition"].endswith('.pdf"')
+    else:
+        assert response.status_code == 503
+        assert response.json()["error"]["code"] == RENDERER_UNAVAILABLE

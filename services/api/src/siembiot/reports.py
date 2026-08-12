@@ -31,6 +31,7 @@ from siembiot_worker.reports import (
     ReportPillar,
     render_report,
 )
+from siembiot_worker.reports.pdf import RENDERER_UNAVAILABLE, render_pdf, renderer_available
 from sqlalchemy import Connection, text
 
 from siembiot.auth import current_principal
@@ -78,6 +79,7 @@ class ReportGrantResponse(ContractModel):
 
     download_path: str
     locale: str
+    document_format: str
     assessment_id: UUID
     expires_at: datetime
 
@@ -255,10 +257,21 @@ def build_report_router() -> APIRouter:
         domain_id: UUID,
         request: Request,
         locale: str = "ro",
+        document_format: str = "html",
         principal: Principal = Depends(current_principal),
     ) -> ReportGrantResponse:
         if locale not in LOCALES:
             raise AppError(422, "unsupported_locale", "The requested language is not available.")
+        if document_format not in {"html", "pdf"}:
+            raise AppError(422, "unsupported_format", "The requested format is not available.")
+        if document_format == "pdf" and not renderer_available():
+            # Named rather than a generic failure. "PDF is unavailable in this
+            # deployment" is a sentence somebody can act on; a 500 is not.
+            raise AppError(
+                503,
+                RENDERER_UNAVAILABLE,
+                "This deployment cannot produce PDF. The HTML report is available.",
+            )
 
         with _database(request).tenant_connection(principal.user_id, organization_id) as connection:
             authorize(connection, request, principal, organization_id, Action.ASSESSMENT_READ)
@@ -290,10 +303,10 @@ def build_report_router() -> APIRouter:
                 text(
                     """
                     INSERT INTO report_grants (organization_id, domain_id, assessment_id,
-                                               token_hash, locale, issued_to_user_id,
-                                               expires_at)
+                                               token_hash, locale, document_format,
+                                               issued_to_user_id, expires_at)
                     VALUES (:organization_id, :domain_id, :assessment_id, :token_hash,
-                            :locale, :user_id, :expires_at)
+                            :locale, :document_format, :user_id, :expires_at)
                     """
                 ),
                 {
@@ -302,6 +315,7 @@ def build_report_router() -> APIRouter:
                     "assessment_id": assessment["assessment_id"],
                     "token_hash": _hash(token),
                     "locale": locale,
+                    "document_format": document_format,
                     "user_id": principal.user_id,
                     "expires_at": expires_at,
                 },
@@ -310,6 +324,7 @@ def build_report_router() -> APIRouter:
         return ReportGrantResponse(
             download_path=f"/api/v1/reports/{token}",
             locale=locale,
+            document_format=document_format,
             assessment_id=assessment["assessment_id"],
             expires_at=expires_at,
         )
@@ -333,8 +348,8 @@ def build_report_router() -> APIRouter:
             grant = (
                 connection.execute(
                     text(
-                        "SELECT id, organization_id, domain_id, assessment_id, locale "
-                        "FROM app_claim_report_grant(:token_hash)"
+                        "SELECT id, organization_id, domain_id, assessment_id, locale, "
+                        "document_format FROM app_claim_report_grant(:token_hash)"
                     ),
                     {"token_hash": _hash(token)},
                 )
@@ -399,9 +414,24 @@ def build_report_router() -> APIRouter:
                 datetime.now(UTC),
             )
 
+        html = render_report(document, str(grant["locale"]))
+        wanted_pdf = str(grant["document_format"]) == "pdf"
+        rendered = render_pdf(html) if wanted_pdf else None
+        if wanted_pdf and rendered is None:
+            # The renderer was available when the grant was minted and is not now.
+            # Reported rather than silently downgraded to HTML: somebody expecting a
+            # document to hand to an auditor should not receive a different thing under
+            # the same name.
+            raise AppError(
+                503,
+                RENDERER_UNAVAILABLE,
+                "This deployment cannot produce PDF. Ask for the HTML report.",
+            )
+
+        suffix = "pdf" if wanted_pdf else "html"
         return Response(
-            content=render_report(document, str(grant["locale"])),
-            media_type="text/html; charset=utf-8",
+            content=rendered if rendered is not None else html,
+            media_type=("application/pdf" if wanted_pdf else "text/html; charset=utf-8"),
             headers={
                 # `no-store` rather than `private`: a shared or corporate proxy is not
                 # the only cache that matters, and a confidential document written to
@@ -411,7 +441,7 @@ def build_report_router() -> APIRouter:
                 # Downloaded rather than rendered in the origin, so nothing in the
                 # document shares a context with the application.
                 "Content-Disposition": (
-                    f'attachment; filename="report-{_filename_part(names["domain_name"])}.html"'
+                    f'attachment; filename="report-{_filename_part(names["domain_name"])}.{suffix}"'
                 ),
                 "X-Content-Type-Options": "nosniff",
                 "Referrer-Policy": "no-referrer",

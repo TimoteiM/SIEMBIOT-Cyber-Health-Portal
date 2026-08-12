@@ -34,6 +34,17 @@ dev = [
     "types-jsonschema==4.25.1.20251009",
 ]
 
+[project.optional-dependencies]
+# PDF rendering. Optional because it needs system libraries (pango, fontconfig) that the
+# worker image carries and a Windows developer machine does not. The product reports PDF
+# as unavailable rather than failing when it is absent, so a missing renderer degrades one
+# feature instead of the build.
+#
+# WeasyPrint rather than a headless browser: it executes no JavaScript and opens no
+# sockets, which for a document rendered from third-party evidence is a stronger guarantee
+# than a browser that merely has nothing to run.
+pdf = ["weasyprint==69.0"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--strict-config --strict-markers"
@@ -75,6 +86,13 @@ mypy_path = ["services/api/src", "services/worker/src", "services/agent-gateway/
 # checked strictly.
 [[tool.mypy.overrides]]
 module = "celery.*"
+ignore_missing_imports = true
+
+# PDF rendering is an optional extra, so on a machine without it installed there is
+# nothing for mypy to read. Scoped to the one module that imports it, and that module
+# already treats absence as an ordinary outcome rather than an error.
+[[tool.mypy.overrides]]
+module = "weasyprint.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
