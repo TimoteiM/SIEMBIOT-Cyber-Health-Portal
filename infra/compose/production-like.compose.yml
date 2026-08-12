@@ -170,7 +170,7 @@ services:
       SIEMBIOT_WORKER_DATABASE_URL: postgresql+psycopg://siembiot_worker:${SIEMBIOT_POSTGRES_WORKER_PASSWORD}@postgres:5432/${SIEMBIOT_POSTGRES_DB:-siembiot}
       # Only the scheduler applies retention, so only it holds the role that can
       # delete evidence. The workers never receive this credential.
-      SIEMBIOT_RETENTION_DATABASE_URL: postgresql+psycopg://siembiot_retention:${SIEMBIOT_POSTGRES_RETENTION_PASSWORD}@postgres:5432/${SIEMBIOT_POSTGRES_DB:-siembiot}
+      SIEMBIOT_RETENTION_DATABASE_URL: postgresql+psycopg://siembiot_retention:${SIEMBIOT_POSTGRES_RETENTION_PASSWORD:?set in local .env}@postgres:5432/${SIEMBIOT_POSTGRES_DB:-siembiot}
       SIEMBIOT_REDIS_URL: redis://redis:6379/0
       SIEMBIOT_LOG_LEVEL: ${SIEMBIOT_LOG_LEVEL:-INFO}
     depends_on:

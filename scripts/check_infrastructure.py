@@ -27,6 +27,7 @@ that is a failure of this script rather than a clean bill of health.
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -204,6 +205,76 @@ def check_images_are_pinned(document: dict[str, Any], name: str) -> list[str]:
     return problems
 
 
+#: One interpolation. `(?<!\$)` skips `$${VAR}`, which is compose's escape for passing a
+#: literal `${VAR}` through to a shell -- it is not an interpolation and flagging it would
+#: be a false positive in every healthcheck in the file.
+INTERPOLATION = re.compile(r"(?<!\$)\$\{([A-Za-z_][A-Za-z0-9_]*)(:[?-][^}]*)?\}")
+
+
+def check_interpolation_fails_closed(raw: str, name: str) -> list[str]:
+    """Every variable must be required or defaulted **somewhere** in the file.
+
+    Per variable, not per occurrence, and that distinction is the whole accuracy of this
+    rule. Compose evaluates every interpolation, so a single `${VAR:?reason}` anywhere in
+    the file stops the stack when VAR is unset -- and the same variable written bare in
+    six connection strings afterwards is then harmless. A rule that flagged each bare use
+    would report six problems where there is none, and the honest response to a checker
+    that cries wolf is to delete it.
+
+    What it does catch is a variable that is bare *everywhere*. Compose substitutes the
+    empty string for those and prints a warning nobody reads, so a missing password
+    becomes an empty password rather than a refusal to start.
+
+    Found exactly one on the day it was written: `SIEMBIOT_POSTGRES_RETENTION_PASSWORD`,
+    referenced by the stack and present in neither `.env` nor `.env.example`, which would
+    have brought a database role up with no password while every other role in the same
+    file failed closed.
+    """
+    qualified: set[str] = set()
+    seen: set[str] = set()
+    for variable, qualifier in INTERPOLATION.findall(raw):
+        seen.add(variable)
+        if qualifier:
+            qualified.add(variable)
+
+    return [
+        f"{name}: `{variable}` is interpolated without `:?` or `:-` anywhere in the file. "
+        "Compose substitutes the empty string for an unset variable, so this fails open -- "
+        "a missing credential becomes an empty one. Require it with `:?` at least once."
+        for variable in sorted(seen - qualified)
+    ]
+
+
+def check_referenced_variables_are_documented(raw: str, name: str) -> list[str]:
+    """Anything the stack reads must appear in `.env.example`.
+
+    A variable with a default does not need documenting to work, but one without a
+    default is a setting an operator has to know exists -- and the only place they would
+    learn that is the example file. `.env` itself is untracked, so it cannot be the
+    record.
+    """
+    example = ROOT / ".env.example"
+    if not example.is_file():
+        return [f"{name}: .env.example is missing, so nothing documents these settings"]
+
+    documented = {
+        line.split("=", 1)[0].strip()
+        for line in example.read_text(encoding="utf-8").splitlines()
+        if "=" in line and not line.lstrip().startswith("#")
+    }
+
+    problems: list[str] = []
+    for variable, qualifier in sorted(set(INTERPOLATION.findall(raw))):
+        if (qualifier or "").startswith(":-"):
+            continue  # has a default; it works without being set
+        if variable not in documented:
+            problems.append(
+                f"{name}: `{variable}` is required by the stack and is not in "
+                ".env.example. An operator has no way to learn it exists."
+            )
+    return problems
+
+
 def run() -> list[str]:
     problems: list[str] = []
 
@@ -221,6 +292,12 @@ def run() -> list[str]:
     problems += check_hardening(document, name)
     problems += check_the_database_is_not_published(document, name)
     problems += check_images_are_pinned(document, name)
+
+    # Read as text rather than through the parsed document: YAML gives back the
+    # substituted value, and the question here is about the substitution itself.
+    raw = PRODUCTION_LIKE.read_text(encoding="utf-8")
+    problems += check_interpolation_fails_closed(raw, name)
+    problems += check_referenced_variables_are_documented(raw, name)
 
     # The host-reaching rules apply to every compose file, not just the hardened one.
     for path in sorted(COMPOSE.glob("*.compose.yml")):

@@ -23,7 +23,9 @@ from check_infrastructure import (  # noqa: E402
     PRODUCTION_LIKE,
     check_hardening,
     check_images_are_pinned,
+    check_interpolation_fails_closed,
     check_nothing_reaches_the_host,
+    check_referenced_variables_are_documented,
     check_the_database_is_not_published,
     check_the_parse_found_something,
     load,
@@ -236,3 +238,64 @@ def test_every_compose_file_in_the_repository_parses() -> None:
     assert files, "no compose files found; the gate is looking in the wrong place"
     for path in files:
         assert isinstance(yaml.safe_load(path.read_text(encoding="utf-8")), dict), path.name
+
+
+# -- variable interpolation ----------------------------------------------------------------
+
+
+def test_a_variable_bare_everywhere_is_caught() -> None:
+    """The rule as it was actually needed. `SIEMBIOT_POSTGRES_RETENTION_PASSWORD` was
+    interpolated bare in the one place it appeared, so an unset value would have brought
+    a database role up with an empty password and a warning nobody reads."""
+    raw = "url: postgresql://role:${SOME_PASSWORD}@host/db"
+
+    problems = check_interpolation_fails_closed(raw, "f.yml")
+
+    assert any("SOME_PASSWORD" in problem for problem in problems)
+
+
+def test_a_variable_required_once_is_not_flagged_where_it_is_bare() -> None:
+    """The accuracy that keeps this rule usable.
+
+    Compose evaluates every interpolation, so one `:?` anywhere stops the stack and the
+    same variable written bare in six connection strings afterwards is harmless. Flagging
+    each bare use would report six problems where there are none, and a checker that
+    cries wolf gets deleted.
+    """
+    raw = """
+    postgres:
+      environment:
+        POSTGRES_PASSWORD: ${SOME_PASSWORD:?set in local .env}
+    api:
+      environment:
+        URL: postgresql://role:${SOME_PASSWORD}@host/db
+        OTHER: postgresql://role:${SOME_PASSWORD}@host/other
+    """
+
+    assert check_interpolation_fails_closed(raw, "f.yml") == []
+
+
+def test_a_shell_escape_is_not_mistaken_for_an_interpolation() -> None:
+    """`$${VAR}` is compose's escape for passing a literal `${VAR}` to a shell. Every
+    healthcheck in the real file uses it, and flagging them would have buried the one
+    genuine finding under six false ones."""
+    raw = 'test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB}"]'
+
+    assert check_interpolation_fails_closed(raw, "f.yml") == []
+
+
+def test_an_undocumented_required_variable_is_caught() -> None:
+    """`.env` is untracked, so the example file is the only record an operator has that
+    a setting exists at all."""
+    raw = "environment:\n  X: ${A_VARIABLE_NOBODY_DOCUMENTED:?required}"
+
+    problems = check_referenced_variables_are_documented(raw, "f.yml")
+
+    assert any("A_VARIABLE_NOBODY_DOCUMENTED" in problem for problem in problems)
+
+
+def test_a_variable_with_a_default_need_not_be_documented() -> None:
+    """It works without being set, so an operator who never learns of it is not stuck."""
+    raw = "environment:\n  X: ${SOMETHING_OPTIONAL:-a-sensible-default}"
+
+    assert check_referenced_variables_are_documented(raw, "f.yml") == []

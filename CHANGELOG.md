@@ -65,6 +65,20 @@ All notable changes are documented here. The project has no supported release ye
 - Milestone 10 Grafana dashboard whose panels plot the series the alert rules read, at the thresholds those rules fire at.
 - ADR-0012 deciding point-in-time recovery is required for the audit trail and why evidence does not need it.
 
+### Fixed
+
+- **The retention role could have started with a blank password.** Every other credential
+  in the production-like stack is written `${VAR:?set in local .env}`, which stops the
+  stack when it is unset; `SIEMBIOT_POSTGRES_RETENTION_PASSWORD` was interpolated bare, so
+  compose would substitute the empty string and print a warning nobody reads. It was also
+  in neither `.env` nor `.env.example`, so nothing told an operator it existed. Found by
+  running the stack rather than by reading it.
+  The `infrastructure` gate now enforces both: every variable must be required or
+  defaulted somewhere in the file, and anything required must appear in `.env.example`.
+  The rule is per *variable* rather than per occurrence -- one `:?` anywhere protects the
+  bare uses that follow, and flagging each of those would have reported six problems
+  where there was one, which is how a checker earns being deleted.
+
 ### Security
 
 - **PyJWT removed entirely.** The new container scan found CVE-2026-48526 in it on its
