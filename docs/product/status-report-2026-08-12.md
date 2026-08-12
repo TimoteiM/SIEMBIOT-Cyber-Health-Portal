@@ -71,7 +71,7 @@ be wrong but that it is not the model's to make.
 *Evidence:* `tests/agent_security/test_agent_boundary.py`,
 `tests/agent_security/test_agent_contracts.py`.
 
-### 5. Authorization and audit history cannot be silently rewritten — **verified**
+### 5. Authorization and audit history cannot be silently rewritten — **verified, with a stated gap in the historical record**
 
 Audit was append-only and **not** tamper-evident: `previous_hash` and `event_hash` existed
 from the first migration and nothing ever wrote them. Events are now chained per
@@ -83,7 +83,41 @@ Existing rows were deliberately **not** backfilled: hashing them now would certi
 whatever they say today, and a chain reporting a spotless history it cannot vouch for is
 worse than no chain.
 
-*Evidence:* `tests/security/test_audit_chain.py` (11 tests, mostly attacks).
+*Evidence:* `tests/security/test_audit_chain.py` (11 tests, mostly attacks), plus a run
+against live data — see below.
+
+**Verified against the live database, not only in unit tests.** The first run was nearly
+vacuous and said so: 1 chained row out of 26, because everything else predated the trigger.
+An empty result over one row proves almost nothing, which is the question worth asking of
+any "no problems found".
+
+So real traffic was generated through the API until there were seven chained rows, and
+then the chain was attacked in a transaction that was rolled back afterwards:
+
+| | |
+| --- | --- |
+| baseline | `audit_chain_breaks()` — EMPTY over 7 chained rows |
+| altering a real row | detected: *event_hash does not match this row's contents* |
+| deleting a real row | detected: *previous_hash does not match the preceding event* |
+| after rollback | EMPTY again, all rows intact |
+
+The boundary is clean: sequence numbers up to 64 were written before migration `0019` and
+carry no hash; everything from 65 onward is chained. Unhashed rows are valid only as a
+contiguous prefix, so one appearing later would itself be a break.
+
+**A second defect surfaced while doing this**, and it is the more serious of the two.
+Generating denials to populate the chain produced none: `authorization.denied` had **zero**
+rows in a database with fifteen `assessment.queued` rows. `authorize` appended the event
+and then raised, both inside the request's transaction, and `engine.begin()` rolls back on
+an exception. Every refusal since migration `0001` was recorded and discarded in the same
+breath.
+
+Proved rather than assumed — an append-then-raise probe against the real database left the
+row count unchanged — and fixed by writing the refusal on its own connection. Six denials
+generated through the API now persist, chain, and verify. `tests/security/test_denials_are_recorded.py`
+covers it, including a guard asserting that a permitted caller still gets through, because
+the first version of that test used an origin the API refuses and never reached
+authorization at all.
 
 ### 6. Core demo and deterministic collectors work without paid providers or a model — **verified**
 

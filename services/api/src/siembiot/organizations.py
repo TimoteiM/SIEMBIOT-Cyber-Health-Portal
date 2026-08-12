@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime, timedelta
 from typing import cast
 from uuid import UUID, uuid4
@@ -26,6 +27,8 @@ from siembiot.contracts import (
 from siembiot.db import Database
 from siembiot.errors import AppError
 from siembiot.identity import Principal
+
+log = logging.getLogger("siembiot.authorization")
 
 
 def _request_id(request: Request) -> str:
@@ -79,21 +82,51 @@ def authorize(
         raise AppError(403, "forbidden", "The requested operation is not permitted.")
     role = Role(role_value)
     if not is_allowed(role, action):
-        append_audit_event(
-            connection,
-            organization_id=organization_id,
-            actor_type="user",
-            actor_id=str(principal.user_id),
-            action="authorization.denied",
-            resource_type="organization",
-            resource_id=str(organization_id),
-            request_id=_request_id(request),
-            correlation_id=request.state.correlation_id,
-            outcome="denied",
-            context={"requested_action": action.value, "role": role.value},
-        )
+        _record_denial(request, principal, organization_id, action, role)
         raise AppError(403, "forbidden", "The requested operation is not permitted.")
     return role
+
+
+def _record_denial(
+    request: Request,
+    principal: Principal,
+    organization_id: UUID,
+    action: Action,
+    role: Role,
+) -> None:
+    """Write the refusal on its own connection, so raising does not discard it.
+
+    This used to append to the request's connection and then raise. `engine.begin()`
+    rolls back on an exception, so every denied attempt was recorded and thrown away in
+    the same breath: a database with fifteen `assessment.queued` rows had zero
+    `authorization.denied` rows, and refusals had certainly happened.
+
+    A separate transaction is the whole fix. The audit of a refusal has to outlive the
+    refusal, or the trail says only what succeeded -- which is the opposite of what an
+    audit trail is for, since the attempts worth investigating are the ones that failed.
+
+    Failure to record is swallowed deliberately. The caller is being denied either way,
+    and turning an audit problem into a 500 would tell an attacker they had found
+    something more interesting than a refusal.
+    """
+    database = cast("Database", request.app.state.database)
+    try:
+        with database.tenant_connection(principal.user_id, organization_id) as audit:
+            append_audit_event(
+                audit,
+                organization_id=organization_id,
+                actor_type="user",
+                actor_id=str(principal.user_id),
+                action="authorization.denied",
+                resource_type="organization",
+                resource_id=str(organization_id),
+                request_id=_request_id(request),
+                correlation_id=request.state.correlation_id,
+                outcome="denied",
+                context={"requested_action": action.value, "role": role.value},
+            )
+    except Exception:  # noqa: BLE001 - see the docstring
+        log.warning("could not record an authorization denial", exc_info=True)
 
 
 def _organization_response(row: RowMapping) -> OrganizationResponse:

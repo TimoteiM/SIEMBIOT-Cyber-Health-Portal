@@ -62,6 +62,23 @@ All notable changes are documented here. The project has no supported release ye
 
 ### Security
 
+- **The audit trail was not tamper-evident before 2026-08-12.** `previous_hash` and
+  `event_hash` were added to `audit_events` in migration `0001` with a CHECK constraint
+  fixing them at 32 bytes, and nothing ever wrote either column: every row in every
+  deployment carried two nulls. The trail was append-only, which stops the application
+  rewriting history, and it was not chained, which is what would have stopped anybody
+  holding the database credentials. Those are different guarantees and the schema read as
+  though it provided both. Migration `0019` chains events per organisation in a database
+  trigger. Rows written before it are deliberately not backfilled -- hashing them now
+  would certify whatever they say today, so an already-altered row would be laundered as
+  genuine -- and are reported as predating tamper-evidence rather than as breaks.
+- **Denied authorization attempts were recorded and discarded, from `0001` until
+  2026-08-12.** `authorize` appended an `authorization.denied` event and then raised,
+  both inside the request's transaction; `engine.begin()` rolls back on an exception, so
+  the write never survived. A database holding fifteen `assessment.queued` rows held zero
+  `authorization.denied` rows. The refusal is now written on its own connection, so it
+  outlives the request that was refused.
+
 - DKIM selectors are collected only from organization declarations; selector wordlists are never tried.
 - RDAP entity and contact objects are discarded at parse time; only registration facts are retained.
 - Certificate Transparency names are recorded as confidence-labelled candidates, never as confirmed organizational assets.
