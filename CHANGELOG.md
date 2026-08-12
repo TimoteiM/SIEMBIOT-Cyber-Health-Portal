@@ -51,6 +51,15 @@ All notable changes are documented here. The project has no supported release ye
 - Collectors for exposed ports (authorized only), announcing-network attribution, and mail transport security, taking the total from six to nine.
 - Methodology 1.1.0, adding four checks by naming an additional check directory so 1.0.0 keeps loading exactly what it was published with.
 
+- Milestone 6 Tyche gateway: versioned agent contracts, a claim validator that drops any sentence not citing immutable evidence or an approved reference, a closed read-only tool set, per-run budgets, and an adversarial suite covering scope escalation, prompt injection, hostile tool output, cross-tenant citation, budget exhaustion, cancellation and provider outage.
+- Milestone 8 PDF reports rendered by a engine that executes no JavaScript and opens no sockets, offered only where the renderer is present and refused by name where it is not.
+- Milestone 8 provider disclosure page, generated from the adapter descriptors the collectors actually run under.
+- Milestone 8 organisation settings page carrying the emergency stop at the level it applies to.
+- Milestone 10 scheduled backups that refuse a destination inside the repository or sharing a filesystem with the database.
+- Milestone 10 shared provider quota in Redis with an atomic consume, snapshotted to PostgreSQL so a budget is visible to the metrics endpoint and alertable.
+- Milestone 10 Grafana dashboard whose panels plot the series the alert rules read, at the thresholds those rules fire at.
+- ADR-0012 deciding point-in-time recovery is required for the audit trail and why evidence does not need it.
+
 ### Security
 
 - DKIM selectors are collected only from organization declarations; selector wordlists are never tried.
@@ -74,6 +83,14 @@ All notable changes are documented here. The project has no supported release ye
 
 ### Verification
 
+- On 2026-08-12, after the Milestone 6 gateway, backups, quota, settings, dashboards and PDF work:
+  - `python scripts/verify_repo.py` — exit 0, **15/15 gates**.
+  - `python -m uv run --frozen pytest -q` — **1235 passed**, 0 failed, 0 skipped.
+  - `corepack pnpm --filter @siembiot/web test` — **60 passed** across 8 files.
+  - `pytest tests/agent_security -q` — **70 passed**; `tests/agent_security/test_disabled_gateway_fallback.py` — **4 passed**.
+  - PDF verified inside the Linux image rather than on the development host, which cannot import the renderer: a real report rendered to `%PDF-`, first page converted to an image and inspected, Romanian diacritics intact.
+- Earlier the same day, the audit recorded in `docs/product/status-audit-2026-08-12.md`: 15/15 gates, 1129 Python tests, 60 web tests, against a changelog claiming 14 gates and 44 tests.
+
 - On 2026-08-12, audited the repository against the implementation plan and recorded the result in `docs/product/status-audit-2026-08-12.md`. Commands and exact results:
   - `python scripts/bootstrap.py` — exit 0, on the second attempt. The first failed with `error: failed to remove directory ...\.venv\...: Access is denied. (os error 5)`, which is OneDrive holding files under sync on this path, not a repository defect. It recurred once and cleared on retry both times.
   - `python scripts/verify_repo.py` — exit 0, **15/15 gates**: phase0 (395 files, 11 ADRs), repository (6 tests), locks, format, lint, types, unit, contracts, migrations, secrets, images, i18n, sbom, docs, diff.
@@ -88,9 +105,9 @@ All notable changes are documented here. The project has no supported release ye
 
 ### Known limitations
 
-- **Milestone 6 (Tyche gateway) is not started.** There is no `services/agent-gateway/`, no agent JSON schemas, no `tests/agent_security/`, and no model integration of any kind. The workflow's `agent_analysis` step exists and is a permanent stub returning `skipped_model_disabled`, so the one acceptance clause that is met is "complete workflows remain usable with model disabled". The other three cannot be evidenced because the subject of them does not exist.
-- Milestone 8 has no dedicated e-mail or web/TLS posture page, no providers or settings page, no PDF output, and no visual-regression or accessibility test suite.
-- Milestone 10 has no scheduled off-host backups, no point-in-time recovery, no dashboards, no log aggregation, no provider cost metric, no TLS termination in the stack, no `infra/deploy/`, no container or IaC scanning, and no signed release artifacts.
+- **Milestone 6 ships no model.** The gateway, its contracts, its budgets and its adversarial suite exist and pass, and `DisabledProvider` is the only implementation: no Semantic Kernel or vendor adapter is included, and the analyst panel does not yet distinguish Measured from Inferred from Recommended. Every assessment, finding, score and report this platform produces is deterministic and none has ever depended on a model.
+- Milestone 8 has no dedicated e-mail or web/TLS posture page — those checks render on the domain and findings pages — and no visual-regression or accessibility test suite.
+- Milestone 10 has no configured backup destination, no point-in-time recovery configured, no log aggregation, no TLS termination in the stack, no `infra/deploy/`, no container or IaC scanning, and no signed release artifacts.
 - Eight policy documents remain `review_status: draft` and are labelled as draft wherever they are displayed. Milestone 7's acceptance requires a licensing and legal review of the NIS2 Article 21 and CIS v8.1 mappings before they are finalised; that review has not happened.
 - Milestone 9's acceptance requires a recorded counsel and privacy review before live catalogue data. No such record exists.
 - No independent penetration test has been carried out.

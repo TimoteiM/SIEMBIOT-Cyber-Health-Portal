@@ -211,7 +211,8 @@ there yet. A runbook that omits its gaps reads as complete.
 Per milestone, against the
 [implementation plan](docs/plans/2026-08-03-production-implementation-plan.md). Last
 audited 2026-08-12 — the evidence for every row is in
-[the status audit](docs/product/status-audit-2026-08-12.md).
+[the status audit](docs/product/status-audit-2026-08-12.md), and the position against the
+release invariants is in [the status report](docs/product/status-report-2026-08-12.md).
 
 | # | Milestone | Status |
 | --- | --- | --- |
@@ -221,18 +222,23 @@ audited 2026-08-12 — the evidence for every row is in
 | 3 | Provider framework and collectors | complete — nine collectors, plan named six |
 | 4 | Evidence, policy catalogue, scoring, findings | complete — methodology 1.0.0 and 1.1.0 |
 | 5 | Durable orchestration and assets | complete; `docs/operations/jobs.md` not written |
-| **6** | **Tyche gateway and grounded analysis** | **not started** — see below |
+| 6 | Tyche gateway and grounded analysis | built and tested; **ships no model** — see below |
 | 7 | Maturity assessment and remediation | built; **awaiting licensing and legal review** of the NIS2 and CIS mappings before the catalogue can be finalised |
-| 8 | Dashboards, findings, history, reports | partly — ten pages and HTML reports are real; no providers, settings or dedicated posture pages, no PDF |
+| 8 | Dashboards, findings, history, reports | pages, HTML and PDF reports, providers and settings all real; no dedicated e-mail or web/TLS posture page, no visual-regression or accessibility suite |
 | 9 | Public Observatory and moderation | built; **awaiting counsel and privacy review** before live catalogue data |
-| 10 | Operations and hardening | partly — retention, erasure, audit chaining, alerting, backup/restore and load baselines done; no scheduled off-host backups, PITR, dashboards, log aggregation or TLS termination |
+| 10 | Operations and hardening | retention, erasure, audit chaining, alerting, dashboards, backup schedule, quota metering and load baselines done; **no backup destination configured**, no PITR configured, no log aggregation, no TLS termination, no container scanning |
 | 11 | Demo and release candidate | partly — demo and seed exist; no release gates, no independent penetration test |
 
-**Milestone 6 is not started, and that is stated here rather than folded into a
-summary.** There is no agent gateway service, no agent schemas, and no model integration
-of any kind. The workflow's `agent_analysis` step exists as a permanent stub that reports
-itself skipped, which means the one thing that *is* true is the one that matters most for
-safety: every assessment, finding, score and report this platform produces is
+**Milestone 6 ships no model, and that is stated here rather than folded into a
+summary.** The gateway exists: versioned contracts, a validator that drops any sentence
+not citing evidence, a closed read-only tool set, per-run budgets, and 70 adversarial
+tests covering scope escalation, prompt injection, hostile tool output and cross-tenant
+citation. What it does not include is a provider — `DisabledProvider` is the only
+implementation — or an interface that distinguishes Measured from Inferred from
+Recommended.
+
+The thing that matters most for safety is unchanged and is now tested rather than
+asserted: every assessment, finding, score and report this platform produces is
 deterministic, and none of it has ever depended on a model.
 
 Not production-ready. No independent penetration test has been carried out, no
