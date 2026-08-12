@@ -301,6 +301,45 @@ The resolved notification waits a full `group_interval` behind the firing one. T
 the configuration working, not a fault, but it is worth knowing before somebody watches
 for one and concludes the chain is broken.
 
+## Measured behaviour
+
+Numbers, rather than the reasoned guesses that stood in for them. Taken with
+`scripts/load_test.py` against one API process and one PostgreSQL container on a
+developer laptop, so treat them as shape and ratio rather than as capacity for a
+deployment -- and re-measure there.
+
+**Tenant reads** (a domain's findings, through row-level security):
+
+| concurrent clients | throughput | p50 | p99 |
+| --- | --- | --- | --- |
+| 1 | 24/s | 44ms | 88ms |
+| 8 | ~101/s | 66ms | ~300ms |
+| 24 | ~112/s | 197ms | ~460ms |
+
+Throughput flattens around a hundred reads a second; past that, more clients buy latency
+rather than work. That ceiling is the API process itself, not the pool.
+
+**Audit writes**, which are chained and therefore serialized per organization:
+
+| | throughput | p50 | p99 |
+| --- | --- | --- | --- |
+| 16 writers, one organization | 452/s | 27ms | 72ms |
+| 16 writers, eight organizations | 982/s | 5ms | 11ms |
+
+Spreading the same work across eight organizations gives 2.2x the throughput, which is
+the per-organization lock behaving as designed: it serializes an institution's own
+history and nothing else. Four hundred and fifty events a second within one institution
+is far beyond what one generates, so the chain's cost is real and not a constraint.
+
+**The connection pool is set deliberately** in `db.py`, and the reason is in the comment
+there. It was at SQLAlchemy's defaults, which nobody had chosen: at 24 concurrent clients
+that cost about a third of the throughput and doubled the tail. Below saturation it makes
+no difference at all -- the pool was never the limit there.
+
+The ceiling that matters for a deployment is the other one: PostgreSQL accepts
+`max_connections` in total, and every API replica multiplies its pool. Raise one without
+the other and the failure moves from "slow" to "the database refuses connections".
+
 ## What is not here yet
 
 Stated rather than implied, because a runbook that omits its gaps reads as complete:
@@ -317,4 +356,5 @@ Stated rather than implied, because a runbook that omits its gaps reads as compl
 - **No dashboards.** The metrics support them; none are defined.
 - **No TLS termination or identity gateway** in this stack. Both are assumed to be in
   front of it; the API's identity resolver is built for exactly that arrangement.
+- **No load testing beyond a laptop.** The numbers above are shape, not capacity.
 - **No provider budget or cost monitoring.**

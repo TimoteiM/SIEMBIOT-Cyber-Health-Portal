@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import statistics
 import sys
 import time
 import urllib.error
@@ -156,21 +155,26 @@ def cleanup(organizations: list[UUID]) -> None:
             connection.execute(
                 "DELETE FROM memberships WHERE organization_id = %s", (str(organization_id),)
             )
-            connection.execute(
-                "DELETE FROM organizations WHERE id = %s", (str(organization_id),)
-            )
+            connection.execute("DELETE FROM organizations WHERE id = %s", (str(organization_id),))
 
 
 # -- reads ----------------------------------------------------------------------------
 
 
-def fetch(url: str, count: int) -> tuple[list[float], int]:
+def fetch(url: str, count: int, headers: dict[str, str] | None = None) -> tuple[list[float], int]:
+    """Measured with whatever headers the real caller sends.
+
+    A tenant read is only interesting with an identity attached: without one it never
+    reaches row-level security, and the policies are the part whose cost is invisible in
+    a single-user test.
+    """
     durations: list[float] = []
     failures = 0
+    request = urllib.request.Request(url, headers=headers or {})  # noqa: S310
     for _ in range(count):
         started = time.perf_counter()
         try:
-            with urllib.request.urlopen(url, timeout=10) as response:  # noqa: S310
+            with urllib.request.urlopen(request, timeout=10) as response:  # noqa: S310
                 response.read()
             durations.append(time.perf_counter() - started)
         except (urllib.error.URLError, TimeoutError, OSError):
@@ -178,10 +182,12 @@ def fetch(url: str, count: int) -> tuple[list[float], int]:
     return durations, failures
 
 
-def measure_reads(url: str, clients: int, per_client: int) -> Sample:
+def measure_reads(
+    url: str, clients: int, per_client: int, headers: dict[str, str] | None = None
+) -> Sample:
     started = time.perf_counter()
     with ThreadPoolExecutor(max_workers=clients) as pool:
-        results = list(pool.map(lambda _: fetch(url, per_client), range(clients)))
+        results = list(pool.map(lambda _: fetch(url, per_client, headers), range(clients)))
     elapsed = time.perf_counter() - started
     return Sample(
         [duration for durations, _ in results for duration in durations],
@@ -204,11 +210,23 @@ def main() -> int:
     reads.add_argument("--url", required=True)
     reads.add_argument("--clients", type=int, default=16)
     reads.add_argument("--per-client", type=int, default=20)
+    reads.add_argument(
+        "--header",
+        action="append",
+        default=[],
+        metavar="NAME:VALUE",
+        help="sent with every request; repeatable, for the identity a real caller carries",
+    )
 
     arguments = parser.parse_args()
 
     if arguments.command == "reads":
-        print(measure_reads(arguments.url, arguments.clients, arguments.per_client).report("reads"))
+        headers = dict(item.split(":", 1) for item in arguments.header)
+        print(
+            measure_reads(arguments.url, arguments.clients, arguments.per_client, headers).report(
+                "reads"
+            )
+        )
         return 0
 
     organizations = seed_organizations(arguments.organizations)
@@ -221,8 +239,7 @@ def main() -> int:
         spread = measure_audit(organizations, arguments.writers, arguments.per_writer)
         print(
             spread.report(
-                f"audit writes, {arguments.writers} writers, "
-                f"{len(organizations)} organizations"
+                f"audit writes, {arguments.writers} writers, {len(organizations)} organizations"
             )
         )
 

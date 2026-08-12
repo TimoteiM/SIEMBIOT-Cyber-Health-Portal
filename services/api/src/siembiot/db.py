@@ -11,8 +11,46 @@ class LeastPrivilegeError(RuntimeError):
     """The API is connected as a role that row-level security does not apply to."""
 
 
+#: How many connections one API process keeps, and how many more it may open under a
+#: burst.
+#:
+#: Chosen rather than inherited. SQLAlchemy defaults to 5 + 10, and a load test found the
+#: API saturating at that ceiling: throughput fell from 102 to 83 reads a second between
+#: 8 and 24 concurrent clients while latency tripled, because nine of them were queueing
+#: for a connection rather than doing anything.
+#:
+#: The number is bounded from the other end too, and that is the more important
+#: constraint: PostgreSQL accepts `max_connections` in total, and every API replica
+#: multiplies whatever is set here. The arithmetic a deployment has to satisfy is
+#:
+#:     replicas x (POOL_SIZE + MAX_OVERFLOW) + workers + scheduler + retention
+#:         < max_connections
+#:
+#: With the defaults below and Postgres's own default of 100, that permits four replicas
+#: with room to spare. Raising these without raising `max_connections` moves the failure
+#: from "slow under load" to "the database refuses connections", which is worse and
+#: arrives without warning.
+POOL_SIZE = 10
+MAX_OVERFLOW = 5
+
+#: How long a request waits for a connection before giving up.
+#:
+#: SQLAlchemy waits 30 seconds. A caller has almost always stopped listening by then, so
+#: the wait costs a connection slot and returns something nobody reads. Ten seconds is
+#: long enough to ride out a burst and short enough that a saturated pool reports itself
+#: as an error somebody can see, rather than as a service that has become mysteriously
+#: slow.
+POOL_TIMEOUT_SECONDS = 10
+
+
 class Database:
-    def __init__(self, url: str, connect_timeout_seconds: int = 10) -> None:
+    def __init__(
+        self,
+        url: str,
+        connect_timeout_seconds: int = 10,
+        pool_size: int = POOL_SIZE,
+        max_overflow: int = MAX_OVERFLOW,
+    ) -> None:
         # A bounded connect timeout so a misconfigured deployment fails in seconds
         # rather than minutes. Startup verifies the connected role, and without this a
         # wrong host makes the API hang -- which reads as a broken service rather than
@@ -20,6 +58,12 @@ class Database:
         self.engine: Engine = create_engine(
             url,
             pool_pre_ping=True,
+            pool_size=pool_size,
+            max_overflow=max_overflow,
+            pool_timeout=POOL_TIMEOUT_SECONDS,
+            # Recycled well inside any sensible idle timeout on the database side, so a
+            # connection the server has already closed is never handed to a request.
+            pool_recycle=1800,
             connect_args={"connect_timeout": connect_timeout_seconds},
         )
 
