@@ -34,6 +34,21 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN groupadd --gid 10002 siembiot \
     && useradd --uid 10002 --gid 10002 --no-create-home --shell /usr/sbin/nologin siembiot
 
+# pg_dump, for the nightly backup task.
+#
+# Major version 17 specifically, matching the server: pg_dump refuses to dump from a
+# server newer than itself, so a 16 client against a 17 database is a backup that stops
+# working on the day the database is upgraded and not before.
+#
+# From Debian's own archive rather than the PostgreSQL project's apt repository, which
+# would mean trusting an additional signing key for a package the base distribution
+# already carries. `postgresql-client-17` is ~10 MB against an image measured in
+# hundreds; the alternative -- a task that reports `pg_dump_not_available` every night --
+# costs more.
+RUN apt-get update \
+    && apt-get install --no-install-recommends --yes postgresql-client-17 \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 COPY --from=build --chown=root:root /opt/venv /opt/venv
 COPY --chown=root:root services/worker /app/services/worker

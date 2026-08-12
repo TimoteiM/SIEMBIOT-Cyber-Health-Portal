@@ -196,3 +196,42 @@ def test_hostile_label_values_cannot_break_the_format(value: str) -> None:
     rendered = Metric("assessments", [({"state": value}, 1.0)]).render()
     body_lines = [line for line in rendered.splitlines() if not line.startswith("#")]
     assert len(body_lines) == 1, "a label value split the sample across lines"
+
+
+# -- the one metric that must not default to zero -----------------------------------------
+
+
+def test_an_unreadable_database_does_not_report_a_fresh_backup() -> None:
+    """The dangerous default.
+
+    Every other metric fills in at zero when the scrape produces nothing, and zero is the
+    honest reading of an absent count: none happened. For an *age* it is the opposite. Nil
+    seconds since the last backup reads as "backed up moments ago", so a database the
+    exporter cannot reach would hold `BackupStale` quiet for exactly as long as the outage
+    lasted -- silencing the alert in the one situation where somebody needs it.
+
+    Ten years is the same sentinel the SQL function returns for a platform that has never
+    taken a backup, and no threshold survives it.
+    """
+    body = render([], scrape_ok=False)
+
+    line = next(
+        text
+        for text in body.splitlines()
+        if text.startswith(f"{PREFIX}last_successful_backup_seconds ")
+    )
+
+    assert float(line.split()[-1]) > 86_400 * 365, line
+
+
+def test_a_missing_count_still_defaults_to_zero() -> None:
+    """The other side of the rule above, so the sentinel is not applied to everything.
+
+    "No schedules are due" is genuinely zero, and reporting a decade there would page
+    somebody about a healthy platform.
+    """
+    body = render([], scrape_ok=False)
+
+    line = next(text for text in body.splitlines() if text.startswith(f"{PREFIX}schedules_due "))
+
+    assert float(line.split()[-1]) == 0.0, line

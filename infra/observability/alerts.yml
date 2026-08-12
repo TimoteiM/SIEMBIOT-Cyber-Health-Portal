@@ -149,3 +149,42 @@ groups:
             alert rather than something to notice in a report. Ten minutes because a
             single refusal at the edge of a window is not worth a message.
             Raise the budget, or find out what is spending it.
+
+  - name: siembiot-backups
+    interval: 1m
+    rules:
+      - alert: BackupStale
+        expr: siembiot_last_successful_backup_seconds > 129600
+        for: 15m
+        labels:
+          severity: page
+        annotations:
+          summary: "No successful backup for more than a day and a half"
+          description: >-
+            The nightly backup has not completed. Nothing breaks when backups stop --
+            that is the whole problem with them, and it is why this measures the age of
+            the newest good one rather than counting runs: a count cannot tell a healthy
+            platform from one whose last backup was a fortnight ago.
+            Thirty-six hours rather than twenty-four, so one missed night during a
+            deployment does not page anybody, while two consecutive failures do.
+            `backup_runs` holds the reason. The likely ones are configuration:
+            `SIEMBIOT_BACKUP_DESTINATION` unset or pointing at the database's own
+            filesystem, `SIEMBIOT_BACKUP_DATABASE_URL` unset, or an image without
+            `postgresql-client-17` reporting `pg_dump_not_available`.
+            Pages rather than warns because the cost is asymmetric: this is the one
+            alert whose consequence is unrecoverable, and it is only ever discovered at
+            the moment somebody needs a restore.
+
+      - alert: BackupFailing
+        expr: siembiot_failed_backups_recent > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "A backup attempt failed"
+          description: >-
+            The scheduler fired and the backup did not complete. Paired with BackupStale
+            deliberately: this one distinguishes "tried and failed" from "never ran",
+            which are different problems with different fixes, and BackupStale alone
+            cannot tell them apart. It fires a day and a half earlier, so there is time
+            to fix the cause before the age threshold is reached.

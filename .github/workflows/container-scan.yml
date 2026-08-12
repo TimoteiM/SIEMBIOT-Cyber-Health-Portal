@@ -1,0 +1,99 @@
+# Known vulnerabilities in the images this project ships.
+#
+# The other half of container scanning -- misconfiguration -- runs in `make check` as
+# `scripts/check_infrastructure.py`, with no external tool and no network, because rules
+# that *can* always run are the ones that must never be able to silently not run.
+#
+# This half genuinely cannot. A vulnerability scan needs a database of what is currently
+# known, which means a download, which means a network and a tool that might be missing.
+# That is exactly the situation where a check quietly turns into a no-op, so it lives
+# here rather than in the local gate: in CI the scanner is a digest-pinned image that
+# either runs or fails the job. There is no third outcome, and nowhere for the exit code
+# to be swallowed.
+#
+# Scheduled as well as on push, and that is the point. A vulnerability is not introduced
+# by a commit -- it is disclosed. An image that was clean on Tuesday is not clean on
+# Friday because the world learned something, and a scan that only runs on push would
+# never notice.
+
+name: container-scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Daily. The images do not change often; what changes is what is known about them.
+    - cron: "17 4 * * *"
+
+permissions:
+  contents: read
+
+env:
+  # Pinned by digest like every other image in this repository. A tag is reproducible
+  # until somebody republishes it, and a scanner is a poor thing to be surprised by.
+  TRIVY: aquasec/trivy@sha256:7cced7cae583819fc7806d4cbc0dbbc7cad18b99f7d3e235192e6da8c091045c
+  # The default mirror (mirror.gcr.io) returned 404s for the database layer while this
+  # was being set up. Naming the upstream repository explicitly removes a dependency on
+  # a cache nobody here controls.
+  TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db:2
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Build every image
+        # Built rather than pulled: the point is to scan what this commit produces, not
+        # what a registry happens to be holding.
+        run: |
+          set -euo pipefail
+          for image in api worker beat web; do
+            docker build -f "infra/images/${image}.Dockerfile" -t "siembiot-${image}:scan" .
+          done
+
+      - name: Scan Dockerfiles for misconfiguration
+        # Trivy's own rules, which overlap ours only partly: it reads Dockerfiles and
+        # not compose files, which is why `check_infrastructure.py` exists and covers
+        # the compose stack instead of duplicating this.
+        run: |
+          docker run --rm -v "${PWD}:/repo" -e TRIVY_DB_REPOSITORY \
+            "${TRIVY}" config --severity HIGH,CRITICAL --exit-code 1 /repo/infra
+
+      - name: Scan images for known vulnerabilities
+        # `--ignore-unfixed`, deliberately and with a cost. An unfixed CVE in a Debian
+        # package is real, and there is nothing this repository can do about it except
+        # change base image -- so failing on it produces a permanently red job, and a
+        # permanently red job is one people stop reading. The unfixed findings are
+        # printed by the reporting step below instead, where they can be looked at
+        # without blocking anything.
+        #
+        # `--exit-code 1` and no pipe. A pipeline would report the exit status of the
+        # last command rather than the scanner's, which is how a failing scan becomes a
+        # passing job.
+        run: |
+          set -euo pipefail
+          for image in api worker beat web; do
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+              -v "${PWD}/.trivyignore.yaml:/.trivyignore.yaml:ro" -e TRIVY_DB_REPOSITORY \
+              "${TRIVY}" image --scanners vuln --severity HIGH,CRITICAL \
+              --ignore-unfixed --ignorefile /.trivyignore.yaml --exit-code 1 \
+              "siembiot-${image}:scan"
+          done
+
+      - name: Report what was accepted rather than fixed
+        # Runs even when the job has already failed, because the unfixed findings are
+        # the context for whatever did fail.
+        if: always()
+        run: |
+          for image in api worker beat web; do
+            echo "## ${image}: findings with no fix available" >> "$GITHUB_STEP_SUMMARY"
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+              -e TRIVY_DB_REPOSITORY "${TRIVY}" image --scanners vuln \
+              --severity HIGH,CRITICAL --exit-code 0 --format table \
+              "siembiot-${image}:scan" >> "$GITHUB_STEP_SUMMARY" || true
+          done

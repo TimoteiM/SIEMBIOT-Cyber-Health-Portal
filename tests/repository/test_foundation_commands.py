@@ -41,6 +41,7 @@ class FoundationCommandContractTests(unittest.TestCase):
                 "i18n",
                 "format",
                 "images",
+                "infrastructure",
                 "lint",
                 "locks",
                 "migrations",

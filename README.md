@@ -139,7 +139,7 @@ Requirements: Docker, Python 3.13 (via `uv`), Node 22 (via `pnpm`). See
 
 ```sh
 make bootstrap        # toolchains, dependencies, database
-make check            # 15 gates: format, types, tests, contracts, migrations, secrets, SBOM…
+make check            # 16 gates: format, types, tests, contracts, migrations, secrets, infrastructure, SBOM…
 ```
 
 Then, in separate terminals — the full walkthrough is in [docs/demo.md](docs/demo.md):

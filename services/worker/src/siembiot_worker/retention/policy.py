@@ -127,6 +127,23 @@ RETENTION_SCHEDULE: tuple[TableRetention, ...] = (
         "captured_at",
         OPERATIONAL_PERIOD,
     ),
+    # Backup attempts. Operational rather than accountability: this is a record of the
+    # platform's own housekeeping and names no tenant, no person and no target -- a
+    # destination path and a digest.
+    #
+    # Swept on the operational period rather than kept indefinitely, but the sweep must
+    # not be able to empty it: `last_successful_backup_seconds` is derived from the
+    # newest successful row, and a table swept to nothing would report the
+    # never-backed-up sentinel and page. The operational period is measured in months
+    # against a daily schedule, so the newest row is always many periods younger than the
+    # threshold. If the schedule is ever slowed to less than the operational period, this
+    # classification has to be revisited before the interval is.
+    _swept(
+        "backup_runs",
+        RetentionClass.OPERATIONAL,
+        "started_at",
+        OPERATIONAL_PERIOD,
+    ),
     # -- the organisation's own record ----------------------------------------------
     #
     # Kept until the organisation itself is removed. Sweeping any of these on a timer

@@ -1,0 +1,50 @@
+# Vulnerabilities the scan reports and this deployment accepts, each with a reason and
+# an expiry date.
+#
+# **Every entry expires.** That is the point of this file rather than a `--severity`
+# threshold or a disabled job. A suppression with no end date is indistinguishable from
+# not scanning, and it is how a finding that was genuinely unreachable in August becomes
+# a finding nobody looked at again after the code that made it unreachable changed.
+#
+# When one expires the scan goes red and somebody has to decide again. That is the
+# correct amount of friction: re-deciding costs a few minutes, and the alternative is a
+# permanent exception nobody remembers granting.
+#
+# What does NOT belong here: anything reachable from this platform's code. If a finding
+# touches a path the product actually executes, the fix is the upgrade, not a line here.
+
+vulnerabilities:
+  # Three Starlette findings, all reported through FastAPI 0.116.1, which caps Starlette
+  # below 0.48 -- so none can be fixed without moving FastAPI to 0.141 and Starlette
+  # across a major version. That upgrade is worth doing and is not worth doing blind, so
+  # it is a decision rather than a drive-by.
+  #
+  # None of the three is reachable from this codebase, and each was checked rather than
+  # assumed:
+  #
+  #   * `StaticFiles` appears nowhere -- the API serves no static assets; the web app is
+  #     a separate Next.js service.
+  #   * No endpoint parses a form. Every request body in this API is JSON, which is a
+  #     property of the OpenAPI contract and enforced by the contract gate.
+  #   * No endpoint returns a `FileResponse` or honours a `Range` header. Reports are
+  #     returned as whole documents through a single-use grant.
+  #
+  # Re-check those three claims when this expires; if any has become false, the finding
+  # is live and the upgrade is due.
+  - id: CVE-2025-62727
+    statement: >-
+      Starlette DoS via Range header merging. No endpoint in this API serves ranged
+      responses. Capped by FastAPI 0.116.1; fixing needs FastAPI 0.141 + Starlette 1.x.
+    expired_at: 2026-11-12
+
+  - id: CVE-2026-48818
+    statement: >-
+      Starlette SSRF and NTLM credential theft via UNC paths in StaticFiles. StaticFiles
+      is not used; the API serves no static assets. Same upgrade needed as above.
+    expired_at: 2026-11-12
+
+  - id: CVE-2026-54283
+    statement: >-
+      Starlette form() limits silently ignored for urlencoded bodies, enabling DoS. No
+      endpoint parses a form; every request body here is JSON. Same upgrade needed.
+    expired_at: 2026-11-12

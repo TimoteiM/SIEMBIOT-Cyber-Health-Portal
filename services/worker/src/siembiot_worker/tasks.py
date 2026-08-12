@@ -26,7 +26,13 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from siembiot_worker.backups import resolve_destination
+from siembiot_worker.backups import (
+    NO_CREDENTIALS,
+    BackupOutcome,
+    credentials,
+    resolve_destination,
+    take_backup,
+)
 from siembiot_worker.collectors.ct_source import BrokeredCTSource
 from siembiot_worker.observation.mode import AssessmentMode
 from siembiot_worker.observation.runtime import build_observation_runtime
@@ -345,6 +351,76 @@ def retention_database_url() -> str:
     return url.replace("postgresql://", "postgresql+psycopg://")
 
 
+def run_backup() -> str:
+    """Take a backup and record the attempt. Returns the outcome as a named string.
+
+    Written as a module function rather than only as a task so it can be run against a
+    real database without a broker -- which is how the wiring below was checked, and how
+    an operator can take one on demand.
+
+    Every path records a row, including every failure. A run that could not reach its
+    destination is precisely the row an operator needs, and a table holding only
+    successes would make "the backup failed" indistinguishable from "the scheduler never
+    fired". The age metric is derived from the successes alone, so recording the failures
+    costs nothing and answers a different question.
+
+    Recording is best-effort and never converts a good backup into a reported failure:
+    if the dump succeeded and the database is unreachable, the file on disk is still a
+    backup, and the missing row will show up as a stale age -- which is the alert that
+    should fire anyway.
+    """
+    started = datetime.now(UTC)
+    url = credentials()
+    outcome = (
+        take_backup(url)
+        if url
+        else BackupOutcome(resolve_destination().destination, error=NO_CREDENTIALS)
+    )
+
+    if outcome.succeeded:
+        log.info("backup written to %s (%s bytes)", outcome.destination, outcome.size_bytes)
+    else:
+        log.error("backup not taken: %s", outcome.error)
+
+    _record_backup(started, outcome)
+    return outcome.error or "backup_taken"
+
+
+def _record_backup(started: datetime, outcome: BackupOutcome) -> None:
+    from sqlalchemy import text
+
+    try:
+        engine = _tenant_engine()
+    except RuntimeError:
+        log.warning("backup not recorded: the worker has no database URL")
+        return
+
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    """
+                    INSERT INTO backup_runs
+                        (started_at, finished_at, destination, content_sha256,
+                         size_bytes, error)
+                    VALUES (:started_at, now(), :destination, :content_sha256,
+                            :size_bytes, :error)
+                    """
+                ),
+                {
+                    "started_at": started,
+                    "destination": outcome.destination,
+                    "content_sha256": outcome.content_sha256,
+                    "size_bytes": outcome.size_bytes,
+                    "error": outcome.error,
+                },
+            )
+    except Exception:  # noqa: BLE001 - a lost row must not fail a good backup
+        log.warning("could not record the backup attempt", exc_info=True)
+    finally:
+        engine.dispose()
+
+
 def _retention_engine() -> Any:
     from sqlalchemy import create_engine
 
@@ -577,15 +653,7 @@ def build_celery_app() -> Any:
         crashed nightly would be reported as a broken worker rather than as the missing
         setting it is -- while a task that silently succeeded would be worse still.
         """
-        verdict = resolve_destination()
-        if not verdict.usable:
-            log.error("backup not taken: %s", verdict.refusal)
-            return str(verdict.refusal)
-        # The dump and the upload are the deployment's own tooling: `scripts/backup.py`
-        # for a container-local database, or a managed provider's snapshot. What this
-        # task owns is the schedule and the refusal.
-        log.info("backup destination accepted: %s", verdict.destination)
-        return "destination_ready"
+        return run_backup()
 
     @app.task(name="siembiot.apply_retention")
     def apply_retention() -> int:

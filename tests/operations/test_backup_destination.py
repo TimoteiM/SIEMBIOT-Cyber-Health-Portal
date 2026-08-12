@@ -115,3 +115,26 @@ def test_the_refusal_is_named_rather_than_a_boolean() -> None:
 
     assert None not in reasons
     assert all(isinstance(reason, str) for reason in reasons)
+
+
+def test_the_sweep_cannot_empty_the_table_the_backup_alert_reads() -> None:
+    """A dependency between two numbers in different files, which is why it is asserted
+    rather than left as a comment.
+
+    `last_successful_backup_seconds` is derived from the newest successful row in
+    `backup_runs`, and that table is swept on the operational period. If the backup
+    schedule were ever slowed past that period, the sweep would remove the last
+    successful row and the platform would page about a backup that had in fact run --
+    or, worse, somebody would raise the alert threshold to silence it.
+
+    A wide margin rather than a strict inequality: the two need to be different in kind,
+    not merely ordered.
+    """
+    import sys as _sys
+    from pathlib import Path as _Path
+
+    _sys.path.insert(0, str(_Path(__file__).resolve().parents[2] / "services" / "worker" / "src"))
+    from siembiot_worker.retention.policy import OPERATIONAL_PERIOD
+    from siembiot_worker.tasks import BACKUP_INTERVAL_SECONDS
+
+    assert OPERATIONAL_PERIOD.total_seconds() > BACKUP_INTERVAL_SECONDS * 10

@@ -156,7 +156,7 @@ Outside this repository's authority. Unchanged.
 | DPIA, privacy and legal review; responsible-publication approval | **external, open** — you are moving this |
 | Independent security review and penetration test | **external, open** — you are moving this |
 | Verified backup restore | **done** — executed against a real database, checking schema, row counts, forced RLS, append-only triggers, roles and the audit chain |
-| Production-like smoke, release gates, zero critical/high defects | **partial** — 15 gates pass; no release-check target, no container or IaC scanning, no signed artifacts |
+| Production-like smoke, release gates, zero critical/high defects | **partial** — 15 gates pass; no release-check target, no container or IaC scanning, no signed artifacts <br>*Closed later the same day: 16 gates, with an `infrastructure` gate enforcing the compose stack's hardening and a scheduled `container-scan` workflow. Its first real run found and fixed a PyJWT authentication-bypass CVE. Release-check target and signed artifacts remain open.* |
 | Direct evidence for every Definition of Done journey | **partial** — see the invariants above |
 
 The third blocker on the specification's separate list — the licensing review of the NIS2

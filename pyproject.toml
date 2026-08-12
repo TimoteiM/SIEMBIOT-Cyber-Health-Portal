@@ -18,7 +18,7 @@ dependencies = [
     "idna==3.18",
     "psycopg[binary]==3.2.9",
     "pydantic-settings==2.10.1",
-    "pyjwt[crypto]==2.10.1",
+    "pyjwt[crypto]==2.13.0",
     "sqlalchemy==2.0.43",
     "uvicorn==0.35.0",
 ]
@@ -26,12 +26,19 @@ dependencies = [
 [dependency-groups]
 dev = [
     "jsonschema==4.25.1",
+    # For the infrastructure gate. The compose files apply their hardening through a
+    # YAML anchor (`<<: *hardening`), and a hand-rolled parser that silently failed to
+    # resolve it would report every service as unhardened -- or, worse, report nothing
+    # and pass. The alert-rules parser already made that mistake once with a folded
+    # scalar; this is not the place to make it again.
+    "pyyaml==6.0.2",
     "hypothesis==6.165.0",
     "mypy==1.17.1",
     "pytest==8.4.1",
     "pytest-postgresql==7.0.2",
     "ruff==0.12.8",
     "types-jsonschema==4.25.1.20251009",
+    "types-pyyaml==6.0.12.20250915",
 ]
 
 [project.optional-dependencies]

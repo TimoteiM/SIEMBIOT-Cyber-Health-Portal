@@ -131,6 +131,7 @@ def build_checks(root: Path | None = None) -> tuple[Check, ...]:
         ),
         Check("secrets"),
         Check("images"),
+        Check("infrastructure"),
         Check("i18n"),
         Check("sbom"),
         Check("docs"),
@@ -329,6 +330,15 @@ def verify_internal_gate(name: str, root: Path) -> list[str]:
         ]
     if name == "images":
         return check_images(root)
+    if name == "infrastructure":
+        # The misconfiguration half of container scanning. Kept in the always-run gate
+        # precisely because it needs no scanner and no network: a rule that cannot be
+        # absent cannot silently stop running. The vulnerability half needs a database
+        # and runs in `.github/workflows/container-scan.yml`.
+        sys.path.insert(0, str(root / "scripts"))
+        from check_infrastructure import run as check_infrastructure_run
+
+        return check_infrastructure_run()
     if name == "i18n":
         return check_i18n(root)
     if name == "sbom":

@@ -43,6 +43,11 @@ All notable changes are documented here. The project has no supported release ye
 - Milestone 7 maturity questionnaire, deterministic 0-5 scoring, and a 30/60/90 remediation roadmap.
 - Milestone 8 self-contained bilingual HTML assessment reports, marked CONFIDENTIAL, rendered from the stored snapshot and delivered through a hashed, single-use, five-minute grant bound to the person who asked.
 - Milestone 9 Public Observatory: a separate database role and schema, a moderated projection, consent capture, corrections and takedowns.
+- Nightly backups that actually take one: `pg_dump` in custom format, placed at the configured destination, with every attempt -- success or failure -- recorded in `backup_runs`. Partial and empty dumps are deleted rather than kept, because a truncated dump restores into half a database without complaining.
+- `siembiot_last_successful_backup_seconds` and `siembiot_failed_backups_recent`, with `BackupStale` (pages at thirty-six hours) and `BackupFailing` alerts and dashboard panels. An age rather than a count: a count cannot distinguish a healthy platform from one whose backups stopped a fortnight ago.
+- `postgresql-client-17` in the worker image, matching the server's major version. Without it the task reports `pg_dump_not_available` by name rather than crashing nightly.
+- An `infrastructure` gate (16 now, from 15) enforcing the production-like stack's hardening -- read-only root filesystems, dropped capabilities, `no-new-privileges`, no published datastore ports, no docker socket, no host networking, digest-pinned images. It runs with no scanner and no network, and fails rather than passes when it cannot find the services it expects to check.
+- A scheduled `container-scan` workflow running digest-pinned Trivy against all four images and the Dockerfiles. Scheduled as well as on push, because a vulnerability is disclosed rather than committed.
 - Milestone 10 data retention: every table classified, evidence expiring at ninety days, and a dedicated role that is the only one able to delete it.
 - Milestone 10 erasure of an organization on request, deriving the tables from the catalogue rather than a list, with a tombstone recording that it happened.
 - Milestone 10 a tamper-evident audit trail: events chained per organization by a database trigger, with `audit_chain_breaks()` to verify one.
@@ -61,6 +66,26 @@ All notable changes are documented here. The project has no supported release ye
 - ADR-0012 deciding point-in-time recovery is required for the audit trail and why evidence does not need it.
 
 ### Security
+
+- **PyJWT upgraded from 2.10.1 to 2.13.0**, clearing CVE-2026-48526 (authentication
+  bypass via forged JSON Web Tokens) and CVE-2026-32597. Found by the new container scan
+  on its first real run. The vulnerable path was not reachable -- authentication
+  terminates upstream at the identity gateway and nothing in this codebase imports `jwt`
+  -- but an unused cryptographic dependency is attack surface with no offsetting benefit,
+  and the fix cost nothing. Whether to drop the dependency entirely is still open.
+- **Three Starlette findings are accepted rather than fixed**, recorded in
+  `.trivyignore.yaml` with reasons and an expiry of 2026-11-12: CVE-2025-62727,
+  CVE-2026-48818 and CVE-2026-54283. None is reachable -- no `StaticFiles`, no form
+  parsing, no ranged responses, each checked rather than assumed -- and all three are
+  capped by FastAPI 0.116.1, so clearing them means moving FastAPI to 0.141 and Starlette
+  across a major version. Every entry in that file expires on purpose: a suppression with
+  no end date is indistinguishable from not scanning.
+- **Backups must not be taken with the worker's credentials.** `SIEMBIOT_BACKUP_DATABASE_URL`
+  is deliberately separate from `SIEMBIOT_WORKER_DATABASE_URL`. Every tenant-scoped table
+  carries row-level security with `FORCE`, so a dump taken by a role subject to those
+  policies would contain only the rows that role can see -- and would restore without
+  complaint. PostgreSQL does refuse rather than silently filter, but that is a safeguard,
+  not a plan.
 
 - **The audit trail was not tamper-evident before 2026-08-12.** `previous_hash` and
   `event_hash` were added to `audit_events` in migration `0001` with a CHECK constraint

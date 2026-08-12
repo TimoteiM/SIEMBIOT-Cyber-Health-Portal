@@ -342,23 +342,124 @@ the other and the failure moves from "slow" to "the database refuses connections
 
 ## Backups
 
-A backup runs daily from the scheduler and **refuses to run without a destination**.
-`SIEMBIOT_BACKUP_DESTINATION` must be set, and is rejected when it is inside the
-repository or shares a filesystem with the PostgreSQL data directory. A copy on the same
-machine as the database survives a dropped table and nothing else, and a deployment
-writing there looks identical to one backing up correctly until somebody needs a restore.
+A backup runs daily from the scheduler: it takes a `pg_dump` in custom format, places it
+at the configured destination, records the attempt in `backup_runs`, and **refuses to run
+without a destination**.
+
+Two settings, both empty by default and both refusing rather than guessing:
+
+| Setting | Why it has no default |
+| --- | --- |
+| `SIEMBIOT_BACKUP_DESTINATION` | Any default would be a local path, and a copy on the same machine as the database survives a dropped table and nothing else. Rejected when it is inside the repository or shares a filesystem with the PostgreSQL data directory. |
+| `SIEMBIOT_BACKUP_DATABASE_URL` | **Not the worker's own credentials.** Every tenant-scoped table carries row-level security with `FORCE`, so a dump taken by a role subject to those policies would contain only the rows that role can see — and would restore without complaint. Must name `siembiot_owner`, or another role that can bypass row security. |
+
+`SIEMBIOT_POSTGRES_DATA_DIRECTORY` is optional: when the data directory is visible from
+the worker, the destination is checked against it and refused if they share a device.
+Unset simply skips that check.
 
 Remote schemes (`s3://`, `gs://`, `azure://`, `sftp://`, `nfs://`) are accepted as
-off-host by construction; the uploader is the deployment's own tooling.
+off-host by construction, but the upload itself is the deployment's own tooling — the
+task reports `no_uploader_for_remote_destination` rather than claiming success while
+writing nowhere.
 
-The refusal is named rather than a boolean, so "no backup last night" says which of four
-reasons it was — three of them a minute's configuration.
+**The worker image carries `postgresql-client-17`**, matching the server's major version:
+pg_dump refuses to dump from a server newer than itself, so a 16 client against a 17
+database is a backup that stops working on the day the database is upgraded and not
+before. An image without it reports `pg_dump_not_available` rather than crashing.
+
+Every failure removes whatever it wrote. A dump that fails mid-table leaves a real header
+and half the rows, and that file restores into half a database without complaining — so a
+partial dump is deleted rather than kept as a very small backup.
+
+### Knowing it happened
+
+Every attempt is a row in `backup_runs`, successes and failures alike, carrying the
+destination, the size, a SHA-256 of the bytes that landed, and a named reason when it
+failed. Two metrics come from it:
+
+* `siembiot_last_successful_backup_seconds` — **an age, not a count.** A count cannot
+  distinguish a healthy platform from one whose backups stopped a fortnight ago. Ten
+  years means none has ever succeeded; it is also what the exporter reports when it
+  cannot read the database, so an unreachable database cannot read as a fresh backup.
+* `siembiot_failed_backups_recent` — attempts that failed in the last day, because
+  "tried and failed" and "never ran" are different problems and the age cannot tell them
+  apart.
+
+`BackupStale` pages after thirty-six hours — one missed night during a deployment does
+not wake anybody, two consecutive failures do. `BackupFailing` warns a day earlier, which
+is the difference between fixing a misconfiguration and finding it during a restore.
+
+### Checking a backup is restorable
+
+`scripts/backup.py verify` restores a dump into a scratch database and runs
+`audit_chain_breaks()` inside the restored copy. Size and a `PGDMP` header are a proxy;
+whether the thing restores is the property. This was checked against the live development
+database: all 40 tables and all 1,346 rows restored identically, and the audit chain in
+the restored copy was confirmed intact **by deliberately tampering with a row and getting
+a detection** — an empty result over a chain nobody tried to break proves nothing.
 
 Point-in-time recovery is decided in
 [ADR-0012](../adr/0012-point-in-time-recovery.md): required, and required specifically for
 the audit trail, because the event most likely to cause a restore is the event whose audit
 record matters most. Evidence tolerates a dump-only restore since it is reproducible and
 expires at ninety days anyway. Configuring WAL archiving is the deployment's step.
+
+## Container and infrastructure scanning
+
+Split deliberately into two halves that fail in different ways.
+
+**Misconfiguration runs in `make check`, always.** `scripts/check_infrastructure.py`
+reads the compose files with a real YAML parser and enforces what the production-like
+stack claims: read-only root filesystems, `no-new-privileges`, `cap_drop: [ALL]` and
+nothing added back, no published datastore ports, no docker socket mounted anywhere, no
+host networking, images pinned by digest. No scanner, no network, no vulnerability
+database — so there is no configuration in which it silently does not run.
+
+It also **fails when it finds nothing to check**. `EXPECTED_SERVICES` names the services
+that must be present, and a parse that does not find them is reported as "this script is
+not reading the file it thinks it is" rather than as a clean bill of health. That guard
+exists because the compose file applies its hardening through a YAML anchor
+(`<<: *hardening`); a parser that failed to resolve merge keys would report an empty
+document and pass forever.
+
+Trivy does not scan compose files — only Dockerfiles, Kubernetes, Terraform and the like
+— so this is filling a real gap rather than duplicating the scanner.
+
+**Vulnerability scanning runs in CI**, in `.github/workflows/container-scan.yml`, because
+it genuinely needs a database of what is currently known, and that means a download and a
+tool that could be absent. In CI the scanner is a digest-pinned image that either runs or
+fails the job; there is no third outcome and nowhere for the exit code to be swallowed.
+It is scheduled daily as well as running on push, because a vulnerability is *disclosed*
+rather than committed: an image clean on Tuesday is not clean on Friday because the world
+learned something.
+
+To run the same scan locally:
+
+```bash
+docker build -f infra/images/worker.Dockerfile -t siembiot-worker:scan .
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock   -v "$PWD/.trivyignore.yaml:/.trivyignore.yaml:ro"   -e TRIVY_DB_REPOSITORY=ghcr.io/aquasecurity/trivy-db:2   aquasec/trivy@sha256:7cced7cae583819fc7806d4cbc0dbbc7cad18b99f7d3e235192e6da8c091045c   image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed   --ignorefile /.trivyignore.yaml --exit-code 1 siembiot-worker:scan
+```
+
+Deliberately a documented command rather than a wrapper script. A wrapper is somewhere
+for a missing scanner to be turned into a pass; a command that does not run has no exit
+code to misreport.
+
+`--ignore-unfixed` has a cost worth stating. An unfixed CVE in a Debian package is real,
+and nothing in this repository can do anything about it except change base image, so
+failing on it produces a permanently red job — and a permanently red job is one people
+stop reading. Those findings are printed to the workflow summary instead, where they can
+be looked at without blocking anything.
+
+### Accepted findings expire
+
+`.trivyignore.yaml` holds findings this deployment accepts, each with a reason and an
+`expired_at` date. Every entry expires on purpose. A suppression with no end date is
+indistinguishable from not scanning, and it is how a finding that was genuinely
+unreachable in August becomes one nobody looked at again after the code that made it
+unreachable changed. When one expires the scan goes red and somebody decides again.
+
+Nothing reachable from this platform's code belongs in that file. If a finding touches a
+path the product executes, the fix is the upgrade.
 
 ## Dashboards
 

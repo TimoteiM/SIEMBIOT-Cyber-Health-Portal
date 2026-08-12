@@ -76,8 +76,29 @@ HELP: dict[str, str] = {
         "Calls refused today because the budget was spent. Without this, a used count "
         "at its limit cannot distinguish one call turned away from ten thousand."
     ),
+    "last_successful_backup_seconds": (
+        "Age of the newest successful backup. An age rather than a count, because a "
+        "count cannot distinguish a healthy platform from one whose backups stopped a "
+        "fortnight ago -- and backups fail silently, so nothing else would say."
+    ),
+    "failed_backups_recent": (
+        "Backup attempts that failed in the last day. Separates 'tried and failed' from "
+        "'never ran', which the age above cannot tell apart."
+    ),
     "build_info": "Schema version currently applied.",
     "metrics_scrape_ok": "Whether this scrape could read the database.",
+}
+
+#: What a metric reports when the scrape could not produce it. Zero for almost
+#: everything, because "none happened" is the honest reading of an absent count.
+#:
+#: Not for an age. Zero seconds since the last backup reads as "backed up moments ago",
+#: which is the most reassuring of the available lies and would hold `BackupStale` quiet
+#: for exactly as long as the database was unreachable. The sentinel matches the one the
+#: SQL function returns for a platform that has never taken a backup: ten years, which no
+#: threshold survives.
+ABSENT: dict[str, float] = {
+    "last_successful_backup_seconds": 315_360_000.0,
 }
 
 #: Escaped even though every value comes from a closed set, so that a label added later
@@ -144,7 +165,7 @@ def render(metrics: list[Metric], scrape_ok: bool) -> str:
     present = {metric.name for metric in metrics}
     # Unlabelled, because "there were none at all" is not a fact about any label value.
     missing = [
-        Metric(name, [({}, 0.0)])
+        Metric(name, [({}, ABSENT.get(name, 0.0))])
         for name in sorted(HELP)
         if name not in present and name != SCRAPE_OK
     ]
