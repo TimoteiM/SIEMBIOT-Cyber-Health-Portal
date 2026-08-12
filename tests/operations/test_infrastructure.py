@@ -336,3 +336,43 @@ def test_the_documented_origin_matches_the_documented_web_port() -> None:
         f"{documented_port.group(1)}, compose defaults to {compose_default.group(1)}. "
         "A write from the browser will be refused as origin_rejected."
     )
+
+
+def test_the_documented_origin_names_a_scheme() -> None:
+    """The half of the port/origin coupling that the first version of these tests missed.
+
+    `SIEMBIOT_PUBLIC_BASE_URL` is compared to the `Origin` header as a whole string, so
+    `http://localhost:3100` and `https://localhost:3100` are different origins even
+    though the port agrees. That mismatch was made for real within an hour of the
+    port check being written: the development server runs `--experimental-https` while
+    the production-like stack has no TLS termination and serves plain HTTP, so a value
+    correct for one is wrong for the other, and the symptom is identical -- every read
+    works, every write is refused.
+
+    A test cannot pick the scheme, because the two stacks genuinely differ. What it can
+    do is insist the value carries one at all, so nobody writes a bare `localhost:3100`
+    and gets a refusal with no scheme to compare.
+    """
+    import re
+
+    example = (ROOT / ".env.example").read_text(encoding="utf-8")
+    value = re.search(r"(?m)^SIEMBIOT_PUBLIC_BASE_URL=(\S+)$", example)
+
+    assert value, "SIEMBIOT_PUBLIC_BASE_URL is not documented"
+    assert value.group(1).startswith(("http://", "https://")), (
+        f"{value.group(1)!r} has no scheme. It is compared to the Origin header as a "
+        "whole string, and a value without a scheme can never match one."
+    )
+
+
+def test_an_origin_refusal_says_why_somewhere() -> None:
+    """A 403 that explains nothing anywhere turns a one-line misconfiguration into an
+    afternoon. The response stays uninformative on purpose -- naming the accepted origin
+    tells an attacker what to forge -- so the explanation has to be server-side.
+    """
+    auth = (ROOT / "services" / "api" / "src" / "siembiot" / "auth.py").read_text(encoding="utf-8")
+
+    assert "origin rejected: expected" in auth, (
+        "the origin check refuses without recording what it expected"
+    )
+    assert "SIEMBIOT_PUBLIC_BASE_URL" in auth, "the log does not name the setting that fixes it"

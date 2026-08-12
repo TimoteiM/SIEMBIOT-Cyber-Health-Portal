@@ -76,6 +76,19 @@ All notable changes are documented here. The project has no supported release ye
 
 ### Fixed
 
+- **An origin refusal now says why, in the log.** `SIEMBIOT_PUBLIC_BASE_URL` is compared
+  to the `Origin` header as a whole string, so a wrong scheme, host or port refuses every
+  state change while every read keeps working -- which reads as a broken application
+  rather than a wrong setting, and the API knew exactly why and said nothing anywhere.
+  It now logs what it expected, what it received, and which setting fixes it. The
+  response stays deliberately uninformative: naming the accepted origin tells an attacker
+  what to forge.
+  The scheme is the part that actually catches people, and it caught the author within an
+  hour of writing the port check: `make web-serve` runs `next dev --experimental-https`,
+  so development is `https://`, while the production-like stack has no TLS termination
+  and serves plain `http://`. A value correct for one is wrong for the other, and the
+  earlier test compared only the port. It now also requires a scheme to be present.
+
 - **A production build served a login form that could not log anybody in.** `/sign-in`
   is a development identity picker, and it was a client component with no build-time
   gate, so it rendered in production complete with username and password fields. Its own

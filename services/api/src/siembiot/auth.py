@@ -8,6 +8,7 @@ an asserted identity into a local principal, and refusing cross-origin state cha
 from __future__ import annotations
 
 import hashlib
+import logging
 import secrets
 from typing import cast
 
@@ -21,6 +22,8 @@ from siembiot.errors import AppError
 from siembiot.identity import IdentityResolver, Principal, provision_user, unauthenticated
 
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+
+log = logging.getLogger("siembiot.api")
 
 
 def hash_token(value: str) -> bytes:
@@ -65,7 +68,25 @@ def require_trusted_origin(
     if request.method in SAFE_METHODS:
         return principal
     expected = _settings(request).public_base_url.rstrip("/")
-    if request.headers.get("Origin") != expected:
+    supplied = request.headers.get("Origin")
+    if supplied != expected:
+        # Logged, not returned. The response stays deliberately uninformative -- telling
+        # a caller which origin would be accepted is telling an attacker what to forge --
+        # but the server knows exactly why it refused, and saying nothing anywhere turns
+        # a misconfiguration into a mystery.
+        #
+        # It is worth a warning rather than a debug line because of how this fails: every
+        # read works and every write is refused, so the application looks alive and
+        # subtly broken. The usual cause is `SIEMBIOT_PUBLIC_BASE_URL` disagreeing with
+        # where the interface is actually served -- most often on scheme, because the
+        # development server runs HTTPS and the production-like stack has no TLS
+        # termination and serves plain HTTP.
+        log.warning(
+            "origin rejected: expected %r, received %r. Set SIEMBIOT_PUBLIC_BASE_URL to "
+            "the scheme, host and port the interface is served on.",
+            expected,
+            supplied,
+        )
         raise AppError(403, "origin_rejected", "The request could not be verified.")
     return principal
 
