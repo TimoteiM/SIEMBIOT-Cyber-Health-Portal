@@ -26,6 +26,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
+from siembiot_worker.backups import resolve_destination
 from siembiot_worker.collectors.ct_source import BrokeredCTSource
 from siembiot_worker.observation.mode import AssessmentMode
 from siembiot_worker.observation.runtime import build_observation_runtime
@@ -62,6 +63,11 @@ SCHEDULE_INTERVAL_SECONDS = 600.0
 #: not aligned to midnight: a sweep is a burst of deletes, and every deployment starting
 #: one at the same instant is how a shared database gets a nightly stall.
 RETENTION_INTERVAL_SECONDS = 86_400.0
+
+#: How often a backup is taken. Daily, matching the retention sweep: a deployment losing
+#: at most a day of evidence is the trade this schedule makes, and it is the trade the
+#: point-in-time recovery decision in ADR-0012 exists to revisit for the audit trail.
+BACKUP_INTERVAL_SECONDS = 86_400.0
 
 log = logging.getLogger("siembiot.worker")
 
@@ -455,6 +461,10 @@ def build_celery_app() -> Any:
                 "task": "siembiot.apply_retention",
                 "schedule": RETENTION_INTERVAL_SECONDS,
             },
+            "take-backup": {
+                "task": "siembiot.take_backup",
+                "schedule": BACKUP_INTERVAL_SECONDS,
+            },
         },
     )
 
@@ -494,6 +504,25 @@ def build_celery_app() -> Any:
         domain whose proof lapsed today is not given an authorized run this pass.
         """
         return start_due_schedules()
+
+    @app.task(name="siembiot.take_backup")
+    def take_backup() -> str:
+        """Take a backup, if there is somewhere safe to put it.
+
+        Returns the refusal reason rather than raising when there is not. A deployment
+        with no destination configured has a configuration problem, and a task that
+        crashed nightly would be reported as a broken worker rather than as the missing
+        setting it is -- while a task that silently succeeded would be worse still.
+        """
+        verdict = resolve_destination()
+        if not verdict.usable:
+            log.error("backup not taken: %s", verdict.refusal)
+            return str(verdict.refusal)
+        # The dump and the upload are the deployment's own tooling: `scripts/backup.py`
+        # for a container-local database, or a managed provider's snapshot. What this
+        # task owns is the schedule and the refusal.
+        log.info("backup destination accepted: %s", verdict.destination)
+        return "destination_ready"
 
     @app.task(name="siembiot.apply_retention")
     def apply_retention() -> int:

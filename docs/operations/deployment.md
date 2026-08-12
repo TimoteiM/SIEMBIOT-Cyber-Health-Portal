@@ -340,18 +340,37 @@ The ceiling that matters for a deployment is the other one: PostgreSQL accepts
 `max_connections` in total, and every API replica multiplies its pool. Raise one without
 the other and the failure moves from "slow" to "the database refuses connections".
 
+## Backups
+
+A backup runs daily from the scheduler and **refuses to run without a destination**.
+`SIEMBIOT_BACKUP_DESTINATION` must be set, and is rejected when it is inside the
+repository or shares a filesystem with the PostgreSQL data directory. A copy on the same
+machine as the database survives a dropped table and nothing else, and a deployment
+writing there looks identical to one backing up correctly until somebody needs a restore.
+
+Remote schemes (`s3://`, `gs://`, `azure://`, `sftp://`, `nfs://`) are accepted as
+off-host by construction; the uploader is the deployment's own tooling.
+
+The refusal is named rather than a boolean, so "no backup last night" says which of four
+reasons it was — three of them a minute's configuration.
+
+Point-in-time recovery is decided in
+[ADR-0012](../adr/0012-point-in-time-recovery.md): required, and required specifically for
+the audit trail, because the event most likely to cause a restore is the event whose audit
+record matters most. Evidence tolerates a dump-only restore since it is reproducible and
+expires at ninety days anyway. Configuring WAL archiving is the deployment's step.
+
 ## What is not here yet
 
 Stated rather than implied, because a runbook that omits its gaps reads as complete:
 
-- **Backups are not scheduled and not stored off-host.** The tooling works and a
-  restore has been executed and verified against a real database -- schema, row counts,
-  forced row-level security, append-only triggers, roles, and the audit chain. What is
-  missing is a timer and a destination: `artifacts/` is on the same machine as the
-  database, which is not a backup of anything that fails together.
-- **No point-in-time recovery.** A dump loses everything since it was taken. For
-  evidence that is tolerable; for the audit trail it may not be, and that is a decision
-  somebody should make deliberately.
+- **No backup destination is configured here.** The schedule exists and refuses to run
+  without one; see "Backups" above. Choosing an S3 bucket, an NFS mount or a second host
+  is infrastructure with credentials attached and is the deployment's decision.
+- **Point-in-time recovery is decided but not configured.** ADR-0012 requires WAL
+  archiving for the audit trail and states why evidence does not need it. The
+  `archive_command` and its destination are deployment infrastructure; no recovery to a
+  chosen time has been demonstrated the way the base restore has.
 - **No log aggregation.** Logs are structured and redacted but stay on each host.
 - **No dashboards.** The metrics support them; none are defined.
 - **No TLS termination or identity gateway** in this stack. Both are assumed to be in
