@@ -12,6 +12,37 @@
 #
 # What does NOT belong here: anything reachable from this platform's code. If a finding
 # touches a path the product actually executes, the fix is the upgrade, not a line here.
+#
+# ---------------------------------------------------------------------------------------
+# The work these entries are deferring, so that whoever picks it up is not starting from
+# a CVE number and a shrug.
+#
+# **FastAPI 0.116.1 -> 0.141.x, Starlette 0.47.3 -> 1.3.x.** Resolution was checked: with
+# `fastapi>=0.121` unpinned, uv resolves FastAPI 0.141.1 cleanly, so there is no
+# dependency conflict to solve -- what remains is behaviour.
+#
+# Treat it as its own scoped piece of work, not something folded into another week. It is
+# a major version on Starlette, and these are the surfaces that move:
+#
+#   * **Middleware.** Starlette's middleware stack and exception handling changed shape
+#     across 1.0. This API has custom middleware for request context, the identity
+#     gateway secret, and CORS/origin refusal -- and the origin check is a security
+#     control, so "the tests pass" is not the bar. Re-run the cross-origin refusal suite
+#     deliberately.
+#   * **Response handling.** Streaming, background tasks, and status-code edge cases.
+#     Report delivery goes through a single-use grant and returns a whole document.
+#   * **StaticFiles, form parsing, FileResponse.** Not used today -- which is exactly the
+#     argument these three suppressions rest on. Re-check that claim as part of the
+#     upgrade rather than inheriting it; if any of the three has since been introduced,
+#     the findings were live in the interval and that is worth knowing.
+#   * **TestClient.** Its construction and lifespan handling have changed before, and the
+#     API test suite is built on it.
+#
+# `tests/operations/test_accepted_findings_expire.py` fails 30 days before these lapse
+# -- on 2026-10-13 -- so this arrives with runway rather than as an emergency. Extending
+# the dates instead of doing the work is possible and is visible in the diff; the reason
+# field above is where an honest re-decision has to show itself.
+# ---------------------------------------------------------------------------------------
 
 vulnerabilities:
   # Three Starlette findings, all reported through FastAPI 0.116.1, which caps Starlette

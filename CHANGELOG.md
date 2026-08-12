@@ -67,12 +67,20 @@ All notable changes are documented here. The project has no supported release ye
 
 ### Security
 
-- **PyJWT upgraded from 2.10.1 to 2.13.0**, clearing CVE-2026-48526 (authentication
-  bypass via forged JSON Web Tokens) and CVE-2026-32597. Found by the new container scan
-  on its first real run. The vulnerable path was not reachable -- authentication
-  terminates upstream at the identity gateway and nothing in this codebase imports `jwt`
-  -- but an unused cryptographic dependency is attack surface with no offsetting benefit,
-  and the fix cost nothing. Whether to drop the dependency entirely is still open.
+- **PyJWT removed entirely.** The new container scan found CVE-2026-48526 in it on its
+  first real run -- an authentication bypass via forged JSON Web Tokens -- along with
+  CVE-2026-32597. Neither was reachable: authentication terminates upstream at the
+  identity gateway, which compares a shared secret with `hmac.compare_digest` and reads
+  identity headers, and the provider-neutral OIDC flow that would have verified an
+  `id_token` was replaced before it shipped. Nothing constructs or verifies a JWT
+  anywhere -- checked for direct imports, dynamic imports, re-exports, test fixtures, and
+  for token handling under another name.
+  Removed rather than upgraded. An unused cryptographic library is attack surface with no
+  offsetting benefit, and reachability analysis is an argument that has to be re-made by
+  every future auditor; absence is a fact that does not. `cryptography==50.0.0` is
+  unaffected -- it became a direct dependency during Milestone 3 for X.509 parsing rather
+  than arriving through `pyjwt[crypto]`, which is what made this removal a one-line
+  change.
 - **Three Starlette findings are accepted rather than fixed**, recorded in
   `.trivyignore.yaml` with reasons and an expiry of 2026-11-12: CVE-2025-62727,
   CVE-2026-48818 and CVE-2026-54283. None is reachable -- no `StaticFiles`, no form
@@ -80,6 +88,11 @@ All notable changes are documented here. The project has no supported release ye
   capped by FastAPI 0.116.1, so clearing them means moving FastAPI to 0.141 and Starlette
   across a major version. Every entry in that file expires on purpose: a suppression with
   no end date is indistinguishable from not scanning.
+  The dates are enforced rather than noted. `tests/operations/test_accepted_findings_expire.py`
+  fails **thirty days before** a suppression lapses -- 2026-10-13 for these three -- so
+  the upgrade arrives with runway instead of as an emergency, and the scope of that work
+  is recorded in the header of `.trivyignore.yaml` rather than left to be rediscovered.
+  An expiry date nothing trips over is a note, not a deadline.
 - **Backups must not be taken with the worker's credentials.** `SIEMBIOT_BACKUP_DATABASE_URL`
   is deliberately separate from `SIEMBIOT_WORKER_DATABASE_URL`. Every tenant-scoped table
   carries row-level security with `FORCE`, so a dump taken by a role subject to those
