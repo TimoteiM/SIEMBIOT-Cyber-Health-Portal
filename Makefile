@@ -130,8 +130,12 @@ api-serve:
 	python -m uv run --frozen uvicorn --app-dir services/api/src \
 		--factory siembiot.main:create_app --host 127.0.0.1 --port 8000
 
+# SIEMBIOT_WEB_PORT so a machine that already has something on 3000 does not have to
+# fight for it. Next.js would otherwise pick 3001 silently, which is worse: the interface
+# comes up on a port the API's origin check does not expect, and every write is refused
+# as origin_rejected with nothing saying why. Set SIEMBIOT_PUBLIC_BASE_URL to match.
 web-serve:
-	corepack pnpm --filter @siembiot/web dev
+	corepack pnpm --filter @siembiot/web dev --port $${SIEMBIOT_WEB_PORT:-3000}
 
 migrate:
 	python -m uv run --frozen --env-file .env alembic -c services/api/alembic.ini upgrade head

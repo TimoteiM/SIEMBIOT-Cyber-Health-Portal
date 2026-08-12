@@ -67,6 +67,17 @@ All notable changes are documented here. The project has no supported release ye
 
 ### Fixed
 
+- **Host ports no longer assume they are free.** The compose file already parameterised
+  them; `scripts/smoke_test.py` did not, so a stack published on another port was checked
+  at 3000 and 8000 -- reporting whatever else happened to be listening there, or nothing.
+  `make web-serve` now honours `SIEMBIOT_WEB_PORT` too: left to itself Next.js picks 3001
+  silently when 3000 is taken, which is worse than failing, because the interface then
+  comes up on a port the API's origin check does not expect.
+  `SIEMBIOT_PUBLIC_BASE_URL` is the exact `Origin` required on every state change, so it
+  has to move with the port. A test pins the two together across `.env.example` and the
+  compose default, since the failure mode -- reads fine, every write refused as
+  `origin_rejected` -- reads as an application bug rather than as one line of config.
+
 - **The retention role could have started with a blank password.** Every other credential
   in the production-like stack is written `${VAR:?set in local .env}`, which stops the
   stack when it is unset; `SIEMBIOT_POSTGRES_RETENTION_PASSWORD` was interpolated bare, so

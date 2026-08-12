@@ -75,7 +75,7 @@ In a second terminal, run the HTTPS development web server. HTTPS is required be
 corepack pnpm --filter @siembiot/web dev
 ```
 
-Open `https://localhost:3000`. The local development certificate is self-signed. The Next.js same-origin rewrite forwards `/api/*` to the API; the browser receives a `Secure`, `HttpOnly`, `SameSite=Lax`, `__Host-` opaque cookie. CSRF values live only in JavaScript memory and are rotated by the session endpoint.
+Open `https://localhost:3000` — or whatever `SIEMBIOT_WEB_PORT` names, if 3000 is already taken on your machine. Change `SIEMBIOT_PUBLIC_BASE_URL` to match: it is the exact `Origin` the API requires on every state change, so moving one without the other leaves reads working and every write refused as `origin_rejected`. The local development certificate is self-signed. The Next.js same-origin rewrite forwards `/api/*` to the API; the browser receives a `Secure`, `HttpOnly`, `SameSite=Lax`, `__Host-` opaque cookie. CSRF values live only in JavaScript memory and are rotated by the session endpoint.
 
 ## Verification
 
@@ -120,7 +120,7 @@ cp .env.example .env        # then set the local placeholders
 make stack-up               # digest-pinned PostgreSQL
 make migrate                # apply all Alembic migrations
 make api-serve              # http://127.0.0.1:8000
-make web-serve              # http://localhost:3000
+make web-serve              # http://localhost:3000, or SIEMBIOT_WEB_PORT
 ```
 
 The browser reaches the app through the Next.js dev proxy, which forwards the

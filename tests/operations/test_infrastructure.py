@@ -299,3 +299,40 @@ def test_a_variable_with_a_default_need_not_be_documented() -> None:
     raw = "environment:\n  X: ${SOMETHING_OPTIONAL:-a-sensible-default}"
 
     assert check_referenced_variables_are_documented(raw, "f.yml") == []
+
+
+# -- the port and the origin have to agree -------------------------------------------------
+
+
+def test_the_documented_origin_matches_the_documented_web_port() -> None:
+    """A mismatch here is a 403 on every write, and nothing says why.
+
+    `SIEMBIOT_PUBLIC_BASE_URL` is the exact string the API compares the `Origin` header
+    against for any state change. `SIEMBIOT_WEB_PORT` is where the browser actually
+    reaches the interface. Move one without the other -- which is the obvious thing to do
+    when 3000 is already taken -- and every read still works while every write fails with
+    `origin_rejected`, which reads as a bug in the application rather than as one line of
+    configuration.
+
+    Checked against `.env.example` and the compose default, because those are the two
+    tracked places a value can drift; `.env` is untracked and cannot be asserted on.
+    """
+    import re
+
+    example = (ROOT / ".env.example").read_text(encoding="utf-8")
+    compose = PRODUCTION_LIKE.read_text(encoding="utf-8")
+
+    base_url = re.search(r"(?m)^SIEMBIOT_PUBLIC_BASE_URL=(\S+)$", example)
+    documented_port = re.search(r"(?m)^SIEMBIOT_WEB_PORT=(\d+)$", example)
+    compose_default = re.search(r"SIEMBIOT_WEB_PORT:-(\d+)", compose)
+
+    assert base_url and documented_port and compose_default, "a setting went missing"
+
+    origin_port = re.search(r":(\d+)/?$", base_url.group(1))
+    assert origin_port, f"no port in {base_url.group(1)}"
+
+    assert origin_port.group(1) == documented_port.group(1) == compose_default.group(1), (
+        f"origin says :{origin_port.group(1)}, SIEMBIOT_WEB_PORT says "
+        f"{documented_port.group(1)}, compose defaults to {compose_default.group(1)}. "
+        "A write from the browser will be refused as origin_rejected."
+    )

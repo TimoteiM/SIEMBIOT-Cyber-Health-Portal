@@ -15,6 +15,7 @@ the answer has to be quick enough that somebody runs it after every deploy.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import time
 import urllib.error
@@ -26,8 +27,12 @@ ROOT = Path(__file__).resolve().parents[1]
 COMPOSE_FILE = ROOT / "infra" / "compose" / "production-like.compose.yml"
 #: The stack's variables live here, and compose needs them even to describe itself.
 ENV_FILE = ROOT / ".env"
-API = "http://127.0.0.1:8000"
-WEB = "http://127.0.0.1:3000"
+#: Read from the environment rather than hardcoded, because these are host ports and a
+#: developer machine is allowed to already have something on 3000. A smoke test that
+#: checks a port the stack was not published on reports the other application's health,
+#: or nothing at all, and either way it is not testing this one.
+API = f"http://127.0.0.1:{os.environ.get('SIEMBIOT_API_PORT', '8000')}"
+WEB = f"http://127.0.0.1:{os.environ.get('SIEMBIOT_WEB_PORT', '3000')}"
 READY_TIMEOUT_SECONDS = 120
 
 
