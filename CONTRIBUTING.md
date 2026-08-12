@@ -24,3 +24,13 @@ that it works without running it themselves.
 
 State what is *not* done in the same entry. A changelog that lists only what was achieved
 reads as a complete product, which is the failure this rule exists to prevent.
+
+## When you write a check
+
+[Three ways verification fails quietly](docs/process/verification-failure-shapes.md)
+records the shapes this codebase has actually produced, each with the example it came from
+and the habit that catches it. Worth reading before writing a test that guards a security
+or evidence property, because all three were introduced here by people doing the right
+thing — which is why they survived review.
+
+The short version: *what would this check show me if the thing it is checking were absent?*
