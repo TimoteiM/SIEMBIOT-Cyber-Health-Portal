@@ -2571,6 +2571,117 @@
         "title": "OrganizationResponse",
         "type": "object"
       },
+      "ProviderResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "adapter_id": {
+            "title": "Adapter Id",
+            "type": "string"
+          },
+          "capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Capabilities",
+            "type": "array"
+          },
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "cost_unit": {
+            "title": "Cost Unit",
+            "type": "string"
+          },
+          "data_classification": {
+            "title": "Data Classification",
+            "type": "string"
+          },
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "passive": {
+            "title": "Passive",
+            "type": "boolean"
+          },
+          "required_secrets": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Secrets",
+            "type": "array"
+          },
+          "supports_fixtures": {
+            "title": "Supports Fixtures",
+            "type": "boolean"
+          },
+          "terms_notes": {
+            "title": "Terms Notes",
+            "type": "string"
+          },
+          "terms_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terms Url"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "adapter_id",
+          "version",
+          "group",
+          "title",
+          "capabilities",
+          "data_classification",
+          "terms_notes",
+          "terms_url",
+          "required_secrets",
+          "cost_unit",
+          "supports_fixtures",
+          "passive"
+        ],
+        "title": "ProviderResponse",
+        "type": "object"
+      },
+      "ProvidersResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderResponse"
+            },
+            "title": "Providers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "providers"
+        ],
+        "title": "ProvidersResponse",
+        "type": "object"
+      },
       "PublishedCheckResponse": {
         "additionalProperties": false,
         "properties": {
@@ -5608,6 +5719,27 @@
         "summary": "Change Membership",
         "tags": [
           "organizations"
+        ]
+      }
+    },
+    "/api/v1/providers": {
+      "get": {
+        "operationId": "index_api_v1_providers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProvidersResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Index",
+        "tags": [
+          "providers"
         ]
       }
     },

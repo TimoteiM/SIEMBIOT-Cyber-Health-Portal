@@ -212,6 +212,25 @@ const ro = {
   "error.no_scored_assessment":
     "Acest domeniu nu are încă o evaluare finalizată despre care să se poată face un raport.",
   "error.unsupported_locale": "Limba cerută nu este disponibilă pentru raport.",
+  "providers.eyebrow": "Transparență",
+  "providers.title": "Cine mai vede ceva",
+  "providers.intro":
+    "Serviciile pe care această platformă le contactează atunci când evaluează un domeniu. Lista este citită din colectorii care rulează efectiv, nu scrisă de mână.",
+  "providers.keylessSummary":
+    "{keyless} din {total} nu au nevoie de nicio cheie sau cont. Platforma citește registre publice, la fel cum face un browser sau un server de e-mail.",
+  "providers.keyless": "fără cheie",
+  "providers.needsCredential": "necesită credențiale",
+  "providers.reads": "Ce citește",
+  "providers.classification": "Clasificarea datelor",
+  "providers.cost": "Cost",
+  "providers.testable": "Testabil offline",
+  "providers.terms": "Termenii serviciului",
+  "providers.yes": "da",
+  "providers.no": "nu",
+  "providers.loading": "Se încarcă lista furnizorilor…",
+  "providers.none": "Niciun furnizor înregistrat.",
+  "providers.loadFailed": "Lista furnizorilor nu a putut fi încărcată.",
+  "nav.providers": "Furnizori",
   "findings.bySeverity": "Constatări pe severitate",
   // Titlul unei verificări descrie starea dorită. Fără această etichetă, un titlu
   // afișat sub o insignă de severitate se citește ca și cum starea bună ar fi problema.
@@ -687,6 +706,25 @@ const en: Messages = {
   "error.no_scored_assessment":
     "This domain has no completed assessment to report on yet.",
   "error.unsupported_locale": "The requested language is not available for the report.",
+  "providers.eyebrow": "Transparency",
+  "providers.title": "Who else sees anything",
+  "providers.intro":
+    "The services this platform contacts when it assesses a domain. Read from the collectors that actually run, not written by hand.",
+  "providers.keylessSummary":
+    "{keyless} of {total} need no key or account at all. The platform reads public registries, the same way a browser or a mail server does.",
+  "providers.keyless": "no key",
+  "providers.needsCredential": "needs a credential",
+  "providers.reads": "What it reads",
+  "providers.classification": "Data classification",
+  "providers.cost": "Cost",
+  "providers.testable": "Testable offline",
+  "providers.terms": "Service terms",
+  "providers.yes": "yes",
+  "providers.no": "no",
+  "providers.loading": "Loading the provider list…",
+  "providers.none": "No providers registered.",
+  "providers.loadFailed": "The provider list could not be loaded.",
+  "nav.providers": "Providers",
   "findings.bySeverity": "Findings by severity",
   "findings.requirementUnmet": "Requirement not met",
   "findings.group": "{severity} ({count})",

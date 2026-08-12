@@ -67,6 +67,11 @@ PORT_DESCRIPTOR = AdapterDescriptor(
     # wearing fresh evidence.
     cache=CachePolicy(0),
     supports_fixtures=True,
+    # The one collector here that asks a host a question rather than reading something
+    # it published. The group already said `active_probe`; this flag defaulted to True
+    # and nothing read it, so the descriptor claimed the port prober was passive until a
+    # page started disclosing it to institutions.
+    passive=False,
 )
 
 

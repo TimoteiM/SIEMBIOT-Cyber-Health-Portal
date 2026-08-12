@@ -637,6 +637,23 @@ export interface paths {
         patch: operations["change_membership_api_v1_organizations__organization_id__memberships__membership_id__patch"];
         trace?: never;
     };
+    "/api/v1/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Index */
+        get: operations["index_api_v1_providers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/aggregates": {
         parameters: {
             query?: never;
@@ -1930,6 +1947,50 @@ export interface components {
             role?: string | null;
             /** Slug */
             slug: string;
+        };
+        /** ProviderResponse */
+        ProviderResponse: {
+            /** Adapter Id */
+            adapter_id: string;
+            /** Capabilities */
+            capabilities: string[];
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /** Cost Unit */
+            cost_unit: string;
+            /** Data Classification */
+            data_classification: string;
+            /** Group */
+            group: string;
+            /** Passive */
+            passive: boolean;
+            /** Required Secrets */
+            required_secrets: string[];
+            /** Supports Fixtures */
+            supports_fixtures: boolean;
+            /** Terms Notes */
+            terms_notes: string;
+            /** Terms Url */
+            terms_url: string | null;
+            /** Title */
+            title: string;
+            /** Version */
+            version: string;
+        };
+        /** ProvidersResponse */
+        ProvidersResponse: {
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /** Providers */
+            providers: components["schemas"]["ProviderResponse"][];
         };
         /** PublishedCheckResponse */
         PublishedCheckResponse: {
@@ -3678,6 +3739,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    index_api_v1_providers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvidersResponse"];
                 };
             };
         };
