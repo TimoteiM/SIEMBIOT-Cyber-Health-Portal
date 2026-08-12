@@ -360,6 +360,17 @@ the audit trail, because the event most likely to cause a restore is the event w
 record matters most. Evidence tolerates a dump-only restore since it is reproducible and
 expires at ninety days anyway. Configuring WAL archiving is the deployment's step.
 
+## Dashboards
+
+`infra/observability/dashboard.json` is a Grafana dashboard whose panels plot the same
+series the alert rules read, with the same thresholds. Import it, or provision it from
+that path.
+
+Each panel carries a `siembiot-alert` field naming the rule it belongs to, and tests
+assert the pairing **both ways**: every rule has a panel, and every panel citing a rule
+names one that exists. A dashboard whose lines are green while an alert is firing teaches
+people to distrust one of the two, and the one they stop trusting is the alert.
+
 ## What is not here yet
 
 Stated rather than implied, because a runbook that omits its gaps reads as complete:
@@ -372,7 +383,6 @@ Stated rather than implied, because a runbook that omits its gaps reads as compl
   `archive_command` and its destination are deployment infrastructure; no recovery to a
   chosen time has been demonstrated the way the base restore has.
 - **No log aggregation.** Logs are structured and redacted but stay on each host.
-- **No dashboards.** The metrics support them; none are defined.
 - **No TLS termination or identity gateway** in this stack. Both are assumed to be in
   front of it; the API's identity resolver is built for exactly that arrangement.
 - **No load testing beyond a laptop.** The numbers above are shape, not capacity.

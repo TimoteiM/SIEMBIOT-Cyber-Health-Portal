@@ -16,6 +16,7 @@ from __future__ import annotations
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "services" / "api" / "src"))
@@ -38,11 +39,28 @@ def rules() -> list[dict[str, str]]:
     for block in blocks:
         rule = {"alert": block.splitlines()[0].strip()}
         for field in ("expr", "for", "severity", "summary", "description"):
-            found = re.search(rf"^\s*{field}:\s*(.*)$", block, re.M)
-            if found:
-                rule[field] = found.group(1).strip()
+            found = re.search(rf"^(\s*){field}:\s*(.*)$", block, re.M)
+            if not found:
+                continue
+            value = found.group(2).strip()
+            if value in {">-", "|", ">"}:
+                # A folded scalar: the value is the indented block beneath it. Read
+                # rather than skipped, because `expr` is written this way when it is
+                # long -- and the long expressions are the ones worth checking.
+                value = _folded(block[found.end() :], len(found.group(1)))
+            rule[field] = value
         parsed.append(rule)
     return parsed
+
+
+def _folded(remainder: str, parent_indent: int) -> str:
+    """The indented continuation lines of a YAML folded scalar, joined."""
+    lines: list[str] = []
+    for line in remainder.splitlines()[1:]:
+        if line.strip() and (len(line) - len(line.lstrip())) <= parent_indent:
+            break
+        lines.append(line.strip())
+    return " ".join(part for part in lines if part)
 
 
 def referenced_metrics() -> set[str]:
@@ -150,3 +168,56 @@ def test_the_rules_file_prometheus_loads_is_the_one_that_is_tested() -> None:
     something else."""
     assert "alerts.yml" in PROMETHEUS.read_text(encoding="utf-8")
     assert ALERTS.exists()
+
+
+# -- the dashboard and the rules have to agree ------------------------------------------
+
+DASHBOARD = ROOT / "infra" / "observability" / "dashboard.json"
+
+
+def panels() -> list[dict[str, Any]]:
+    import json
+
+    document: dict[str, Any] = json.loads(DASHBOARD.read_text(encoding="utf-8"))
+    return list(document["panels"])
+
+
+def test_every_alert_has_a_panel_somebody_can_look_at() -> None:
+    """An alert with nothing to look at is a page at three in the morning followed by
+    twenty minutes of finding out what the number was doing."""
+    charted = {str(panel["siembiot-alert"]) for panel in panels() if panel.get("siembiot-alert")}
+    named = {rule["alert"] for rule in rules()}
+
+    assert named <= charted, f"{sorted(named - charted)} fire with no panel"
+
+
+def test_every_panel_that_claims_an_alert_names_a_real_one() -> None:
+    """The other direction. A panel citing a rule that was renamed or deleted describes
+    a threshold nothing enforces, which is worse than no annotation."""
+    named = {rule["alert"] for rule in rules()}
+
+    for panel in panels():
+        claimed = panel.get("siembiot-alert")
+        if claimed:
+            assert str(claimed) in named, f"{panel['title']} cites unknown rule {claimed}"
+
+
+def test_a_panel_plots_the_series_its_rule_reads() -> None:
+    """Panels and alerts must be looking at the same thing.
+
+    A dashboard whose lines are green while an alert fires teaches people to distrust one
+    of the two, and the one they stop trusting is the alert.
+    """
+    by_alert = {rule["alert"]: rule.get("expr", "") for rule in rules()}
+
+    for panel in panels():
+        claimed = panel.get("siembiot-alert")
+        if not claimed:
+            continue
+        expression = by_alert[str(claimed)]
+        metrics = set(re.findall(rf"{PREFIX}[a-z_]+", expression)) or set(
+            re.findall(r"\bup\b", expression)
+        )
+        plotted = " ".join(str(target.get("expr", "")) for target in panel.get("targets", []))
+
+        assert any(metric in plotted for metric in metrics), panel["title"]

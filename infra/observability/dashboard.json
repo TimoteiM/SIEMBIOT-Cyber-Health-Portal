@@ -1,0 +1,215 @@
+{
+  "__comment": "Grafana dashboard for SIEMBIOT. Every panel plots a series an alert rule in alerts.yml also reads, and every threshold on a panel is the threshold that rule fires at. A dashboard whose lines are green while an alert is firing teaches people to distrust one of the two, and the one they stop trusting is the alert. The `siembiot-alert` field on each panel names the rule it belongs to, and a test asserts the pairing both ways.",
+  "title": "SIEMBIOT platform health",
+  "uid": "siembiot-platform-health",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "1m",
+  "time": {"from": "now-6h", "to": "now"},
+  "templating": {"list": []},
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "API answering",
+      "description": "Zero here is what ApiDown fires on after two minutes. Shown first because every other panel on this dashboard is read through the API, so a red tile here explains the rest of the page.",
+      "siembiot-alert": "ApiDown",
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+      "targets": [{"expr": "up{job=\"siembiot-api\"}", "legendFormat": "up"}],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "green", "value": 1}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Scrape can read the database",
+      "description": "The API answering and the API being able to query are different failures. MetricsScrapeFailing fires on zero for five minutes; a failed scrape would look identical to a quiet platform, which is why this is a number rather than an absence.",
+      "siembiot-alert": "MetricsScrapeFailing",
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+      "targets": [{"expr": "siembiot_metrics_scrape_ok", "legendFormat": "scrape ok"}],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "green", "value": 1}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Oldest unsettled assessment",
+      "description": "The clearest single signal that work has stopped flowing: a count of queued runs cannot tell a busy platform from a stuck one, but the age of the oldest can. AssessmentsNotProgressing fires above one hour, sustained for fifteen minutes.",
+      "siembiot-alert": "AssessmentsNotProgressing",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [
+        {"expr": "siembiot_oldest_unsettled_assessment_seconds", "legendFormat": "age"}
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "red", "value": 3600}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Schedules past due",
+      "description": "Sustained above zero means the scheduler is not turning cadences into runs. SchedulerNotDispatching fires after thirty minutes, which is long enough that one slow pass is not an alert.",
+      "siembiot-alert": "SchedulerNotDispatching",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+      "targets": [{"expr": "siembiot_schedules_due", "legendFormat": "due"}],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "orange", "value": 1}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Steps abandoned per hour",
+      "description": "Work being dead-lettered rather than retried. WorkBeingAbandoned fires above five in an hour. Plotted as the same `increase()` the rule uses, so the line and the alert cannot disagree about what a spike is.",
+      "siembiot-alert": "WorkBeingAbandoned",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+      "targets": [
+        {
+          "expr": "increase(siembiot_assessment_steps{state=\"dead_lettered\"}[1h])",
+          "legendFormat": "dead lettered"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "red", "value": 5}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Domains needing reverification",
+      "description": "Proofs lapsing faster than they are renewed. VerificationsLapsing fires above ten sustained for an hour. A rising line here means authorized assessments will quietly stop being possible for those domains.",
+      "siembiot-alert": "VerificationsLapsing",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+      "targets": [
+        {
+          "expr": "siembiot_domains{ownership_state=\"reverification_required\"}",
+          "legendFormat": "lapsed"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "orange", "value": 10}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Network refusals by reason",
+      "description": "Refusals are normal and their mix is the signal: a policy tightening, a provider changing behaviour, or an emergency control somebody forgot. NetworkRefusalMixChanged watches this. Broken out by reason because the total tells nobody anything.",
+      "siembiot-alert": "NetworkRefusalMixChanged",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20},
+      "targets": [
+        {"expr": "siembiot_network_operations", "legendFormat": "{{reason_code}}"}
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Emergency controls in force",
+      "description": "Operations refused because somebody stopped the platform. EmergencyControlActive fires on the first one, with no delay -- an emergency control is a deliberate act and its use should be visible immediately, whether it was intended or forgotten.",
+      "siembiot-alert": "EmergencyControlActive",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 20},
+      "targets": [
+        {
+          "expr": "increase(siembiot_network_operations{reason_code=\"emergency_control_active\"}[15m])",
+          "legendFormat": "refused"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "orange", "value": 1}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Provider budget spent today",
+      "description": "Shared across every worker, snapshotted from Redis. Until this series existed the quota was counted per process and nothing could see it, so this is the first panel here that plots something the platform previously could not observe about itself.",
+      "siembiot-alert": null,
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 28},
+      "targets": [
+        {"expr": "siembiot_provider_quota_used", "legendFormat": "{{adapter_id}}"}
+      ]
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Calls refused for want of budget",
+      "description": "ProviderBudgetSpent fires above zero for ten minutes. Kept beside the used panel and not merged into it: a budget at its ceiling and a budget turning away thousands of calls look identical on a usage line and are very different problems.",
+      "siembiot-alert": "ProviderBudgetSpent",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 28},
+      "targets": [
+        {"expr": "siembiot_provider_quota_denied", "legendFormat": "{{adapter_id}}"}
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "red", "value": 1}
+            ]
+          }
+        }
+      }
+    }
+  ]
+}
