@@ -7,23 +7,24 @@ import {
   developmentSignInEnabled,
   SIGNED_IN_HOME,
 } from "../lib/dev-accounts";
-import { translate } from "../lib/i18n";
-import { resolveLocale } from "../lib/i18n/server";
 
 /**
- * The first page, which in development is the sign-in page.
+ * The first page, which is the sign-in page.
  *
- * Opening the application with no identity chosen and being shown a hero with a button
- * is a step that exists only to be clicked through. So locally, the root redirects
- * straight to sign-in -- and straight past it to the application when an identity has
- * already been chosen, because bouncing a signed-in person back to a sign-in page reads
- * as the session having been lost.
+ * Opening the application and being shown a hero with a button is a step that exists
+ * only to be clicked through. So the root redirects to `/sign-in` -- and straight past it
+ * to the application when an identity has already been chosen, because bouncing a
+ * signed-in person back to a sign-in page reads as the session having been lost.
  *
- * **Only in development.** A real deployment terminates identity at a gateway upstream
- * and has no sign-in page to redirect to; sending people to one that says on its face
- * that it does not authenticate would be worse than the landing page. So production
- * keeps the landing page, and the redirect is gated on the same flag that gates the
- * sign-in page itself, rather than on a second condition that could drift from it.
+ * **This holds in a real deployment too, and what changes is the page it arrives at.**
+ * A deployment terminates identity at a gateway upstream and has no credentials to
+ * collect, so `/sign-in` there states that authentication happened before the request
+ * reached this portal, and offers the way in. It does not render a form.
+ *
+ * That distinction is the whole of it. Sending somebody to a page that says on its face
+ * that it does not authenticate would be worse than no redirect at all -- so the page
+ * stops saying it, and stops showing a form nobody can submit, rather than the redirect
+ * being withheld.
  */
 export default async function LandingPage() {
   if (developmentSignInEnabled()) {
@@ -35,16 +36,7 @@ export default async function LandingPage() {
     redirect(chosen && accountBySubject(chosen) ? SIGNED_IN_HOME : "/sign-in");
   }
 
-  const locale = await resolveLocale();
-  return (
-    <section className="hero" aria-labelledby="landing-title">
-      <p className="eyebrow">{translate(locale, "landing.eyebrow")}</p>
-      <h1 id="landing-title">{translate(locale, "landing.title")}</h1>
-      <p>{translate(locale, "landing.intro")}</p>
-      <a className="button primary" href="/onboarding">
-        {translate(locale, "landing.enter")}
-      </a>
-      <p className="hint">{translate(locale, "landing.note")}</p>
-    </section>
-  );
+  // A deployment has no cookie to read: the gateway has already decided, and anybody
+  // arriving here either was authenticated upstream or was never going to be.
+  redirect("/sign-in");
 }

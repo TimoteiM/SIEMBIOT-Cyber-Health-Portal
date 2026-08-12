@@ -8,6 +8,7 @@ import {
   accountFor,
   DEV_ACCOUNTS,
   DEV_IDENTITY_COOKIE,
+  developmentSignInEnabled,
   SIGNED_IN_HOME,
 } from "../../lib/dev-accounts";
 
@@ -22,6 +23,12 @@ import {
  *
  * The page says all of that on itself, because a sign-in form that does not authenticate
  * is exactly the kind of thing somebody later mistakes for one.
+ *
+ * **In a production build it renders no form at all.** The root redirects here in every
+ * build -- the first page a person meets is the sign-in page -- so what arrives in a real
+ * deployment has to be true there. A form that sets a cookie the middleware will not read,
+ * leading to a page that answers 401, is a dead end shaped like a login; saying instead
+ * that identity was established upstream is both shorter and correct.
  */
 export default function SignInPage() {
   const { t } = useLocalization();
@@ -45,6 +52,23 @@ export default function SignInPage() {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     signIn(String(data.get("username") ?? ""), String(data.get("password") ?? ""));
+  }
+
+  // Statically replaced at build time, so the production bundle never takes the branch
+  // below. The credentials it guards are in the repository anyway -- the point is not to
+  // hide them, it is that a real deployment must not present a form it cannot honour.
+  if (!developmentSignInEnabled()) {
+    return (
+      <section className="panel narrow" aria-labelledby="sign-in-title">
+        <p className="eyebrow">{t("landing.eyebrow")}</p>
+        <h1 id="sign-in-title">{t("landing.title")}</h1>
+        <p>{t("landing.intro")}</p>
+        <a className="button primary" href={SIGNED_IN_HOME}>
+          {t("landing.enter")}
+        </a>
+        <p className="hint">{t("landing.note")}</p>
+      </section>
+    );
   }
 
   return (

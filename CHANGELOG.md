@@ -65,7 +65,27 @@ All notable changes are documented here. The project has no supported release ye
 - Milestone 10 Grafana dashboard whose panels plot the series the alert rules read, at the thresholds those rules fire at.
 - ADR-0012 deciding point-in-time recovery is required for the audit trail and why evidence does not need it.
 
+### Changed
+
+- **The application opens on the sign-in page in every build.** It already did in
+  development; production showed a landing hero whose only purpose was to be clicked
+  through. Root now redirects to `/sign-in` everywhere, and what differs is the page that
+  arrives: a deployment terminates identity at a gateway upstream, so `/sign-in` there
+  states that authentication happened before the request reached the portal and offers
+  the way into the workspace.
+
 ### Fixed
+
+- **A production build served a login form that could not log anybody in.** `/sign-in`
+  is a development identity picker, and it was a client component with no build-time
+  gate, so it rendered in production complete with username and password fields. Its own
+  text said it does not work outside development -- and it still collected credentials,
+  set a cookie the middleware never reads, and sent the person to a page that answers
+  401. A dead end shaped like a login, on a portal for public institutions, where a form
+  asking for a password is a phishing lesson taught by the real thing.
+  It now renders no form at all outside development. The tests assert on the input type
+  rather than the copy, because a password field is what a person recognises as a login
+  whatever the surrounding words say.
 
 - **Host ports no longer assume they are free.** The compose file already parameterised
   them; `scripts/smoke_test.py` did not, so a stack published on another port was checked

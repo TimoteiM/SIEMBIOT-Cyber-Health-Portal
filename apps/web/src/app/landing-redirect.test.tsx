@@ -74,13 +74,24 @@ describe("the page the application opens on", () => {
     expect(await destinationOf()).toBe("/sign-in");
   });
 
-  it("does not redirect outside development, where there is no sign-in page", async () => {
-    // A real deployment terminates identity at a gateway and has no sign-in page. Sending
-    // people to one that states on its face that it does not authenticate would be worse
-    // than the landing page it replaced, so the redirect must not survive the build.
+  it("also opens on sign-in in a production build", async () => {
+    // The first page a person meets is the sign-in page in every build. What differs is
+    // what that page says: a deployment terminates identity at a gateway, so `/sign-in`
+    // there states that authentication already happened and renders no form. The
+    // redirect is therefore safe to keep, and the honesty lives on the page rather than
+    // in whether the redirect survives the build.
     vi.stubEnv("NODE_ENV", "production");
-    expect(await destinationOf()).toBe("(rendered, no redirect)");
-    expect(redirect).not.toHaveBeenCalled();
+    expect(await destinationOf()).toBe("/sign-in");
+  });
+
+  it("does not read the identity cookie in a production build", async () => {
+    // There is no cookie worth reading: the middleware that acts on it never runs
+    // outside development. Following it would send somebody to the application under an
+    // identity the API rejects, which surfaces later as an unexplained 401 -- the exact
+    // failure the known-account check exists to prevent in development.
+    vi.stubEnv("NODE_ENV", "production");
+    cookieHeader = `${DEV_IDENTITY_COOKIE}=platform-admin`;
+    expect(await destinationOf()).toBe("/sign-in");
   });
 });
 
