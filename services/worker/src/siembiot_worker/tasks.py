@@ -69,6 +69,11 @@ RETENTION_INTERVAL_SECONDS = 86_400.0
 #: point-in-time recovery decision in ADR-0012 exists to revisit for the audit trail.
 BACKUP_INTERVAL_SECONDS = 86_400.0
 
+#: How often the shared quota counters are copied into the database. Five minutes: often
+#: enough that an alert on a spent budget fires while it still matters, rare enough that
+#: the upsert is not itself a load.
+QUOTA_SNAPSHOT_INTERVAL_SECONDS = 300.0
+
 log = logging.getLogger("siembiot.worker")
 
 
@@ -279,6 +284,50 @@ def due_assessments() -> tuple[dict[str, Any], ...]:
         engine.dispose()
 
 
+def snapshot_provider_quota() -> int:
+    """Read every adapter's counters from Redis and upsert them. Returns how many.
+
+    A failure here is logged and swallowed: the counters are still correct in Redis and
+    the next pass will record them, whereas a raising task would turn a monitoring gap
+    into a worker that looks broken.
+    """
+    import redis as redis_client
+    from sqlalchemy import text
+
+    from siembiot_worker.adapters.shared_quota import read_all
+
+    readings = read_all(redis_client.Redis.from_url(broker_url()))
+    if not readings:
+        return 0
+
+    engine = _tenant_engine()
+    try:
+        with engine.begin() as connection:
+            for reading in readings:
+                connection.execute(
+                    text(
+                        """
+                        INSERT INTO provider_quota_snapshots
+                            (adapter_id, quota_window, used, denied, captured_at)
+                        VALUES (:adapter_id, :quota_window, :used, :denied, now())
+                        ON CONFLICT (adapter_id, quota_window) DO UPDATE
+                        SET used = EXCLUDED.used,
+                            denied = EXCLUDED.denied,
+                            captured_at = EXCLUDED.captured_at
+                        """
+                    ),
+                    {
+                        "adapter_id": reading.adapter_id,
+                        "quota_window": reading.window,
+                        "used": reading.used,
+                        "denied": reading.denied,
+                    },
+                )
+    finally:
+        engine.dispose()
+    return len(readings)
+
+
 def retention_database_url() -> str:
     """The role that may forget things, and nothing else.
 
@@ -465,6 +514,10 @@ def build_celery_app() -> Any:
                 "task": "siembiot.take_backup",
                 "schedule": BACKUP_INTERVAL_SECONDS,
             },
+            "snapshot-provider-quota": {
+                "task": "siembiot.snapshot_quota",
+                "schedule": QUOTA_SNAPSHOT_INTERVAL_SECONDS,
+            },
         },
     )
 
@@ -504,6 +557,16 @@ def build_celery_app() -> Any:
         domain whose proof lapsed today is not given an authorized run this pass.
         """
         return start_due_schedules()
+
+    @app.task(name="siembiot.snapshot_quota")
+    def snapshot_quota() -> int:
+        """Copy today's shared quota counters into the database.
+
+        Redis is the live truth and this is the record. The metrics endpoint reads the
+        database, so without this the counters exist and nothing can see them -- which
+        was the state the adapters were in since Milestone 3.
+        """
+        return snapshot_provider_quota()
 
     @app.task(name="siembiot.take_backup")
     def take_backup() -> str:

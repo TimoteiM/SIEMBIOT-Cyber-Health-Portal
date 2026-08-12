@@ -67,6 +67,15 @@ HELP: dict[str, str] = {
         "Schedules past their next run time. Sustained above zero means the scheduler "
         "is not dispatching."
     ),
+    "provider_quota_used": (
+        "Provider budget spent today, per adapter, across every worker. Snapshotted "
+        "from the shared counter; a per-process number would understate it by however "
+        "many workers are running."
+    ),
+    "provider_quota_denied": (
+        "Calls refused today because the budget was spent. Without this, a used count "
+        "at its limit cannot distinguish one call turned away from ten thousand."
+    ),
     "build_info": "Schema version currently applied.",
     "metrics_scrape_ok": "Whether this scrape could read the database.",
 }

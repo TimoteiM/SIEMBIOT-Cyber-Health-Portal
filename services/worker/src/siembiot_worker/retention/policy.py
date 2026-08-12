@@ -117,6 +117,16 @@ RETENTION_SCHEDULE: tuple[TableRetention, ...] = (
         "recorded_at",
         OPERATIONAL_PERIOD,
     ),
+    # One row per adapter per day, upserted. Swept on the operational period rather
+    # than kept: Prometheus already stores the time series, and this table exists to hand
+    # today's counters to the exporter. A year of daily rows here would be a time series
+    # nobody queries from SQL.
+    _swept(
+        "provider_quota_snapshots",
+        RetentionClass.OPERATIONAL,
+        "captured_at",
+        OPERATIONAL_PERIOD,
+    ),
     # -- the organisation's own record ----------------------------------------------
     #
     # Kept until the organisation itself is removed. Sweeping any of these on a timer

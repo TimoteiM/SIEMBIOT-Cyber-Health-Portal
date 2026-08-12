@@ -131,3 +131,21 @@ groups:
             Fires immediately and with no delay because the interesting case is the
             second one: a control left active is silent, and the only evidence is
             assessments quietly refusing to run.
+
+  - name: siembiot-provider-budget
+    interval: 1m
+    rules:
+      - alert: ProviderBudgetSpent
+        expr: siembiot_provider_quota_denied > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "A provider budget is turning calls away"
+          description: >-
+            Calls are being refused because the day's quota for that adapter is spent.
+            Assessments will complete with less evidence and lower coverage rather than
+            failing, so nothing looks broken from the outside -- which is why this is an
+            alert rather than something to notice in a report. Ten minutes because a
+            single refusal at the edge of a window is not worth a message.
+            Raise the budget, or find out what is spending it.
