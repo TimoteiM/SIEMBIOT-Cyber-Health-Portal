@@ -10,7 +10,7 @@ import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any
+from typing import Any, Protocol
 
 from siembiot_worker.adapters.contract import (
     AdapterError,
@@ -124,9 +124,42 @@ class CircuitBreaker:
         self._opened_at = None
 
 
+class QuotaAccount(Protocol):
+    """What the guard needs from a budget, whichever one it is holding.
+
+    Small on purpose. The in-memory ledger and the Redis-backed shared one differ in
+    everything except this, and the guard should not be able to tell them apart -- a
+    guard that reached for `.used` as a mutable attribute could only ever work with the
+    one that keeps its count in a field.
+    """
+
+    def try_consume(self, units: int = 1) -> bool: ...
+
+    def refund(self, units: int = 1) -> None: ...
+
+    # Readable, never assignable through this interface. The in-memory ledger keeps a
+    # field and the shared one a Redis key; a caller that could write to either would
+    # be able to move a budget without going through the atomic path.
+    @property
+    def used(self) -> int: ...
+
+    @property
+    def denied(self) -> int: ...
+
+    @property
+    def remaining(self) -> int | None: ...
+
+    @property
+    def exhausted(self) -> bool: ...
+
+
 @dataclass
 class QuotaLedger:
-    """Per-adapter usage accounting; the budget is a ceiling, never a soft target."""
+    """Per-adapter usage accounting; the budget is a ceiling, never a soft target.
+
+    Counts in this process only. Correct for a single worker and wrong for a deployment
+    with several: see `shared_quota.SharedQuotaLedger`, which is what production uses.
+    """
 
     limit: int | None = None
     used: int = 0
@@ -140,6 +173,15 @@ class QuotaLedger:
             return False
         self.used += units
         return True
+
+    def refund(self, units: int = 1) -> None:
+        """Give back units consumed for a call that never happened.
+
+        The guard takes quota before the rate limiter, so a call the limiter turns away
+        has already been charged. Without a refund the budget drains on calls that were
+        never made -- and the drain is invisible, because nothing failed.
+        """
+        self.used = max(0, self.used - units)
 
     @property
     def remaining(self) -> int | None:
@@ -212,14 +254,14 @@ class AdapterGuard:
         *,
         rate_limiter: TokenBucketRateLimiter,
         breaker: CircuitBreaker,
-        quota: QuotaLedger,
+        quota: QuotaAccount,
     ) -> None:
         self._rate_limiter = rate_limiter
         self._breaker = breaker
         self._quota = quota
 
     @property
-    def quota(self) -> QuotaLedger:
+    def quota(self) -> QuotaAccount:
         return self._quota
 
     @property
@@ -232,7 +274,10 @@ class AdapterGuard:
         if not self._quota.try_consume():
             return GuardDecision(False, "quota_exhausted")
         if not self._rate_limiter.try_acquire():
-            self._quota.used -= 1
+            # Refunded through the interface rather than by mutating a field: the shared
+            # ledger keeps its count in Redis, where `-= 1` is not a thing that can
+            # happen.
+            self._quota.refund()
             return GuardDecision(False, "rate_limited", self._rate_limiter.retry_after_seconds())
         return GuardDecision(True)
 

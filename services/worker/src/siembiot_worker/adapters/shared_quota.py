@@ -59,6 +59,19 @@ return {1, now}
 """
 
 
+#: Give back units, never below zero. A negative counter would present itself as
+#: capacity nobody has.
+_REFUND = """
+local used_key = KEYS[1]
+local units = tonumber(ARGV[1])
+local used = tonumber(redis.call('GET', used_key) or '0')
+local next_value = used - units
+if next_value < 0 then next_value = 0 end
+redis.call('SET', used_key, next_value)
+return next_value
+"""
+
+
 class RedisLike(Protocol):
     """What this needs from Redis, and nothing more.
 
@@ -116,6 +129,20 @@ class SharedQuotaLedger:
         )
         allowed, used = int(result[0]), int(result[1])
         return bool(allowed), used
+
+    def refund(self, units: int = 1) -> None:
+        """Give back units charged for a call that never happened.
+
+        The guard takes quota before the rate limiter, so a call the limiter turns away
+        has already been charged. `DECRBY` rather than a read-modify-write, for the same
+        reason the consume is a script: another worker is spending the same counter.
+
+        Floored at zero by the refund script, because a negative budget would read as
+        capacity that does not exist.
+        """
+        if units < 1:
+            raise ValueError("invalid_quota_units")
+        self.redis.eval(_REFUND, 1, used_key(self.adapter_id, window_for()), units)
 
     @property
     def used(self) -> int:
