@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://siembiot.example/contracts/agent/v1/tool-call-request.json",
+  "title": "ToolCallRequest",
+  "description": "A model's request to use one tool. The name is drawn from a closed set: there is no shell, no arbitrary fetch, no SQL, no code execution and no generic network tool, so a request for one is not a refused capability but an unrepresentable document.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "run_id", "call_id", "tool", "arguments"],
+  "properties": {
+    "contract_version": {"const": "v1"},
+    "run_id": {"type": "string", "format": "uuid"},
+    "call_id": {"type": "string", "format": "uuid"},
+    "tool": {
+      "enum": [
+        "read_findings",
+        "read_evaluations",
+        "read_observation",
+        "read_remediation_template",
+        "read_knowledge_base"
+      ],
+      "description": "Every tool reads. None writes, and none reaches the network or a target. The model cannot cause an observation to be collected, a score to change, or a host to be contacted."
+    },
+    "arguments": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "subject": {"type": "string", "maxLength": 253},
+        "evidence_id": {"type": "string", "format": "uuid"},
+        "check_id": {"type": "string", "maxLength": 128},
+        "template_id": {"type": "string", "maxLength": 128},
+        "reference_id": {"type": "string", "maxLength": 128}
+      }
+    }
+  }
+}

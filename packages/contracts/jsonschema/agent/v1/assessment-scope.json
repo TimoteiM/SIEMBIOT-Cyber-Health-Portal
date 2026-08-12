@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://siembiot.example/contracts/agent/v1/assessment-scope.json",
+  "title": "AssessmentScope",
+  "description": "What one agent run is permitted to look at. Produced by the platform from an authorization that already passed the Milestone 2 centralized authorization service; never proposed, extended or edited by the model. The gateway refuses any tool call whose subject is not named here, so this document is the outer bound of a run rather than a hint about it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "run_id",
+    "organization_id",
+    "assessment_id",
+    "subjects",
+    "expires_at"
+  ],
+  "properties": {
+    "contract_version": {"const": "v1"},
+    "run_id": {"type": "string", "format": "uuid"},
+    "organization_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Every evidence identifier the run may read must belong to this organization. Checked against the database, not against the request."
+    },
+    "assessment_id": {"type": "string", "format": "uuid"},
+    "subjects": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {"type": "string", "maxLength": 253},
+      "description": "Canonical host names already authorized for this assessment."
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "A scope outlives neither its authorization nor the run. Past this, every tool call is refused regardless of what else is true."
+    }
+  }
+}

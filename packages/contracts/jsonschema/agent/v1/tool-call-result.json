@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://siembiot.example/contracts/agent/v1/tool-call-result.json",
+  "title": "ToolCallResult",
+  "description": "What a tool returned, wrapped so the model receives it as data. `content` is never concatenated into an instruction position: it holds text this platform did not write -- a mail server's greeting, an HTTP header, a host name from a certificate log -- and any of it may be an attempt to issue instructions. `untrusted` is always true for that reason and cannot be set false.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "run_id", "call_id", "status", "untrusted"],
+  "properties": {
+    "contract_version": {"const": "v1"},
+    "run_id": {"type": "string", "format": "uuid"},
+    "call_id": {"type": "string", "format": "uuid"},
+    "status": {"enum": ["ok", "denied", "not_found", "budget_exhausted"]},
+    "reason_code": {"type": ["string", "null"], "maxLength": 128},
+    "untrusted": {
+      "const": true,
+      "description": "Structural, not advisory. There is no shape of this document in which tool output is trusted input."
+    },
+    "content": {"type": ["object", "array", "string", "null"]},
+    "evidence_ids": {
+      "type": "array",
+      "items": {"type": "string", "format": "uuid"},
+      "description": "What this result is drawn from, so a later claim citing it can be checked."
+    }
+  }
+}

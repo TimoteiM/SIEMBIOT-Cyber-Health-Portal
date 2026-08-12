@@ -1,7 +1,7 @@
 .PHONY: bootstrap check contracts-check api-test web-test e2e-auth db-up db-down migrate \
 	test-domain test-network-safety test-collectors test-adapters providers-check fixture-stack \
 	policy-validate test-normalization test-scoring methodology-reproduce observe \
-	worker-serve beat-serve prod-up prod-down prod-migrate smoke backup backup-verify
+	worker-serve beat-serve test-agent-security e2e-agent-fallback prod-up prod-down prod-migrate smoke backup backup-verify
 
 bootstrap:
 	python scripts/bootstrap.py
@@ -21,6 +21,13 @@ web-test:
 
 e2e-auth:
 	python -m uv run --frozen pytest tests/security/test_auth_tenant_authorization.py -q
+
+test-agent-security:
+	python -m uv run --frozen pytest tests/agent_security -q
+
+# The fourth acceptance clause on its own: the whole flow with the model off.
+e2e-agent-fallback:
+	python -m uv run --frozen pytest tests/agent_security/test_disabled_gateway_fallback.py -q
 
 test-domain:
 	python -m uv run --frozen pytest tests/domain -q

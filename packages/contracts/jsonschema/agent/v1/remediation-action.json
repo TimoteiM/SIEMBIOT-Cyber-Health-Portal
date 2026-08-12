@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://siembiot.example/contracts/agent/v1/remediation-action.json",
+  "title": "RemediationAction",
+  "description": "A proposed action. The model may select and order actions from the reviewed remediation catalogue and say why one matters here; it may not write the instructions themselves. `template_id` must name a template that exists, and the steps a reader follows come from that template rather than from the model -- guidance that can break a public institution's systems is reviewed by people.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "run_id", "template_id", "finding_id", "rationale"],
+  "properties": {
+    "contract_version": {"const": "v1"},
+    "run_id": {"type": "string", "format": "uuid"},
+    "template_id": {"type": "string", "maxLength": 128},
+    "finding_id": {"type": "string", "format": "uuid"},
+    "rationale": {"type": "string", "maxLength": 1000},
+    "sequence": {"type": "integer", "minimum": 1, "maximum": 100}
+  }
+}

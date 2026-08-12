@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://siembiot.example/contracts/agent/v1/agent-run-audit.json",
+  "title": "AgentRunAudit",
+  "description": "The complete record of one agent run: what was asked, what was refused, what it cost, and what came out. Written whether the run succeeded, was refused, ran out of budget or was cancelled -- a run that left no record would be the one worth hiding.\n\nRefusals are counted rather than only logged, because a run that was refused forty times is a different event from one that was refused none, and the difference is the signal.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "run_id",
+    "organization_id",
+    "assessment_id",
+    "provider",
+    "model",
+    "outcome",
+    "started_at",
+    "tool_calls",
+    "refusals"
+  ],
+  "properties": {
+    "contract_version": {"const": "v1"},
+    "run_id": {"type": "string", "format": "uuid"},
+    "organization_id": {"type": "string", "format": "uuid"},
+    "assessment_id": {"type": "string", "format": "uuid"},
+    "provider": {"type": "string", "maxLength": 64},
+    "model": {"type": "string", "maxLength": 128},
+    "outcome": {
+      "enum": ["completed", "refused", "budget_exhausted", "cancelled", "provider_unavailable", "disabled"]
+    },
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": ["string", "null"], "format": "date-time"},
+    "tool_calls": {"type": "integer", "minimum": 0},
+    "refusals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["reason_code"],
+        "properties": {
+          "reason_code": {"type": "string", "maxLength": 128},
+          "tool": {"type": ["string", "null"], "maxLength": 64}
+        }
+      }
+    },
+    "tokens_used": {"type": "integer", "minimum": 0},
+    "cost_units": {"type": "number", "minimum": 0},
+    "claims_accepted": {"type": "integer", "minimum": 0},
+    "claims_rejected": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Claims dropped for citing nothing, or citing something outside the run's scope."
+    }
+  }
+}

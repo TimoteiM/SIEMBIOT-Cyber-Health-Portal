@@ -66,8 +66,8 @@ select = ["E", "F", "I", "N", "S", "UP"]
 [tool.mypy]
 python_version = "3.13"
 strict = true
-files = ["scripts", "tests", "services/worker/src"]
-mypy_path = ["services/api/src", "services/worker/src"]
+files = ["scripts", "tests", "services/worker/src", "services/agent-gateway/src"]
+mypy_path = ["services/api/src", "services/worker/src", "services/agent-gateway/src"]
 
 # Celery ships no type information, so its decorators erase the signatures of the
 # functions they wrap. The exemption is scoped to the one module that touches the
