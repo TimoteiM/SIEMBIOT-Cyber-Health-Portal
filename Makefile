@@ -9,6 +9,15 @@ bootstrap:
 check:
 	python scripts/verify_repo.py
 
+# Every gate Milestone 11 step 3 names, including the ones nothing implements yet --
+# those are reported by name rather than omitted, because a release report covering the
+# subset that happens to exist is how "we never built it" becomes "the gates passed".
+#
+# Red today, and correctly so. This is not a per-commit gate; `check` is that.
+# It tags nothing: step 5 puts a release candidate behind approvals this cannot give.
+release-check:
+	python scripts/release_check.py
+
 contracts-check:
 	python -m uv run --frozen python scripts/check_contracts.py
 
@@ -20,7 +29,7 @@ web-test:
 	corepack pnpm --filter @siembiot/web typecheck
 
 e2e-auth:
-	python -m uv run --frozen pytest tests/security/test_auth_tenant_authorization.py -q
+	python -m uv run --frozen pytest tests/security/test_identity_tenant_authorization.py -q
 
 test-agent-security:
 	python -m uv run --frozen pytest tests/agent_security -q

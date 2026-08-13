@@ -354,6 +354,17 @@ def verify_internal_gate(name: str, root: Path) -> list[str]:
 def main() -> int:
     root = Path(__file__).resolve().parents[1]
     checks = build_checks(root)
+
+    # `--only <name>` runs one gate. Added for `release_check.py`, which reports each
+    # gate separately and must not carry its own copy of the commands: a second
+    # definition of "lint" would keep passing after this one changed.
+    if "--only" in sys.argv:
+        wanted = sys.argv[sys.argv.index("--only") + 1]
+        checks = tuple(check for check in checks if check.name == wanted)
+        if not checks:
+            print(f"no such gate: {wanted}", file=sys.stderr)
+            return 2
+
     for check in checks:
         print(f"[check] {check.name}", flush=True)
         errors = verify_internal_gate(check.name, root)
@@ -369,6 +380,9 @@ def main() -> int:
     # Counted, not written down. This line said "14/14" for as long as there were
     # fourteen gates and kept saying it after a fifteenth was added, which is the exact
     # failure mode this repository keeps finding: a confident number nobody recomputed.
+    if "--only" in sys.argv:
+        print(f"gate passed: {checks[0].name}")
+        return 0
     print(f"Repository verification passed: {len(checks)}/{len(checks)} gates")
     return 0
 

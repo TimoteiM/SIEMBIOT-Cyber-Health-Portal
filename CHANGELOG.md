@@ -6,6 +6,27 @@ All notable changes are documented here. The project has no supported release ye
 
 ### Added
 
+- **`make release-check`**, the Milestone 11 step 3 readiness report. It runs every gate
+  the plan names and **names the ones nothing implements** rather than reporting on the
+  subset that exists — 13 of 15 pass today, with `accessibility` and `provenance` reported
+  as not built, each carrying what closing it would take.
+  It exits non-zero, which is the correct answer: an unbuilt gate and a passing gate are
+  not the same thing, and the report refuses to print them the same colour. This is not a
+  per-commit gate — `make check` is that — so an accurate red costs nothing where a green
+  would have to be a lie.
+  **It tags nothing.** Milestone 11 step 5 puts a release candidate behind security,
+  privacy and legal sign-off and the upstream credential disposition, so the script
+  measures readiness and stops. A test parses its own source and fails if it ever grows a
+  `git tag`, `git push` or `docker push`.
+
+### Fixed
+
+- **`make e2e-auth` has been unrunnable since 2026-08-03.** It named
+  `tests/security/test_auth_tenant_authorization.py`, which does not exist — the file is
+  `test_identity_tenant_authorization.py`. Ten days of a target that exited 4 as a pytest
+  *usage* error, never noticed because it is not part of `make check`. Found by
+  `release-check` running it.
+
 - **`docs/operations/jobs.md`**, named in the plan since Milestone 0 and never written.
   The five scheduled jobs, their intervals with reasons, the credential each runs as and
   why it is not the worker's, every backup refusal code with its fix, and the queries that
