@@ -189,11 +189,47 @@ def test_that_guard_can_actually_see_a_tuple_command() -> None:
         written.unlink()
 
 
-def test_the_two_known_gaps_explain_what_they_need() -> None:
+def test_every_unbuilt_gate_explains_what_it_needs() -> None:
     """A gate reported as unbuilt with no explanation is a dead end for whoever picks it
-    up. Both current gaps carry what closing them would take."""
+    up, so each carries what closing it would take.
+
+    Deliberately not asserting *which* gates are unbuilt. That list shrinks as they are
+    built -- accessibility left it once axe went in -- and a test naming the current
+    membership would have to be edited to record progress, which is the kind of edit that
+    gets made without reading.
+    """
     unbuilt = [gate for gate in gates() if not gate.commands]
 
-    assert {gate.name for gate in unbuilt} == {"accessibility", "provenance"}
     for gate in unbuilt:
         assert len(gate.absent) > 80, f"{gate.name} says too little about what it needs"
+
+
+def test_the_report_still_names_a_gap_while_provenance_is_unsigned() -> None:
+    """The one gap that remains, and the reason this file is not yet decorative.
+
+    Provenance needs a decision outside the repository -- where artifacts are published
+    and which identity signs them -- so it stays unbuilt on purpose rather than through
+    neglect. If it is ever closed, this test should be deleted along with it.
+    """
+    unbuilt = {gate.name for gate in gates() if not gate.commands}
+
+    assert "provenance" in unbuilt
+    assert "accessibility" not in unbuilt, "accessibility is built; update this test"
+
+
+def test_the_manual_pass_is_named_on_both_paths(capsys) -> None:  # type: ignore[no-untyped-def]
+    """The caveat has to appear on the path people actually see.
+
+    An automated accessibility gate going green is exactly the moment somebody concludes
+    accessibility is finished. It is not: jsdom has no layout, so contrast, focus
+    visibility and target size are untested by anything in this repository. The first
+    version of this note printed only on the fully-green path -- which is the path nobody
+    has reached yet, so the caveat existed and nobody would ever have read it.
+    """
+    red = [Gate("unbuilt", "nothing implements it", absent="x" * 100)]
+    assert report(red) == 1
+    assert "keyboard and screen-reader" in capsys.readouterr().err
+
+    green = [Gate("built", "runs", (("python", "--version"),), outcome=Outcome.PASSED)]
+    assert report(green) == 0
+    assert "keyboard and screen-reader" in capsys.readouterr().out

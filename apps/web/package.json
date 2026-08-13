@@ -7,7 +7,8 @@
     "dev": "next dev --experimental-https",
     "build": "next build",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:a11y": "vitest run src/a11y"
   },
   "dependencies": {
     "@siembiot/contracts": "workspace:*",
@@ -20,6 +21,7 @@
     "@types/node": "26.1.2",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.3",
+    "axe-core": "4.11.0",
     "jsdom": "30.0.1",
     "typescript": "5.9.3",
     "vitest": "4.1.10"

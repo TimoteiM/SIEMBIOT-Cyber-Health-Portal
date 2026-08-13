@@ -154,13 +154,8 @@ def gates() -> list[Gate]:
         ),
         Gate(
             "accessibility",
-            "keyboard and screen-reader behaviour of the interface",
-            absent=(
-                "No automated accessibility suite exists. The interface is built to be "
-                "accessible and has never been measured, which are different claims. "
-                "Needs axe (or equivalent) over the rendered pages, plus the manual "
-                "keyboard and screen-reader pass Milestone 10 step 5 asks for."
-            ),
+            "axe over the rendered interface: labels, roles, names, landmarks, ARIA",
+            (corepack("pnpm", "--filter", "@siembiot/web", "test:a11y"),),
         ),
         Gate(
             "security",
@@ -271,18 +266,28 @@ def report(checked: list[Gate]) -> int:
         # Tagging is deliberately not this script's business, and saying so here keeps
         # the reader from reading a green run as permission.
         print(
-            "\nEven with every gate green, tagging a release candidate needs the "
-            "approvals Milestone 11 step 5\nnames: security, privacy and legal sign-off, "
-            "and the upstream credential-exposure disposition.",
+            "\nEven with every gate green, work remains that no script can do for "
+            "itself:\n"
+            "  * the manual keyboard and screen-reader pass. The accessibility gate runs "
+            "in jsdom, which has\n    no layout, so contrast, focus visibility and target "
+            "size are not covered by any test here;\n"
+            "  * security, privacy and legal sign-off, and the upstream "
+            "credential-exposure disposition, which\n    Milestone 11 step 5 requires "
+            "before a release candidate is tagged.",
             file=sys.stderr,
         )
         return 1
 
     print(
-        "\nEvery gate this repository can run has passed. Tagging a release candidate "
-        "still needs the\napprovals Milestone 11 step 5 names -- security, privacy and "
-        "legal sign-off, and the upstream\ncredential-exposure disposition. This script "
-        "does not tag anything."
+        "\nEvery gate this repository can run has passed. What remains is work no script "
+        "can do for itself:\n"
+        "  * the manual keyboard and screen-reader pass. The accessibility gate runs in "
+        "jsdom, which has no\n    layout, so contrast, focus visibility and target size "
+        "are not covered by any test here;\n"
+        "  * security, privacy and legal sign-off, and the upstream credential-exposure "
+        "disposition, which\n    Milestone 11 step 5 requires before a release candidate "
+        "is tagged.\n"
+        "\nThis script does not tag anything."
     )
     return 0
 

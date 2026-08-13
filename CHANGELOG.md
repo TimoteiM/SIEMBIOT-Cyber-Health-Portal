@@ -6,6 +6,22 @@ All notable changes are documented here. The project has no supported release ye
 
 ### Added
 
+- **An accessibility suite**, closing one of the two gaps `release-check` reported. axe
+  over the rendered interface — the sign-in page in both builds, the application shell,
+  the language switcher — asserting labels, roles, accessible names, landmark structure
+  and valid ARIA. The audience is Romanian public institutions, which carry accessibility
+  obligations their suppliers are often the reason they miss; "built to be accessible"
+  and "measured" were different claims, and only the first was true.
+  **What it does not cover is stated rather than implied.** These run in jsdom, which has
+  no layout, so colour contrast, focus visibility and target size cannot be evaluated by
+  any test here. Those rules are disabled by name rather than left to report as
+  *incomplete*, and `release-check` now names the outstanding manual keyboard and
+  screen-reader pass on both its output paths — beside the legal and security approvals,
+  because it is the same kind of thing: work no script can do for itself.
+  The audit refuses to run on markup that is not there. axe over an empty container
+  reports zero violations, which reads exactly like a clean page, so a component that
+  threw during render would otherwise have been certified accessible.
+
 - **`make release-check`**, the Milestone 11 step 3 readiness report. It runs every gate
   the plan names and **names the ones nothing implements** rather than reporting on the
   subset that exists — 13 of 15 pass today, with `accessibility` and `provenance` reported
