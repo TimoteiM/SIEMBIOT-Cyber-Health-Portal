@@ -79,3 +79,45 @@ def test_every_collected_result_is_normalized() -> None:
     unread = {name for name in collected if f'collection["{name}"]' not in normalized_source}
 
     assert not unread, f"collected but never normalized: {sorted(unread)}"
+
+
+def test_every_declared_collector_has_a_step_that_runs_it() -> None:
+    """A collector nobody scheduled is a collector that never runs.
+
+    `COLLECTOR_OPERATIONS` says which collectors exist and what each is allowed to do;
+    the graph says which ones the workflow actually executes. Nothing connected the two,
+    so a collector could be written, registered, given an operation class, covered by its
+    own unit tests -- and never once be reached by an assessment.
+
+    That failure is silent in the specific way this codebase keeps finding. The checks
+    reading its evidence resolve to `not_applicable` rather than erroring, which on a
+    report is indistinguishable from a check that ran and found nothing to say. It is the
+    same shape as the observatory drift the tests above were written for, one layer down.
+
+    True by inspection when this was written; nothing enforced it.
+    """
+    from siembiot_worker.workflows.graph import COLLECTION_STEPS, DEPENDENT_COLLECTION_STEPS
+
+    scheduled = {step.name for step in (*COLLECTION_STEPS, *DEPENDENT_COLLECTION_STEPS)}
+    declared = {f"collect.{name}" for name in COLLECTOR_OPERATIONS}
+
+    assert declared, "no collectors are declared; this test is checking nothing"
+    assert not (declared - scheduled), (
+        f"{sorted(declared - scheduled)} are declared collectors with no step in the "
+        "graph, so an assessment never runs them and every check reading their evidence "
+        "reports not_applicable rather than missing"
+    )
+
+
+def test_every_collection_step_has_a_collector_behind_it() -> None:
+    """The other direction. A step with no collector fails at dispatch rather than
+    silently, so it is the less dangerous of the two -- but it fails on a real
+    assessment against somebody's domain, which is a poor place to find out."""
+    from siembiot_worker.workflows.graph import COLLECTION_STEPS, DEPENDENT_COLLECTION_STEPS
+
+    scheduled = {step.name for step in (*COLLECTION_STEPS, *DEPENDENT_COLLECTION_STEPS)}
+    declared = {f"collect.{name}" for name in COLLECTOR_OPERATIONS}
+
+    assert not (scheduled - declared), (
+        f"{sorted(scheduled - declared)} are scheduled and have no collector"
+    )
