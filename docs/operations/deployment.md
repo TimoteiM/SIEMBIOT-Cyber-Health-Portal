@@ -12,6 +12,11 @@ an operator needs to run it and what to do when it misbehaves.
 | `beat` | Decides what is due | **exactly one** | no |
 | `web` | Serves the interface | horizontally | no |
 
+**Without `beat`, nothing runs at all.** The API never publishes to the broker — writing
+`queued` *is* the enqueue — so every job, including every assessment, is started by the
+scheduler's sweep. A stack with an API, an interface and a worker reports healthy and does
+no work. [jobs.md](jobs.md) is the page for that, and for the other four scheduled jobs.
+
 `beat` is a separate image rather than a flag on the worker precisely so that "exactly
 one" is something you state in a deployment rather than remember. Two schedulers would
 enqueue every due assessment twice — harmless, because the engine deduplicates, but

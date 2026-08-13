@@ -6,6 +6,17 @@ All notable changes are documented here. The project has no supported release ye
 
 ### Added
 
+- **`docs/operations/jobs.md`**, named in the plan since Milestone 0 and never written.
+  The five scheduled jobs, their intervals with reasons, the credential each runs as and
+  why it is not the worker's, every backup refusal code with its fix, and the queries that
+  answer "did it run" from the database alone.
+  It leads with the failure that prompted it: the platform started with an API, an
+  interface and a worker, reported healthy everywhere, and did no work, because the API
+  never publishes to the broker and nothing was scheduling the sweep. Tests pin every beat
+  entry, task name and refusal code to the page, so a job added or renamed breaks the build
+  until the runbook catches up — and the first run of those tests found `siembiot.run_assessment`
+  missing, which is most of what a worker log contains.
+
 - Independent Phase 0 architecture, ADRs, threat model, methodology draft, and implementation plan.
 - Milestone 0 reproducible toolchain pins for Node.js 24.18.1, pnpm 10.34.5, Python 3.13, and uv 0.12.1.
 - Frozen JavaScript and Python dependency locks.

@@ -322,6 +322,10 @@ def verify_internal_gate(name: str, root: Path) -> list[str]:
             root / "docs" / "product" / "phase0-review.md",
             root / "docs" / "development" / "setup.md",
             root / "docs" / "providers" / "matrix.md",
+            # The page that says the scheduler is required. Listed here because the
+            # failure it documents -- everything healthy, nothing running -- is one an
+            # operator cannot deduce from the rest of the runbook.
+            root / "docs" / "operations" / "jobs.md",
         )
         return [
             f"missing documentation: {path.relative_to(root)}"
