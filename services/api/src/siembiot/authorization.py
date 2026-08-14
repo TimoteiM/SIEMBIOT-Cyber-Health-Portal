@@ -93,18 +93,31 @@ ROLE_ACTIONS: dict[Role, frozenset[Action]] = {
         }
     ),
     Role.MATURITY_CONTRIBUTOR: frozenset({Action.ORGANIZATION_READ}),
-    # Support can see everything and change nothing.
+    # Support can see everything and change nothing. Reads only -- and *only* reads.
     #
-    # Reads, plus running and cancelling an assessment, because diagnosing a customer's
-    # problem usually means reproducing it. Deliberately absent: DOMAIN_MANAGE,
+    # This previously also granted ASSESSMENT_RUN and ASSESSMENT_CANCEL, on the reasoning
+    # that diagnosing a customer's problem usually means reproducing it. The database
+    # disagreed and had done all along: row-level security on `assessments` gates SELECT
+    # on `app_has_tenant_access`, which support grants satisfy, but gates INSERT and
+    # UPDATE on `app_has_active_membership`, which they do not.
+    #
+    # So the two layers said different things, and the result was the worst available
+    # outcome: a platform administrator clicking "run" got a 500 from a row-level
+    # security violation rather than either a working run or an honest refusal. Neither
+    # layer was reporting the disagreement, because each was individually doing what it
+    # was told.
+    #
+    # Resolved towards the database, deliberately. It is the backstop, it is stricter,
+    # and "support access is read-only" is a sentence that can be checked -- see
+    # `test_support_access_is_read_only`. Widening the database to admit support writes
+    # would have meant relaxing tenant isolation to make a convenience work.
+    #
+    # Deliberately absent, and for the reason that has not changed: DOMAIN_MANAGE,
     # DOMAIN_VERIFY, AUTHORIZATION_MANAGE, ASSET_DECIDE, EMERGENCY_CONTROL_MANAGE and
-    # every membership action.
-    #
-    # That exclusion is the whole boundary. Each of those decides *what may be probed*
-    # or *who may act*, so holding them would let platform staff widen the scope they
-    # then operate in -- and a support grant would stop being support access and start
-    # being control of somebody else's institution. As it stands, a run can only cover
-    # what the organization itself already authorized.
+    # every membership action. Each decides *what may be probed* or *who may act*, so
+    # holding them would let platform staff widen the scope they then operate in -- and a
+    # support grant would stop being support access and start being control of somebody
+    # else's institution.
     Role.PLATFORM_SUPPORT: frozenset(
         {
             Action.ORGANIZATION_READ,
@@ -114,8 +127,6 @@ ROLE_ACTIONS: dict[Role, frozenset[Action]] = {
             Action.AUTHORIZATION_READ,
             Action.EMERGENCY_CONTROL_READ,
             Action.ASSESSMENT_READ,
-            Action.ASSESSMENT_RUN,
-            Action.ASSESSMENT_CANCEL,
             Action.ASSET_READ,
         }
     ),
