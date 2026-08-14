@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from siembiot_worker.reports.document import ReportDocument, ReportFinding
+from siembiot_worker.reports.document import SEVERITY_ORDER, ReportDocument, ReportFinding
 from siembiot_worker.reports.markup import Element, Node, Raw, document, element
 
 LOCALES = ("ro", "en")
@@ -44,6 +44,39 @@ _TEXT: dict[str, dict[str, str]] = {
         "pillars": "Pe domenii de evaluare",
         "no_pillar_score": "fără scor",
         "weight": "pondere",
+        "impact": "Cât de afectată este instituția",
+        "impact_none": "Nicio slăbiciune identificată în verificările efectuate.",
+        "impact_lead": (
+            "Fiecare slăbiciune de mai jos este o cale prin care cineva ar putea "
+            "ajunge la instituție. Cele critice și ridicate se remediază primele."
+        ),
+        "scale_worst": "Critic",
+        "scale_best": "Rezilient",
+        "score_of_100": "din 100",
+        "coverage_explained": (
+            "Am putut verifica {coverage}% din ceea ce măsoară metodologia. Restul a "
+            "rămas neconcludent, deci scorul se sprijină pe mai puține dovezi."
+        ),
+        "coverage_explained_full": (
+            "Am putut verifica {coverage}% din ceea ce măsoară metodologia."
+        ),
+        "importance": "importanță",
+        "importance_high": "ridicată",
+        "importance_medium": "medie",
+        "importance_low": "scăzută",
+        "no_pillar_score_why": "niciun furnizor de reputație nu este configurat",
+        "no_pillar_score_generic": "nu au existat verificări concludente în această zonă",
+        "band.resilient": "Rezilient",
+        "band.managed": "Gestionat",
+        "band.developing": "În dezvoltare",
+        "band.exposed": "Expus",
+        "band.critical": "Critic",
+        "pillar.dns": "DNS",
+        "pillar.email": "E-mail",
+        "pillar.web_tls": "Web și TLS",
+        "pillar.attack_surface": "Suprafață de atac",
+        "pillar.reputation": "Reputație",
+        "pillar.exposure_hygiene": "Igiena expunerii",
         "findings": "Ce trebuie remediat",
         "no_findings": "Nu a fost identificată nicio slăbiciune în verificările efectuate.",
         "requirement_unmet": "Cerință neîndeplinită",
@@ -101,6 +134,37 @@ _TEXT: dict[str, dict[str, str]] = {
         "pillars": "By area",
         "no_pillar_score": "no score",
         "weight": "weight",
+        "impact": "How exposed this institution is",
+        "impact_none": "No weakness was identified in the checks that were performed.",
+        "impact_lead": (
+            "Each weakness below is a way somebody could reach this institution. "
+            "Critical and high ones are fixed first."
+        ),
+        "scale_worst": "Critical",
+        "scale_best": "Resilient",
+        "score_of_100": "out of 100",
+        "coverage_explained": (
+            "We could check {coverage}% of what the methodology measures. The rest was "
+            "inconclusive, so the score rests on less evidence."
+        ),
+        "coverage_explained_full": "We could check {coverage}% of what the methodology measures.",
+        "importance": "importance",
+        "importance_high": "high",
+        "importance_medium": "medium",
+        "importance_low": "low",
+        "no_pillar_score_why": "no reputation provider is configured",
+        "no_pillar_score_generic": "no conclusive checks in this area",
+        "band.resilient": "Resilient",
+        "band.managed": "Managed",
+        "band.developing": "Developing",
+        "band.exposed": "Exposed",
+        "band.critical": "Critical",
+        "pillar.dns": "DNS",
+        "pillar.email": "E-mail",
+        "pillar.web_tls": "Web and TLS",
+        "pillar.attack_surface": "Attack surface",
+        "pillar.reputation": "Reputation",
+        "pillar.exposure_hygiene": "Exposure hygiene",
         "findings": "What needs fixing",
         "no_findings": "No weakness was identified in the checks that were performed.",
         "requirement_unmet": "Requirement not met",
@@ -179,9 +243,48 @@ dl.facts dd { margin: 0; }
 .subject { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
            font-size: 0.9rem; }
 table.pillars { width: 100%; border-collapse: collapse; margin-top: 0.6rem; }
-table.pillars th, table.pillars td { text-align: left; padding: 0.35rem 0.5rem;
-                                     border-bottom: 1px solid #e6ebf0; }
-table.pillars td.number { text-align: right; font-variant-numeric: tabular-nums; }
+table.pillars th, table.pillars td { text-align: left; padding: 0.4rem 0.5rem;
+                                     border-bottom: 1px solid #e6ebf0;
+                                     vertical-align: middle; }
+table.pillars td.number { text-align: right; font-variant-numeric: tabular-nums;
+                          font-weight: 700; width: 3.4rem; }
+table.pillars td.name { width: 11rem; }
+table.pillars td.importance { width: 7rem; font-size: 0.8rem; color: #5a6673; }
+
+/* Bars are a filled div inside a track, not a chart library and not an image.
+   WeasyPrint runs no JavaScript and this report embeds nothing, so a percentage
+   width is the whole mechanism -- it renders identically in a browser and in the
+   PDF, and it degrades to a readable number if styles are stripped entirely. */
+.track { background: #e9eef3; border-radius: 3px; height: 0.62rem; width: 100%; }
+.fill { height: 0.62rem; border-radius: 3px; }
+.fill-resilient { background: #1d7a4c; }
+.fill-managed { background: #4a9e3f; }
+.fill-developing { background: #c08a1e; }
+.fill-exposed { background: #c2601c; }
+.fill-critical { background: #a3202f; }
+.fill-none { background: #c8d2db; }
+
+.headline { margin: 1.1rem 0 0.4rem; }
+.headline .value { font-size: 3rem; font-weight: 800; line-height: 1;
+                   font-variant-numeric: tabular-nums; }
+.headline .of { font-size: 0.95rem; color: #5a6673; margin-left: 0.35rem; }
+.headline .bandname { font-size: 1.5rem; font-weight: 700; margin-left: 1.2rem; }
+.scale { margin-top: 0.7rem; }
+.scale .ends { font-size: 0.75rem; color: #5a6673; margin-top: 0.2rem; }
+.scale .ends .right { float: right; }
+
+/* One chip per severity, carrying its own count. Colour is never the only signal:
+   the number and the word are both present, which is what keeps this readable in
+   greyscale and to a screen reader. */
+.impact { margin-top: 0.5rem; }
+.chip { display: inline-block; border: 1px solid currentColor; border-radius: 6px;
+        padding: 0.3rem 0.7rem; margin: 0 0.4rem 0.4rem 0; font-size: 0.85rem; }
+.chip .count { font-weight: 800; font-size: 1.15rem; margin-right: 0.35rem;
+               font-variant-numeric: tabular-nums; }
+.chip-critical, .chip-high { color: #7a1420; }
+.chip-medium { color: #8a5a12; }
+.chip-low, .chip-informational { color: #4a5560; }
+.lead { color: #3d4854; margin: 0.5rem 0 0; }
 footer { margin-top: 2.5rem; padding-top: 0.8rem; border-top: 1px solid #d7dee6;
          font-size: 0.82rem; color: #5a6673; }
 code { font-family: ui-monospace, Consolas, monospace; font-size: 0.85em;
@@ -230,6 +333,10 @@ def render_report(report: ReportDocument, locale: str = DEFAULT_LOCALE) -> str:
                 "div",
                 _header(report, locale),
                 _headline(report, locale),
+                # Before the areas, because it answers the question people open the
+                # report with. A pillar score of 25 does not tell somebody whether to
+                # worry this week; "two critical, four high" does.
+                _impact(report, locale),
                 _pillars(report, locale),
                 _findings(report, locale),
                 _not_determined(report, locale),
@@ -269,6 +376,111 @@ def _header(report: ReportDocument, locale: str) -> Element:
     )
 
 
+#: Where each band starts, worst first. Mirrors `bands` in the methodology, and
+#: `test_report_band_labels_match_the_methodology` fails if the two drift -- the labels
+#: exist in the catalogue and a report that prints `developing` to a Romanian reader is
+#: not using them.
+_BAND_FLOORS: tuple[tuple[str, float], ...] = (
+    ("critical", 0.0),
+    ("exposed", 30.0),
+    ("developing", 55.0),
+    ("managed", 75.0),
+    ("resilient", 90.0),
+)
+
+#: Weight above which an area is called out as carrying more of the score. Read from
+#: the pillar's own weight rather than hardcoded per area, so re-weighting the
+#: methodology moves the wording with it.
+_IMPORTANCE_HIGH = 0.2
+_IMPORTANCE_MEDIUM = 0.13
+
+
+def _band_for(score: float | None) -> str:
+    """The band a score falls in, for colouring only.
+
+    Not for awarding one: whether a band is *awarded* depends on coverage and is decided
+    by the scorer, not here. This colours a bar, and a bar with no colour rule would be
+    decoration.
+    """
+    if score is None:
+        return "none"
+    band = "critical"
+    for name, floor in _BAND_FLOORS:
+        if score >= floor:
+            band = name
+    return band
+
+
+def _band_label(locale: str, band: str) -> str:
+    return _TEXT[locale].get(f"band.{band}", band)
+
+
+def _pillar_label(locale: str, pillar: str) -> str:
+    """The area's name in the reader's language, falling back to the identifier.
+
+    The fallback is deliberate and visible: an area added to the methodology and not
+    translated shows up as `exposure_hygiene` in the report, which is ugly enough that
+    somebody fixes it. Silently omitting the row would hide a whole area of the score.
+    """
+    return _TEXT[locale].get(f"pillar.{pillar}", pillar)
+
+
+def _importance(locale: str, weight: float) -> str:
+    if weight >= _IMPORTANCE_HIGH:
+        return _text(locale, "importance_high")
+    if weight >= _IMPORTANCE_MEDIUM:
+        return _text(locale, "importance_medium")
+    return _text(locale, "importance_low")
+
+
+def _bar(percent: float, band: str) -> Node:
+    """A filled track. `percent` is clamped, because a bar wider than its track is a
+    layout bug that reads as a better result."""
+    width = max(0.0, min(100.0, percent))
+    return element(
+        "div",
+        element("div", "", class_=f"fill fill-{band}", style=f"width: {width:g}%"),
+        class_="track",
+    )
+
+
+def _impact(report: ReportDocument, locale: str) -> Node:
+    """How exposed the institution is, in the one form every reader understands: how
+    many, and how bad.
+
+    Placed before the areas because it answers the question people actually open the
+    report with. A pillar score of 25 does not tell somebody whether to worry this week;
+    two critical findings does.
+    """
+    counts: dict[str, int] = {}
+    for finding in report.findings:
+        counts[finding.severity] = counts.get(finding.severity, 0) + 1
+
+    if not counts:
+        return element(
+            "section",
+            element("h2", _text(locale, "impact")),
+            element("p", _text(locale, "impact_none")),
+        )
+
+    chips = [
+        element(
+            "span",
+            element("span", str(counts[severity]), class_="count"),
+            _text(locale, f"severity.{severity}"),
+            class_=f"chip chip-{severity}",
+        )
+        for severity in SEVERITY_ORDER
+        if counts.get(severity)
+    ]
+    return element(
+        "section",
+        element("h2", _text(locale, "impact")),
+        element("div", *chips, class_="impact"),
+        element("p", _text(locale, "impact_lead"), class_="lead"),
+    )
+
+
 def _headline(report: ReportDocument, locale: str) -> Element:
     children: list[Node] = [
         element(
@@ -291,11 +503,42 @@ def _headline(report: ReportDocument, locale: str) -> Element:
             element(
                 "div",
                 element("div", _text(locale, "band"), class_="muted"),
-                element("div", report.band, class_="value"),
+                # The methodology carries `label_ro` and `label_en` for every band and
+                # this printed the raw identifier, so a Romanian institution read
+                # "developing" in an otherwise Romanian document.
+                element("div", _band_label(locale, report.band), class_="value"),
             ),
         )
 
     blocks: list[Node] = [element("div", *children, class_="headline")]
+
+    # Where the score sits on the whole scale, with both ends named. A number alone
+    # leaves the reader to guess whether 55.6 is nearly good or nearly bad.
+    if report.score is not None:
+        blocks.append(
+            element(
+                "div",
+                _bar(report.score, _band_for(report.score)),
+                element(
+                    "div",
+                    element("span", _text(locale, "scale_worst")),
+                    element("span", _text(locale, "scale_best"), class_="right"),
+                    class_="ends",
+                ),
+                class_="scale",
+            )
+        )
+
+    # Coverage in a sentence. "65.5%" is a fact about the assessment that reads, to
+    # somebody who did not write the methodology, like a fact about the institution.
+    coverage_key = "coverage_explained_full" if report.coverage_sufficient else "coverage_explained"
+    blocks.append(
+        element(
+            "p",
+            _text(locale, coverage_key).replace("{coverage}", f"{report.coverage_percentage:g}"),
+            class_="lead",
+        )
+    )
     if not report.coverage_sufficient:
         blocks.append(element("p", _text(locale, "band_withheld"), class_="note"))
     if report.evidence_erased_at is not None:
@@ -317,35 +560,54 @@ def _headline(report: ReportDocument, locale: str) -> Element:
 
 
 def _pillars(report: ReportDocument, locale: str) -> Node:
+    """Each area as a bar, named in the reader's language.
+
+    The previous version printed the identifier and the raw weight -- `attack_surface`
+    and `0.15` -- which are the two facts in the whole report that mean nothing to the
+    person receiving it. The weight is a methodology parameter; what a reader needs is
+    whether this area matters more than the next one.
+
+    An area with no score keeps its row and says why. Dropping it would leave a report
+    that silently covers five areas out of six, and a reader counting rows would have no
+    way to know.
+    """
     if not report.pillars:
         return element("div")
-    rows = [
-        element(
-            "tr",
-            element("td", pillar.pillar),
+
+    rows = []
+    for pillar in report.pillars:
+        if pillar.score is None:
+            reason = (
+                _text(locale, "no_pillar_score_why")
+                if pillar.pillar == "reputation"
+                else _text(locale, "no_pillar_score_generic")
+            )
+            measure: Node = element(
+                "span", f"{_text(locale, 'no_pillar_score')} — {reason}", class_="muted"
+            )
+            number: Node = element("span", "—", class_="muted")
+        else:
+            measure = _bar(pillar.score, _band_for(pillar.score))
+            number = f"{pillar.score:g}"
+
+        rows.append(
             element(
-                "td",
-                _text(locale, "no_pillar_score") if pillar.score is None else f"{pillar.score:g}",
-                class_="number",
-            ),
-            element("td", f"{pillar.weight:g}", class_="number"),
+                "tr",
+                element("td", _pillar_label(locale, pillar.pillar), class_="name"),
+                element("td", measure),
+                element("td", number, class_="number"),
+                element(
+                    "td",
+                    f"{_text(locale, 'importance')} {_importance(locale, pillar.weight)}",
+                    class_="importance",
+                ),
+            )
         )
-        for pillar in report.pillars
-    ]
+
     return element(
         "section",
         element("h2", _text(locale, "pillars")),
-        element(
-            "table",
-            element(
-                "tr",
-                element("th", _text(locale, "pillars")),
-                element("th", _text(locale, "score")),
-                element("th", _text(locale, "weight")),
-            ),
-            *rows,
-            class_="pillars",
-        ),
+        element("table", *rows, class_="pillars"),
     )
 
 
