@@ -8,7 +8,7 @@ Domain ownership proof, assessment authorization, and network permission are sep
 
 The API normalizes user input with UTS 46/STD3 rules, stores the ASCII A-label and Unicode display form, and rejects IP literals, URLs, ports, paths, credentials, wildcards, trailing dots, and public suffixes. The vendored Public Suffix List provenance and checksum are recorded under `packages/policy/public_suffix_list/`.
 
-Challenges are random `tyche-v1=` values returned once. PostgreSQL stores only SHA-256 digests. DNS verification reads `_tyche-verify.<canonical-domain>`; HTTPS verification reads only `https://<canonical-domain>/.well-known/tyche-verification.txt`. A value must match exactly. Challenges expire, allow at most five attempts, permit only one pending challenge per domain/method, and are rate-limited to three creations per domain per hour by default.
+Challenges are random `siembiot-v1=` values returned once. PostgreSQL stores only SHA-256 digests. DNS verification reads `_siembiot-verify.<canonical-domain>`; HTTPS verification reads only `https://<canonical-domain>/.well-known/siembiot-verification.txt`. A value must match exactly. Challenges expire, allow at most five attempts, permit only one pending challenge per domain/method, and are rate-limited to three creations per domain per hour by default.
 
 ## Authorization lifecycle
 

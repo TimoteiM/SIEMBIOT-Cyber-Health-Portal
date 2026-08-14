@@ -91,7 +91,9 @@ def test_https_challenge_uses_policy_broker_and_exact_token(
         )
         assert verified.status_code == 200
         assert verified.json()["ownership_state"] == "verified"
-        assert transport.calls[0].url == ("https://example.com/.well-known/tyche-verification.txt")
+        assert transport.calls[0].url == (
+            "https://example.com/.well-known/siembiot-verification.txt"
+        )
 
 
 @pytest.mark.parametrize("control_scope", ["organization", "domain", "operation_class"])

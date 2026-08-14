@@ -45,6 +45,7 @@ PASSIVE_OPERATION_CLASSES: frozenset[OperationClass] = frozenset(
         OperationClass.HTTP_SURFACE,
         OperationClass.EMAIL_POLICY_FETCH,
         OperationClass.TLS_INSPECTION,
+        OperationClass.REPUTATION_QUERY,
         # An MX record is a published invitation to connect on 25 and speak SMTP: that
         # is the only thing it is for. Greeting, EHLO, STARTTLS, QUIT is the opening of
         # the conversation every mail server on the internet has with it daily. What

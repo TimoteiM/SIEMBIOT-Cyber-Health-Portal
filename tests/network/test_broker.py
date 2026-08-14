@@ -149,12 +149,12 @@ def test_broker_enforces_body_and_redirect_budgets_even_for_transport_adapters()
     redirects = [
         TransportResponse(
             302,
-            {"location": "https://example.com/.well-known/tyche-verification.txt"},
+            {"location": "https://example.com/.well-known/siembiot-verification.txt"},
             b"",
         ),
         TransportResponse(
             302,
-            {"location": "https://example.com/.well-known/tyche-verification.txt"},
+            {"location": "https://example.com/.well-known/siembiot-verification.txt"},
             b"",
         ),
     ]

@@ -38,8 +38,8 @@ describe("domain verification and authorization flow", () => {
           state: "pending",
           expires_at: "2026-08-03T10:15:00Z",
           attempts_remaining: 5,
-          verification_location: "_tyche-verify.example.com",
-          verification_token: "tyche-v1=one-time-secret-value-for-test",
+          verification_location: "_siembiot-verify.example.com",
+          verification_token: "siembiot-v1=one-time-secret-value-for-test",
         };
       }
       throw new Error(`Unexpected request: ${path}`);
@@ -52,7 +52,7 @@ describe("domain verification and authorization flow", () => {
     expect(screen.getByText(/Autorizez exclusiv verificarea pasivă/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Creează dovada" }));
-    expect(await screen.findByText("tyche-v1=one-time-secret-value-for-test")).toBeTruthy();
+    expect(await screen.findByText("siembiot-v1=one-time-secret-value-for-test")).toBeTruthy();
     expect(screen.getByText(/înregistrare TXT/)).toBeTruthy();
     expect(screen.getByText(/mai sunt 5 încercări/)).toBeTruthy();
   });

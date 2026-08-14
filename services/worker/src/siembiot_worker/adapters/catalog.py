@@ -78,9 +78,66 @@ REPUTATION_DESCRIPTOR = AdapterDescriptor(
     licence_notes="Requires a provider agreement before enablement.",
 )
 
+SPAMHAUS_DESCRIPTOR = AdapterDescriptor(
+    adapter_id="reputation_spamhaus_dqs",
+    version="1.0.0",
+    group=AdapterGroup.REPUTATION,
+    title="Spamhaus Data Query Service (opt-in)",
+    capabilities=frozenset({"reputation.domain", "reputation.ip"}),
+    data_classification=DataClassification.RESTRICTED_PROVIDER_DATA,
+    terms_notes=(
+        "Free Data Query Service is limited to non-commercial use and must not "
+        "consistently exceed 100,000 queries per day. Spamhaus's published terms do not "
+        "address using results inside a tool offered to other organisations, or "
+        "displaying them to those organisations -- which is what this platform would do. "
+        "Silence is not permission: enablement waits on a written answer from Spamhaus."
+    ),
+    terms_url="https://www.spamhaus.com/terms-of-use-fair-use-policy-for-free-data-query-service/",
+    #: The key is the leftmost label of the query name -- `<key>.<list>.dq.spamhaus.net`
+    #: -- not a header. `telemetry.redact` has a rule for that shape specifically,
+    #: because the redactor written for `scheme://user:pass@host` saw nothing wrong with
+    #: an ordinary-looking hostname.
+    required_secrets=frozenset({"SIEMBIOT_SPAMHAUS_DQS_KEY"}),
+    timeout_seconds=5.0,
+    rate_limit=RateLimitPolicy(5, 1.0, burst=2, minimum_interval_seconds=0.1),
+    cost_unit=CostUnit.QUERY,
+    cache=CachePolicy(3_600),
+    supports_fixtures=True,
+    passive=True,
+    licence_notes="Blocked on written confirmation that the free tier covers this use.",
+)
+
+OTX_DESCRIPTOR = AdapterDescriptor(
+    adapter_id="reputation_otx",
+    version="1.0.0",
+    group=AdapterGroup.REPUTATION,
+    title="Open Threat Exchange indicators (opt-in)",
+    capabilities=frozenset({"reputation.domain"}),
+    data_classification=DataClassification.RESTRICTED_PROVIDER_DATA,
+    terms_notes=(
+        "Community-contributed indicators, which means variable quality and real false "
+        "positives. Results are private-report-only and must never reach a public page "
+        "or an opt-in publication: publishing 'this town hall appears in threat "
+        "intelligence' on evidence that can be wrong is the sharpest reputational risk "
+        "in this product. The policy catalogue enforces it -- the reputation check is "
+        "classed `private_only`, which the publication projector filters on."
+    ),
+    terms_url="https://otx.alienvault.com/",
+    required_secrets=frozenset({"SIEMBIOT_OTX_API_KEY"}),
+    timeout_seconds=8.0,
+    rate_limit=RateLimitPolicy(2, 1.0, burst=1, minimum_interval_seconds=0.5),
+    cost_unit=CostUnit.QUERY,
+    cache=CachePolicy(21_600),
+    supports_fixtures=True,
+    passive=True,
+    licence_notes="Free API key; terms not independently verified.",
+)
+
 OPT_IN_DESCRIPTORS: tuple[AdapterDescriptor, ...] = (
     PASSIVE_ASSET_INTELLIGENCE_DESCRIPTOR,
     REPUTATION_DESCRIPTOR,
+    SPAMHAUS_DESCRIPTOR,
+    OTX_DESCRIPTOR,
 )
 
 ALL_DESCRIPTORS: tuple[AdapterDescriptor, ...] = tuple(

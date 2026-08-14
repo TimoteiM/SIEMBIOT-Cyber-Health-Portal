@@ -21,7 +21,9 @@ Transparency evidence.
 | `http_surface` | 1.0.0 | tls_http | http.availability, http.cookies, http.headers, http.redirect | public_observation | none | 10s | 5/1s burst 2, min-interval 0.1s | none | 600s | yes |
 | `passive_asset_intelligence` | 1.0.0 | passive_asset_intelligence | assets.exposed_services, assets.hosting_context | restricted_provider_data | SIEMBIOT_PASSIVE_INTEL_TOKEN | 10s | 1/1s burst 1, min-interval 1s | query | 3600s | yes |
 | `rdap_registration` | 1.0.0 | dns_rdap | rdap.expiry, rdap.registration, rdap.status | public_observation | none | 8s | 2/1s burst 1, min-interval 0.25s | none | 86400s | yes |
+| `reputation_otx` | 1.0.0 | reputation | reputation.domain | restricted_provider_data | SIEMBIOT_OTX_API_KEY | 8s | 2/1s burst 1, min-interval 0.5s | query | 21600s | yes |
 | `reputation_safe_browsing` | 1.0.0 | reputation | reputation.domain, reputation.url | restricted_provider_data | SIEMBIOT_SAFE_BROWSING_KEY | 8s | 5/1s burst 2 | query | 1800s | yes |
+| `reputation_spamhaus_dqs` | 1.0.0 | reputation | reputation.domain, reputation.ip | restricted_provider_data | SIEMBIOT_SPAMHAUS_DQS_KEY | 5s | 5/1s burst 2, min-interval 0.1s | query | 3600s | yes |
 | `tls_certificate` | 1.0.0 | tls_http | tls.certificate, tls.chain, tls.expiry, tls.protocols | public_observation | none | 8s | 5/1s burst 2, min-interval 0.1s | none | 900s | yes |
 
 ## Terms and licensing notes
@@ -56,11 +58,27 @@ RDAP is a public registration data protocol; responses may redact contacts under
 
 Reference: <https://datatracker.ietf.org/doc/html/rfc7483>
 
+### `reputation_otx` — Open Threat Exchange indicators (opt-in)
+
+Community-contributed indicators, which means variable quality and real false positives. Results are private-report-only and must never reach a public page or an opt-in publication: publishing 'this town hall appears in threat intelligence' on evidence that can be wrong is the sharpest reputational risk in this product. The policy catalogue enforces it -- the reputation check is classed `private_only`, which the publication projector filters on.
+
+Reference: <https://otx.alienvault.com/>
+
+Licensing: Free API key; terms not independently verified.
+
 ### `reputation_safe_browsing` — Reputation and safe-browsing provider (opt-in)
 
 Official reputation API. A listing is a third-party signal, never evidence of compromise; disagreement between providers is preserved.
 
 Licensing: Requires a provider agreement before enablement.
+
+### `reputation_spamhaus_dqs` — Spamhaus Data Query Service (opt-in)
+
+Free Data Query Service is limited to non-commercial use and must not consistently exceed 100,000 queries per day. Spamhaus's published terms do not address using results inside a tool offered to other organisations, or displaying them to those organisations -- which is what this platform would do. Silence is not permission: enablement waits on a written answer from Spamhaus.
+
+Reference: <https://www.spamhaus.com/terms-of-use-fair-use-policy-for-free-data-query-service/>
+
+Licensing: Blocked on written confirmation that the free tier covers this use.
 
 ### `tls_certificate` — TLS and certificate collector
 
@@ -68,7 +86,7 @@ Direct TLS handshakes against the authorized host; no data is sent.
 
 ## Keyless coverage
 
-6 of 8 adapters require no secret. They cover all 10 core capabilities:
+6 of 10 adapters require no secret. They cover all 10 core capabilities:
 
 - `ct.asset_candidates`
 - `dns.caa`

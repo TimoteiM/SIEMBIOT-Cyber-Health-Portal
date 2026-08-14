@@ -32,7 +32,7 @@ describe("domain state presentation", () => {
   });
 
   it("gives fixed DNS and HTTPS instructions in both languages", () => {
-    const location = "_tyche-verify.example.com";
+    const location = "_siembiot-verify.example.com";
     for (const locale of LOCALES) {
       const dns = translate(locale, challengeInstructionKey("dns_txt"), { location });
       const https = translate(locale, challengeInstructionKey("https_file"), { location });

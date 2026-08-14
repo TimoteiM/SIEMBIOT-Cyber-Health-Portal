@@ -43,8 +43,13 @@ PLANNED = (
     "image",
     "smoke",
     "SBOM",
-    "provenance",
 )
+
+#: Dropped from the report by decision rather than by neglect, when the project was
+#: rescoped from a formal product release to a free community tool. Listed so the
+#: removal is visible: a gate that silently disappears looks exactly like one that was
+#: never written.
+RETIRED = {"provenance": "signed artifacts; out of scope for a free community tool"}
 
 
 def test_every_gate_the_plan_names_is_reported() -> None:
@@ -202,19 +207,6 @@ def test_every_unbuilt_gate_explains_what_it_needs() -> None:
 
     for gate in unbuilt:
         assert len(gate.absent) > 80, f"{gate.name} says too little about what it needs"
-
-
-def test_the_report_still_names_a_gap_while_provenance_is_unsigned() -> None:
-    """The one gap that remains, and the reason this file is not yet decorative.
-
-    Provenance needs a decision outside the repository -- where artifacts are published
-    and which identity signs them -- so it stays unbuilt on purpose rather than through
-    neglect. If it is ever closed, this test should be deleted along with it.
-    """
-    unbuilt = {gate.name for gate in gates() if not gate.commands}
-
-    assert "provenance" in unbuilt
-    assert "accessibility" not in unbuilt, "accessibility is built; update this test"
 
 
 def test_the_manual_pass_is_named_on_both_paths(capsys) -> None:  # type: ignore[no-untyped-def]

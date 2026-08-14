@@ -47,7 +47,7 @@ No form submission, authenticated crawl, fuzzing, payload injection, exploitatio
 
 Challenges are stateful: `pending`, `verified`, `expired`, `failed`, `revoked`, `reverification_required`.
 
-- DNS TXT at `_tyche-verify.<domain>` is preferred; random tokens are expiring, single-use, purpose-bound, and stored only as digests.
+- DNS TXT at `_siembiot-verify.<domain>` is preferred; random tokens are expiring, single-use, purpose-bound, and stored only as digests.
 - HTTPS well-known verification has centralized SSRF/redirect/rebinding defenses.
 - Administrative e-mail is restricted to documented role aliases and is fallback-only.
 - eTLD+1 uses a pinned, regularly refreshed Public Suffix List; public/shared suffixes never confer authorization.

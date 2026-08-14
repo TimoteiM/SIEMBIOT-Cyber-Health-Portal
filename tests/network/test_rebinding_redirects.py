@@ -11,7 +11,7 @@ def test_redirect_reresolves_and_blocks_dns_rebinding() -> None:
         [
             TransportResponse(
                 302,
-                {"location": "https://example.com/.well-known/tyche-verification.txt"},
+                {"location": "https://example.com/.well-known/siembiot-verification.txt"},
                 b"",
             )
         ]
@@ -28,7 +28,7 @@ def test_redirect_reresolves_and_blocks_dns_rebinding() -> None:
 def test_cross_domain_redirect_needs_exact_request_authorization() -> None:
     redirect = TransportResponse(
         302,
-        {"location": "https://child.example.com/.well-known/tyche-verification.txt"},
+        {"location": "https://child.example.com/.well-known/siembiot-verification.txt"},
         b"",
     )
     result = NetworkSafetyBroker(

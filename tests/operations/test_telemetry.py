@@ -129,3 +129,51 @@ def test_configuring_logging_replaces_handlers_rather_than_adding(
     configure_logging("INFO")
     logging.getLogger("siembiot.test.dup").info("once")
     assert capsys.readouterr().out.count('"message": "once"') == 1
+
+
+# -- credentials carried inside a DNS name -------------------------------------------------
+
+
+def test_a_key_in_a_dns_query_name_is_redacted() -> None:
+    """The shape the existing redactor was blind to.
+
+    Reputation blocklists are queried as `<key>.<list>.dq.spamhaus.net`, so the API key
+    is not in a header or a URL -- it is the question. Every layer that touches a DNS
+    query touches the secret: the resolver, the timeout message, the exception text, the
+    record of what was asked. A redactor written for `scheme://user:pass@host` sees
+    nothing wrong, because nothing is wrong with the shape; it is an ordinary hostname.
+
+    Caught before the collector was written rather than after it had been logging for a
+    month, which is the only reason this is a test and not an incident.
+    """
+    line = "resolving abc123SECRETKEY.dbl.dq.spamhaus.net timed out"
+
+    assert "SECRETKEY" not in redact(line)
+
+
+def test_the_whole_prefix_is_redacted_not_just_one_label() -> None:
+    """The trap in the obvious implementation.
+
+    The key is the leftmost label and the list name sits between it and the zone. A
+    pattern anchored one label out redacts `dbl` and publishes the key -- and the line
+    then *looks* handled, which is worse than no redaction, because nobody re-reads a
+    log line that already says [redacted].
+    """
+    for listing in ("dbl", "zen", "sbl", "xbl"):
+        line = f"query k3yMATERIAL.{listing}.dq.spamhaus.net"
+
+        assert "k3yMATERIAL" not in redact(line), f"the key survived a {listing} query"
+
+
+def test_an_ordinary_spamhaus_hostname_is_left_alone() -> None:
+    """Redacting `www.spamhaus.org` would be noise, and noise is how a redactor teaches
+    people to stop reading its output."""
+    assert redact("see www.spamhaus.org for details") == "see www.spamhaus.org for details"
+
+
+def test_the_dns_redaction_survives_being_nested_in_a_structure() -> None:
+    """Logs carry dictionaries, not sentences. A rule that only fires on a bare string
+    misses the case the logger actually produces."""
+    event = {"detail": {"query": "topsecret.zen.dq.spamhaus.net", "attempt": 2}}
+
+    assert "topsecret" not in str(redact(event))

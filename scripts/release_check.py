@@ -11,17 +11,15 @@ fifteen gates and prints a green summary is worse than no release check: it conv
 mode this repository keeps finding is a confident number nobody recomputed, and a
 release readiness report is the worst possible place for one.
 
-**So this is red today, and that is the correct answer.** Two gates are genuinely not
-implemented and one needs a running stack. Red here does not block anything -- this is
-not a CI gate on every push, `make check` is that. It is an on-demand readiness report,
-so a permanently accurate red costs nothing and tells the truth, where a green would
-have to be a lie.
+**Provenance is no longer among them.** Signed release artifacts belonged to a formal
+product release; this is scoped as a free community tool, and a gate demanding an
+attestation nobody intends to produce would be a permanent red that teaches people to
+ignore the report. Removed deliberately rather than left failing -- and recorded here,
+because a gate that quietly disappears is indistinguishable from one that never existed.
 
-**It does not tag anything.** Milestone 11 step 5 is explicit that a release candidate is
-tagged "only after accountable security/privacy/legal approvals and upstream
-credential-exposure disposition". Those are decisions outside this script's authority and
-outside this repository, so the script measures readiness and stops there. Deciding to
-release is a person's job; establishing whether the evidence exists is this one's.
+**It still does not tag anything.** Measuring readiness and declaring a release stay
+separate: a green run is evidence, not permission. What remains outside any script is the
+manual keyboard and screen-reader pass, which no test in this repository can perform.
 """
 
 from __future__ import annotations
@@ -197,17 +195,6 @@ def gates() -> list[Gate]:
             needs_stack=True,
         ),
         Gate("SBOM", "the inputs a bill of materials is generated from", (repo_gate("sbom"),)),
-        Gate(
-            "provenance",
-            "signed artifacts, so a deployment can prove what it is running",
-            absent=(
-                "Nothing is signed. The container-scan workflow builds the images and "
-                "the SBOM inputs are gated, but no attestation is produced and no "
-                "identity signs one. Needs a decision this repository cannot make: "
-                "where artifacts are published and which identity signs them. Keyless "
-                "signing through the CI's OIDC identity would need no stored key."
-            ),
-        ),
     ]
 
 

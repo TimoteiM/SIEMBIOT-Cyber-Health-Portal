@@ -865,3 +865,52 @@ def normalize_mail_transport(
             },
         ),
     )
+
+
+def normalize_reputation(
+    result: CollectionResult,
+    *,
+    organization_id: UUID,
+    assessment_id: UUID,
+    subject: Subject,
+    now: datetime,
+    window_seconds: int,
+) -> tuple[NormalizedObservation, ...]:
+    """Third-party opinion about a domain, kept distinguishable from measurement.
+
+    `inconclusive` rather than `absent` when nothing could be consulted, and the
+    difference is the point. `absent` here would read as "no provider lists this domain"
+    -- a clean result — when what actually happened is that nobody was asked. The policy
+    check turns `inconclusive` into `unknown` with `reputation_provider_unconfigured`,
+    so a deployment with no key reports that it does not know rather than that all is
+    well.
+
+    Disagreement is carried through as `contested` rather than resolved. Two providers
+    differing about a public institution is a fact about the evidence, and a collector
+    that picked a winner would be inventing certainty the sources do not have.
+    """
+    confidence = _confidence(result, attribution=1.0, now=now, window_seconds=window_seconds)
+    builder = ObservationBuilder(
+        organization_id=organization_id,
+        assessment_id=assessment_id,
+        subject=subject,
+        result=result,
+        confidence=confidence,
+    )
+    if not result.usable:
+        return (builder.make("reputation.domain", ObservationStatus.INCONCLUSIVE),)
+
+    payload = result.payload
+    return (
+        builder.make(
+            "reputation.domain",
+            ObservationStatus.OBSERVED,
+            {
+                "listed": bool(payload.get("listed", False)),
+                "contested": bool(payload.get("contested", False)),
+                "providers_consulted": list(payload.get("providers_consulted", [])),
+                "providers_listing": list(payload.get("providers_listing", [])),
+                "providers_unavailable": list(payload.get("providers_unavailable", [])),
+            },
+        ),
+    )

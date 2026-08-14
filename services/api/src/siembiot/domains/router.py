@@ -211,6 +211,30 @@ def build_domain_router() -> APIRouter:
             domain = _domain_row(connection, domain_id)
             if domain is None:
                 raise AppError(404, "not_found", "The requested resource was not found.")
+            # Retire anything that has lapsed, before asking whether one is open.
+            #
+            # A challenge was marked `expired` only when somebody attempted to verify
+            # it, so one that simply ran out of time sat at `pending` for ever. A partial
+            # unique index allows one pending row per domain and method, so that stranded
+            # the domain: every later attempt was refused, and the refusal said an active
+            # challenge existed -- true, and useless, because the active one was days
+            # dead and nothing said cancelling it was the fix.
+            #
+            # Retiring it here rather than filtering it out of the query below is what
+            # keeps the database honest. The index enforces one *pending* row, so a
+            # lapsed challenge left in that state is a row claiming to be something it is
+            # not; and this request is the exact moment the platform learns it lapsed.
+            # The domain's own ownership state is deliberately untouched -- an abandoned
+            # attempt is not a failed verification, and a domain that was already
+            # verified should not be demoted for having ignored a later challenge.
+            connection.execute(
+                text(
+                    "UPDATE domain_challenges SET state = 'expired' "
+                    "WHERE domain_id = :domain_id AND method = :method "
+                    "AND state = 'pending' AND expires_at <= now()"
+                ),
+                {"domain_id": domain_id, "method": body.method},
+            )
             active = connection.execute(
                 text(
                     "SELECT 1 FROM domain_challenges WHERE domain_id = :domain_id "
@@ -219,7 +243,12 @@ def build_domain_router() -> APIRouter:
                 {"domain_id": domain_id, "method": body.method},
             ).scalar_one_or_none()
             if active is not None:
-                raise AppError(409, "challenge_active", "An active challenge already exists.")
+                raise AppError(
+                    409,
+                    "challenge_active",
+                    "A challenge for this domain and method is still open. Finish it or "
+                    "cancel it before requesting another.",
+                )
             recent_count = connection.execute(
                 text(
                     "SELECT count(*) FROM domain_challenges WHERE domain_id = :domain_id "

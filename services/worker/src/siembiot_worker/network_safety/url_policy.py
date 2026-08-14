@@ -5,7 +5,7 @@ from urllib.parse import urljoin, urlsplit
 
 from siembiot_worker.network_safety.host_policy import HostPolicyError, canonical_host
 
-VERIFICATION_PATH = "/.well-known/tyche-verification.txt"
+VERIFICATION_PATH = "/.well-known/siembiot-verification.txt"
 
 
 class DestinationPolicyError(ValueError):

@@ -38,5 +38,5 @@ class DNSVerificationService:
         self.resolver = resolver
 
     def verify(self, canonical_name: str, expected_digest: bytes) -> bool:
-        records = self.resolver.resolve_txt(f"_tyche-verify.{canonical_name}")
+        records = self.resolver.resolve_txt(f"_siembiot-verify.{canonical_name}")
         return any(token_matches_digest(record, expected_digest) for record in records)

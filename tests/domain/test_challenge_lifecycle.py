@@ -22,7 +22,7 @@ class FakeTXTResolver:
 
 def test_challenge_plaintext_has_single_purpose_prefix_and_digest() -> None:
     token, digest = new_challenge_token()
-    assert token.startswith("tyche-v1=")
+    assert token.startswith("siembiot-v1=")
     assert len(digest) == 32
     assert digest == hashlib.sha256(token.encode("utf-8")).digest()
     assert token_matches_digest(token, digest)
@@ -34,11 +34,11 @@ def test_dns_verification_queries_only_the_fixed_name() -> None:
     resolver = FakeTXTResolver(("unrelated", token))
     service = DNSVerificationService(resolver)
     assert service.verify("example.com", digest)
-    assert resolver.queries == ["_tyche-verify.example.com"]
-    assert challenge_location("example.com", "dns_txt") == "_tyche-verify.example.com"
+    assert resolver.queries == ["_siembiot-verify.example.com"]
+    assert challenge_location("example.com", "dns_txt") == "_siembiot-verify.example.com"
     assert (
         challenge_location("example.com", "https_file")
-        == "https://example.com/.well-known/tyche-verification.txt"
+        == "https://example.com/.well-known/siembiot-verification.txt"
     )
 
 

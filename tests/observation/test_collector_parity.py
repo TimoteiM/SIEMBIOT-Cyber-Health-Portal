@@ -38,12 +38,41 @@ def _observatory_collector_names() -> set[str]:
     }
 
 
+#: Passive collectors the observatory deliberately does not run, and why.
+#:
+#: An exclusion list rather than a weaker rule. The rule -- every passive collector the
+#: workflow runs, the observatory runs too -- exists because a collector missing from one
+#: side resolves to `not_applicable` for every public body, which reads as a clean result.
+#: Loosening it to make one collector fit would give that silence back for all of them.
+#: Naming the exception, with the reason attached, keeps the rest of the rule sharp.
+OBSERVATORY_EXCLUSIONS = {
+    "reputation": (
+        "Costs a provider query per public body, against a free tier that is explicitly "
+        "for non-commercial low-volume use -- and the observatory covers a directory, "
+        "not a customer. The finding it feeds is classed `private_only`, so it could "
+        "never appear on a public page in any case: collecting it here would spend "
+        "somebody else's quota to produce data nobody is allowed to see."
+    ),
+}
+
+
+def test_the_exclusions_are_real_collectors_with_reasons() -> None:
+    """An exclusion list is a hole in a rule, so it has to be checked like one.
+
+    A typo here would silently exempt nothing and quietly weaken the guard; an entry
+    with no reason is a hole nobody can re-examine later.
+    """
+    for name, reason in OBSERVATORY_EXCLUSIONS.items():
+        assert name in COLLECTOR_OPERATIONS, f"{name} is excluded and is not a collector"
+        assert len(reason) > 80, f"{name} is excluded without a usable reason"
+
+
 def test_the_observatory_runs_every_passive_collector_the_workflow_does() -> None:
     passive = {
         name
         for name, operation in COLLECTOR_OPERATIONS.items()
         if operation in PASSIVE_OPERATION_CLASSES
-    }
+    } - set(OBSERVATORY_EXCLUSIONS)
     missing = passive - _observatory_collector_names()
 
     assert not missing, (

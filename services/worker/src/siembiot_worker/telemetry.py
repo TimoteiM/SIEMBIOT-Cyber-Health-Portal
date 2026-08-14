@@ -52,10 +52,37 @@ REDACTED = "[redacted]"
 #: scrubbed as well as the field name being checked.
 _CREDENTIAL_URL = re.compile(r"(?P<scheme>[a-z+]+://)(?P<user>[^:@/\s]+):(?P<secret>[^@/\s]+)@")
 
+#: A credential carried as the first label of a DNS name.
+#:
+#: Reputation blocklists are queried this way -- `<key>.dbl.dq.spamhaus.net` -- so the
+#: API key is not in a header or a URL but *in the question itself*. Every layer that
+#: handles a DNS query handles the secret: the resolver, the timeout message, the
+#: exception text, the record of which name was asked. A redactor written for
+#: `scheme://user:password@host` sees nothing wrong with any of it, because nothing is
+#: wrong with the shape -- it is a perfectly ordinary hostname.
+#:
+#: Matched on the *zone* rather than on what a key looks like. Keys have no recognisable
+#: shape, and waiting to recognise one is how they get logged; the zones that use this
+#: scheme are a short, known list.
+_CREDENTIALLED_DNS_ZONES = (
+    "dq.spamhaus.net",
+    "dq.spamhaus.org",
+)
+#: Everything left of the zone is redacted, not merely the first label. The key is
+#: the leftmost label and the list name -- `dbl`, `zen`, `sbl` -- sits between it and
+#: the zone, so a pattern anchored one label out would redact `dbl` and publish the
+#: key. That is worse than no redaction at all, because the line then looks handled.
+_CREDENTIALLED_DNS_NAME = re.compile(
+    r"(?:[A-Za-z0-9_-]+\.)+(?P<zone>"
+    + "|".join(re.escape(zone) for zone in _CREDENTIALLED_DNS_ZONES)
+    + r")"
+)
+
 
 def redact(value: Any) -> Any:
     """Scrub credentials out of a value that is about to be logged."""
     if isinstance(value, str):
+        value = _CREDENTIALLED_DNS_NAME.sub(REDACTED + r".\g<zone>", value)
         return _CREDENTIAL_URL.sub(r"\g<scheme>\g<user>:" + REDACTED + "@", value)
     if isinstance(value, dict):
         return {key: redact_field(key, item) for key, item in value.items()}

@@ -40,6 +40,13 @@ class OperationClass(StrEnum):
     #: operation in this product that asks a host something rather than reading what
     #: it publishes, which is why it is authorized-only.
     PORT_PROBE = "port_probe"
+    #: Asking a third party what they think of the target. Nothing is sent to the
+    #: institution at all -- the query goes to a blocklist or threat-intel provider --
+    #: so it is passive in the strongest sense available here: the assessed party's
+    #: infrastructure is never touched. It is a distinct class rather than a DNS query
+    #: because the destination is a provider under a licence, which is a different thing
+    #: to reason about than a public protocol.
+    REPUTATION_QUERY = "reputation_query"
     #: Connecting to a published MX host on 25 and asking whether it offers STARTTLS.
     #: Passive, by the same test as an HTTP GET: an MX record exists precisely to invite
     #: this connection, and every mail server on the internet accepts that invitation.

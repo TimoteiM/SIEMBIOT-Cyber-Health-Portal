@@ -61,6 +61,10 @@ COLLECTION_STEPS: tuple[StepDefinition, ...] = (
     StepDefinition("collect.http", AssessmentState.COLLECTING, optional=True),
     StepDefinition("collect.rdap", AssessmentState.COLLECTING, optional=True),
     StepDefinition("collect.ct", AssessmentState.COLLECTING, optional=True),
+    # Depends on nothing: providers are asked about the domain name, which is known
+    # before any collection begins. Optional like the rest -- an institution with no
+    # reputation provider configured still gets an assessment, and the check says so.
+    StepDefinition("collect.reputation", AssessmentState.COLLECTING, optional=True),
     # Skipped outright in a passive run. Longer deadline than the rest because its
     # duration is a port count multiplied by a timeout rather than one request.
     StepDefinition(

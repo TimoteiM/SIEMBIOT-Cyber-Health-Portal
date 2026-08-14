@@ -30,6 +30,7 @@ from siembiot_worker.collectors.mail_transport import MailTransportCollector
 from siembiot_worker.collectors.network_attribution import NetworkAttributionCollector
 from siembiot_worker.collectors.port_surface import PortSurfaceCollector
 from siembiot_worker.collectors.rdap import RDAPCollector
+from siembiot_worker.collectors.reputation import ReputationCollector, ReputationProvider
 from siembiot_worker.collectors.tls_certificate import TLSCertificateCollector
 from siembiot_worker.network_safety.collection_broker import CollectionNetworkBroker
 from siembiot_worker.network_safety.collection_policy import OperationClass
@@ -89,6 +90,14 @@ class AssessmentContext:
     rdap_endpoint: str = "rdap.org"
     ct_source: CTEntrySource = field(default_factory=EmptyCTSource)
     probe_tls_protocols: bool = False
+
+    #: Reputation sources, and empty by default on purpose. No provider ships: Spamhaus's
+    #: terms do not address using their data inside a tool offered to other organisations,
+    #: and an unanswered licence question is not something to build past. With none
+    #: configured the collector reports `reputation_provider_unconfigured` and the check
+    #: resolves to `unknown` -- a platform with no reputation key must not report a clean
+    #: reputation for anybody.
+    reputation_providers: tuple[ReputationProvider, ...] = ()
 
     #: Hosts a person accepted into scope, assessed alongside the domain itself. Empty
     #: unless somebody reviewed a discovered candidate and said yes: discovery is not
@@ -152,6 +161,7 @@ COLLECTOR_OPERATIONS: dict[str, OperationClass] = {
     "ports": OperationClass.PORT_PROBE,
     "asn": OperationClass.DNS_QUERY,
     "mail_tls": OperationClass.SMTP_STARTTLS,
+    "reputation": OperationClass.REPUTATION_QUERY,
 }
 
 
@@ -217,6 +227,12 @@ def build_handlers(context: AssessmentContext) -> dict[str, StepHandler]:
             return NetworkAttributionCollector(context.broker, context.clock).collect(
                 request, addresses
             )
+        if name == "reputation":
+            # Asks providers about the host; makes no request to the institution, which
+            # is why it takes the host rather than a collection request.
+            return ReputationCollector(context.reputation_providers, context.clock).collect(
+                context.host
+            )
         if name == "mail_tls":
             return MailTransportCollector(context.broker, context.clock).collect(
                 request, _mail_hosts(context)
@@ -234,6 +250,19 @@ def build_handlers(context: AssessmentContext) -> dict[str, StepHandler]:
             # was never made.
             if operation_class not in allowed_operation_classes(context.runtime.mode):
                 return StepOutcome.skip("requires_authorized_assessment")
+            # A source nobody configured is not a source that failed. Reputation is the
+            # only collector that can be absent by choice rather than by outage, and
+            # running it anyway would mark every assessment partially completed for as
+            # long as no key existed -- an institution reading "partially completed"
+            # about a provider they never asked for.
+            #
+            # The distinction this preserves is between "we chose not to look" and "we
+            # looked and could not see": skipping leaves the check `not_applicable` and
+            # coverage untouched, whereas a configured provider that cannot be reached
+            # still returns `inconclusive` and still costs coverage, which is correct --
+            # that is a gap in what was measured rather than a decision.
+            if name == "reputation" and not context.reputation_providers:
+                return StepOutcome.skip("no_reputation_provider_configured")
             result = collect_one(name, operation_class)
             context.collection[name] = result
             return _collection_outcome(name, result)

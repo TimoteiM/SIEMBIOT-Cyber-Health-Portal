@@ -89,7 +89,7 @@ def test_domain_dns_challenge_verifies_without_storing_or_auditing_plaintext(
         assert challenge_response.status_code == 201
         challenge = challenge_response.json()
         token = challenge.pop("verification_token")
-        assert challenge["verification_location"] == "_tyche-verify.xn--coal-3sa77n.ro"
+        assert challenge["verification_location"] == "_siembiot-verify.xn--coal-3sa77n.ro"
 
         with psycopg.connect(postgres_database["owner_url"]) as owner:
             stored = owner.execute(
@@ -122,7 +122,7 @@ def test_domain_dns_challenge_verifies_without_storing_or_auditing_plaintext(
         )
         assert verified.status_code == 200
         assert verified.json()["ownership_state"] == "verified"
-        assert resolver.queries == ["_tyche-verify.xn--coal-3sa77n.ro"]
+        assert resolver.queries == ["_siembiot-verify.xn--coal-3sa77n.ro"]
 
         replay = client.post(
             f"/api/v1/organizations/{organization_id}/domains/{domain['id']}"
@@ -254,3 +254,52 @@ def test_verification_attempt_budget_fails_closed_and_audits_safe_outcomes(
     assert domain_state == ("failed",)
     assert len(audit_rows) == 5
     assert all(row[1] == "failure" and token not in row[2] for row in audit_rows)
+
+
+def test_a_lapsed_challenge_does_not_block_a_new_one(
+    postgres_database: dict[str, str],
+) -> None:
+    """A challenge is marked `expired` only when somebody tries to verify it, so one
+    that simply lapsed stays `pending` for ever.
+
+    Without an expiry clause on the uniqueness check, that stranded the domain: every
+    later attempt returned 409 saying an active challenge existed, which was true and
+    useless -- the active one was days dead, and the person had no way to tell from the
+    message that cancelling it was the fix.
+
+    The one-at-a-time rule still holds for a *live* challenge; the test above covers
+    that. This covers the lapsed one.
+    """
+    organization_id, principal = seed_owner(postgres_database["owner_url"])
+    resolver = MutableTXTResolver()
+    with client_for(postgres_database, principal, resolver) as client:
+        domain = client.post(
+            f"/api/v1/organizations/{organization_id}/domains",
+            json={"domain": "lapsed.example.com"},
+        ).json()
+        first = client.post(
+            f"/api/v1/organizations/{organization_id}/domains/{domain['id']}/challenges",
+            json={"method": "dns_txt"},
+        )
+        assert first.status_code == 201
+
+        # Left pending, as a lapsed challenge genuinely is. Nothing sweeps it.
+        with psycopg.connect(postgres_database["owner_url"]) as owner:
+            owner.execute(
+                # `created_at` moves with it: a CHECK constraint requires the expiry to
+                # follow creation, which is the database refusing to store a challenge
+                # that was never valid.
+                "UPDATE domain_challenges SET created_at = now() - interval '20 minutes', "
+                "expires_at = now() - interval '1 second' WHERE id = %s",
+                (first.json()["id"],),
+            )
+
+        again = client.post(
+            f"/api/v1/organizations/{organization_id}/domains/{domain['id']}/challenges",
+            json={"method": "dns_txt"},
+        )
+
+        assert again.status_code == 201, (
+            "a lapsed challenge is still blocking new ones, so the domain cannot be "
+            "verified by this method at all"
+        )

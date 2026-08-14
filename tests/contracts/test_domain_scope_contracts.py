@@ -51,7 +51,7 @@ def validate(name: str, payload: dict[str, Any]) -> None:
                 "state": "pending",
                 "expires_at": "2026-08-03T12:15:00Z",
                 "attempts_remaining": 5,
-                "verification_location": "_tyche-verify.xn--coal-3sa77n.ro",
+                "verification_location": "_siembiot-verify.xn--coal-3sa77n.ro",
             },
         ),
         (
