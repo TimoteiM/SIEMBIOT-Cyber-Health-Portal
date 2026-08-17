@@ -292,7 +292,7 @@ def _canonical(value: Any) -> bytes:
 #: The methodology a new assessment runs under. Older versions stay loadable forever --
 #: every stored score names the version and digest that produced it, and must remain
 #: reproducible from them.
-CURRENT_METHODOLOGY_VERSION = "1.1.0"
+CURRENT_METHODOLOGY_VERSION = "1.2.0"
 
 
 def load_catalog(
@@ -314,22 +314,35 @@ def load_catalog(
     check_sets = methodology_raw.get("check_sets", ["v1"])
 
     documents: list[Any] = []
-    checks: list[Check] = []
-    paths = [
-        path for name in check_sets for path in sorted((base / "checks" / name).glob("*.json"))
-    ]
-    for path in paths:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-        documents.append(raw)
-        groups = raw["pillars"] if "pillars" in raw else [raw]
-        for group in groups:
-            pillar = Pillar(group["pillar"])
-            letter = str(group["pillar_letter"])
-            checks.extend(_check(item, pillar, letter) for item in group["checks"])
+    #: Ordered by check set, so a later set can correct a check an earlier one defined.
+    #:
+    #: Without this a published check could never be fixed. A methodology version names
+    #: its check sets and a check id may appear once, so correcting a rule meant editing
+    #: the directory an older version also loads -- which changes what that older version
+    #: scores, and `test_a_published_methodology_never_changes` exists to stop exactly
+    #: that. The two rules together left no legal way to repair a defect.
+    #:
+    #: So a later set wins, and 1.0.0 still loads only `v1` and still computes the digest
+    #: it always did. What is *not* allowed is two definitions inside one set: that is a
+    #: mistake rather than a decision, and nothing about the ordering makes it meaningful.
+    by_id: dict[str, Check] = {}
+    for name in check_sets:
+        within_this_set: set[str] = set()
+        for path in sorted((base / "checks" / name).glob("*.json")):
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            documents.append(raw)
+            groups = raw["pillars"] if "pillars" in raw else [raw]
+            for group in groups:
+                pillar = Pillar(group["pillar"])
+                letter = str(group["pillar_letter"])
+                for item in group["checks"]:
+                    check = _check(item, pillar, letter)
+                    if check.check_id in within_this_set:
+                        raise PolicyError("duplicate_check_id")
+                    within_this_set.add(check.check_id)
+                    by_id[check.check_id] = check
 
-    identifiers = [check.check_id for check in checks]
-    if len(identifiers) != len(set(identifiers)):
-        raise PolicyError("duplicate_check_id")
+    checks = list(by_id.values())
     covered = {check.pillar for check in checks}
     if covered != set(Pillar):
         raise PolicyError("catalog_missing_pillar")

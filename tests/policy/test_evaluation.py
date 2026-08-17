@@ -328,3 +328,90 @@ def test_every_check_declares_localized_text_and_remediation() -> None:
         assert check.rationale_ro and check.rationale_en
         assert check.remediation_template
         assert check.rules
+
+
+# -- absence the normalizer spells as an attribute ------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("check_id", "observation_type", "reason"),
+    [
+        ("B.mta_sts_enforced", "email.mta_sts", "mta_sts_absent"),
+        ("B.tls_rpt_present", "email.tls_rpt", "tls_rpt_absent"),
+    ],
+)
+def test_a_record_conclusively_not_published_is_a_warning_not_an_unknown(
+    check_id: str, observation_type: str, reason: str
+) -> None:
+    """The two layers disagreed about how absence is spelled.
+
+    The normalizer records a missing MTA-STS or TLS-RPT record as `observed` with
+    `present: false` -- it must, because an observation that is not `observed` may carry
+    only `reason`, `detail` and `status_detail`, and the applicability gate on these
+    checks needs `mx_present`. The rules matched only `status: absent`, so nothing
+    matched and the result was `unknown` with `no_rule_matched`.
+
+    The effect was worse than a wrong label. `unknown` reduces coverage, so a domain the
+    platform had conclusively measured lost coverage for evidence that was not in doubt,
+    and the institution was told "we could not establish this" about something it plainly
+    had not published. Found on a real assessment of tarom.ro, and present in every one
+    of the five runs then in the database.
+
+    The reference snapshot could not have caught it: its fixture publishes MTA-STS in
+    testing mode, so the absent path was never exercised there.
+    """
+    result = evaluate(
+        check_id,
+        observation(observation_type, attributes={"mx_present": True, "present": False}),
+    )
+
+    assert result.result == "warning"
+    assert result.reason_code == reason
+
+
+@pytest.mark.parametrize(
+    ("check_id", "observation_type", "attributes"),
+    [
+        ("B.mta_sts_enforced", "email.mta_sts", {"mx_present": True, "mode": "enforce"}),
+        ("B.tls_rpt_present", "email.tls_rpt", {"mx_present": True, "valid": True}),
+    ],
+)
+def test_the_same_checks_still_pass_on_a_published_record(
+    check_id: str, observation_type: str, attributes: dict[str, object]
+) -> None:
+    """The guard on the fix above.
+
+    Adding a rule that fires on `present: false` would also look correct if the check had
+    stopped applying, or if every path now returned a warning. This pins the other end:
+    the same check still reaches its rules and still passes a domain that publishes the
+    record properly.
+    """
+    result = evaluate(check_id, observation(observation_type, attributes=attributes))
+
+    assert result.result == "pass"
+
+
+@pytest.mark.parametrize("check_id", ["B.mta_sts_enforced", "B.tls_rpt_present"])
+def test_an_inconclusive_observation_is_not_applicable_rather_than_unknown(
+    check_id: str,
+) -> None:
+    """Recorded because it is surprising, and because it makes a catalogue rule dead.
+
+    Both checks gate on `requires_attribute: mx_present`, and an observation that is not
+    `observed` may carry only `reason`, `detail` and `status_detail` -- so an inconclusive
+    observation can never satisfy the gate and never reaches the rules. The
+    `status: inconclusive -> unknown` rule each check declares is therefore unreachable.
+
+    Asserting the real behaviour rather than the intended one: `not_applicable` is
+    defensible here -- with no MX established there is nothing to require MTA-STS of --
+    but a rule that cannot fire should be known about rather than read as coverage.
+    """
+    result = evaluate(
+        check_id,
+        observation(
+            "email.mta_sts" if "mta" in check_id else "email.tls_rpt",
+            status=ObservationStatus.INCONCLUSIVE,
+        ),
+    )
+
+    assert result.result == "not_applicable"

@@ -100,28 +100,36 @@ def load_check_metadata(version: str = CURRENT_METHODOLOGY_VERSION) -> dict[str,
         raise CheckMetadataError(f"no methodology {version}")
     check_sets = json.loads(methodology.read_text(encoding="utf-8")).get("check_sets", ["v1"])
 
-    paths = [
-        path
-        for name in check_sets
-        for path in sorted((POLICY_ROOT / "checks" / name).glob("*.json"))
-    ]
-    if not paths:
+    if not any((POLICY_ROOT / "checks" / name).glob("*.json") for name in check_sets):
         raise CheckMetadataError(f"no check catalog for methodology {version}")
 
+    # A later check set supersedes an earlier definition of the same check, matching
+    # `siembiot_worker.policy.catalog`. The two loaders read the same directories for
+    # different callers -- the worker to evaluate, this to describe -- and they have to
+    # agree about what the catalogue *is*. They did not when supersession was added to
+    # one of them: every API route that reads check metadata raised `duplicate check
+    # B.mta_sts_enforced` while assessments scored perfectly well.
+    #
+    # A duplicate inside a single set is still an error here too, for the same reason:
+    # ordering makes a later set meaningful and makes two definitions in one set no more
+    # meaningful than they were.
     metadata: dict[str, CheckMetadata] = {}
-    for path in paths:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-        # Some files carry one pillar, others carry several under "pillars". Both
-        # shapes are the catalog's, not ours to normalize at the source.
-        groups = raw["pillars"] if "pillars" in raw else [raw]
-        for group in groups:
-            pillar = str(group["pillar"])
-            letter = str(group["pillar_letter"])
-            for item in group["checks"]:
-                entry = _metadata(item, pillar, letter)
-                if entry.check_id in metadata:
-                    raise CheckMetadataError(f"duplicate check {entry.check_id}")
-                metadata[entry.check_id] = entry
+    for name in check_sets:
+        within_this_set: set[str] = set()
+        for path in sorted((POLICY_ROOT / "checks" / name).glob("*.json")):
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            # Some files carry one pillar, others carry several under "pillars". Both
+            # shapes are the catalog's, not ours to normalize at the source.
+            groups = raw["pillars"] if "pillars" in raw else [raw]
+            for group in groups:
+                pillar = str(group["pillar"])
+                letter = str(group["pillar_letter"])
+                for item in group["checks"]:
+                    entry = _metadata(item, pillar, letter)
+                    if entry.check_id in within_this_set:
+                        raise CheckMetadataError(f"duplicate check {entry.check_id}")
+                    within_this_set.add(entry.check_id)
+                    metadata[entry.check_id] = entry
     if not metadata:
         raise CheckMetadataError(f"empty check catalog for methodology {version}")
     return metadata

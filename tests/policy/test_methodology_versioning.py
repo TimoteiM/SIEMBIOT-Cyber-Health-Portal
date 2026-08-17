@@ -105,4 +105,62 @@ def test_the_new_checks_are_never_publishable() -> None:
 def test_the_current_version_is_the_one_that_was_published() -> None:
     """The default a new assessment runs under, checked against the file that exists."""
     catalog = load_catalog()
-    assert catalog.methodology.version == CURRENT_METHODOLOGY_VERSION == "1.1.0"
+    assert catalog.methodology.version == CURRENT_METHODOLOGY_VERSION == "1.2.0"
+
+
+def test_1_2_0_corrects_two_checks_and_adds_none() -> None:
+    """A correction, not an expansion.
+
+    1.1.0 added checks by naming a new directory. 1.2.0 names a directory that redefines
+    two checks the first set already had, which is the only way a published defect can be
+    repaired: `v1` cannot be edited, because 1.0.0 loads it and must keep computing the
+    digest it always did.
+    """
+    older = load_catalog(version="1.1.0")
+    newer = load_catalog(version="1.2.0")
+
+    assert {c.check_id for c in newer.checks} == {c.check_id for c in older.checks}
+
+    changed = {
+        c.check_id for c in newer.checks if c != {o.check_id: o for o in older.checks}[c.check_id]
+    }
+    assert changed == {"B.mta_sts_enforced", "B.tls_rpt_present"}
+
+
+def test_the_correction_is_the_rule_that_was_missing() -> None:
+    """Named rather than counted. "Two checks changed" would pass on any two changes,
+    including a weight nobody meant to touch."""
+    newer = {c.check_id: c for c in load_catalog(version="1.2.0").checks}
+
+    for check_id in ("B.mta_sts_enforced", "B.tls_rpt_present"):
+        matches = [
+            rule
+            for rule in newer[check_id].rules
+            if rule.attribute == "present" and rule.equals is False
+        ]
+        assert matches, f"{check_id} still cannot decide a record that is not published"
+        assert matches[0].result.value == "warning"
+
+
+def test_a_duplicate_inside_one_check_set_is_still_an_error() -> None:
+    """Ordering makes a later set meaningful; it makes two definitions in the same set
+    no more meaningful than before. That is a mistake, and it still fails."""
+    import json
+    import shutil
+    import tempfile
+    from pathlib import Path as _Path
+
+    import pytest
+    from siembiot_worker.policy.catalog import PolicyError
+
+    with tempfile.TemporaryDirectory() as raw:
+        root = _Path(raw) / "policy"
+        shutil.copytree(_Path(__file__).resolve().parents[2] / "packages" / "policy", root)
+        target = root / "checks" / "v1" / "email.json"
+        document = json.loads(target.read_text(encoding="utf-8"))
+        groups = document["pillars"] if "pillars" in document else [document]
+        groups[0]["checks"].append(json.loads(json.dumps(groups[0]["checks"][0])))
+        target.write_text(json.dumps(document), encoding="utf-8")
+
+        with pytest.raises(PolicyError, match="duplicate_check_id"):
+            load_catalog(root)

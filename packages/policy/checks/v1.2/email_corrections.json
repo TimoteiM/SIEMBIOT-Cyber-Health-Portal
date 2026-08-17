@@ -1,0 +1,141 @@
+{
+  "_comment": "Corrections to pillar B checks first published in check set v1. This set exists because a published methodology never changes: 1.0.0 names only `v1` and must go on loading exactly what it always loaded, so a defect cannot be repaired by editing that directory. A later set in the same methodology supersedes an earlier definition of the same check id, and only a methodology version that names this set sees the correction.\n\nWhat was wrong: the normalizer records a missing MTA-STS or TLS-RPT record as `observed` with `present: false`, because an observation that is not `observed` may carry only reason, detail and status_detail -- and the applicability gate on both checks needs `mx_present`. The rules matched only `status: absent`, so nothing matched, and a domain the platform had conclusively measured was told `unknown` and lost coverage for evidence that was not in doubt.",
+  "pillar": "email",
+  "pillar_letter": "B",
+  "checks": [
+    {
+      "check_id": "B.mta_sts_enforced",
+      "version": "1.1.0",
+      "title_ro": "MTA-STS este publicat în mod enforce",
+      "title_en": "MTA-STS is published in enforce mode",
+      "rationale_ro": "MTA-STS împiedică degradarea conexiunilor SMTP la text clar.",
+      "rationale_en": "MTA-STS prevents SMTP connections from being downgraded to cleartext.",
+      "collection_mode": "passive",
+      "observation_type": "email.mta_sts",
+      "applicability": {
+        "requires_attribute": "mx_present"
+      },
+      "rules": [
+        {
+          "when": {
+            "attribute": "mode",
+            "equals": "enforce"
+          },
+          "result": "pass"
+        },
+        {
+          "when": {
+            "attribute": "mode",
+            "equals": "testing"
+          },
+          "result": "warning",
+          "reason_code": "mta_sts_testing_mode"
+        },
+        {
+          "when": {
+            "attribute": "mode",
+            "equals": "none"
+          },
+          "result": "warning",
+          "reason_code": "mta_sts_mode_none"
+        },
+        {
+          "when": {
+            "attribute": "policy_invalid",
+            "equals": true
+          },
+          "result": "fail",
+          "reason_code": "mta_sts_policy_invalid"
+        },
+        {
+          "when": {
+            "attribute": "present",
+            "equals": false
+          },
+          "result": "warning",
+          "reason_code": "mta_sts_absent"
+        },
+        {
+          "when": {
+            "status": "absent"
+          },
+          "result": "warning",
+          "reason_code": "mta_sts_absent"
+        },
+        {
+          "when": {
+            "status": "inconclusive"
+          },
+          "result": "unknown",
+          "reason_code": "mta_sts_inconclusive"
+        }
+      ],
+      "weight": 6,
+      "severity": "medium",
+      "public_safety_class": "public_profile",
+      "remediation_template": "mta_sts_publish",
+      "references": [
+        "rfc8461"
+      ]
+    },
+    {
+      "check_id": "B.tls_rpt_present",
+      "version": "1.1.0",
+      "title_ro": "Raportarea TLS SMTP este configurată",
+      "title_en": "SMTP TLS reporting is configured",
+      "rationale_ro": "TLS-RPT oferă vizibilitate asupra eșecurilor de livrare securizată.",
+      "rationale_en": "TLS-RPT gives visibility into secure delivery failures.",
+      "collection_mode": "passive",
+      "observation_type": "email.tls_rpt",
+      "applicability": {
+        "requires_attribute": "mx_present"
+      },
+      "rules": [
+        {
+          "when": {
+            "attribute": "valid",
+            "equals": true
+          },
+          "result": "pass"
+        },
+        {
+          "when": {
+            "attribute": "present",
+            "equals": true
+          },
+          "result": "warning",
+          "reason_code": "tls_rpt_invalid"
+        },
+        {
+          "when": {
+            "attribute": "present",
+            "equals": false
+          },
+          "result": "warning",
+          "reason_code": "tls_rpt_absent"
+        },
+        {
+          "when": {
+            "status": "absent"
+          },
+          "result": "warning",
+          "reason_code": "tls_rpt_absent"
+        },
+        {
+          "when": {
+            "status": "inconclusive"
+          },
+          "result": "unknown",
+          "reason_code": "tls_rpt_inconclusive"
+        }
+      ],
+      "weight": 4,
+      "severity": "low",
+      "public_safety_class": "public_profile",
+      "remediation_template": "tls_rpt_publish",
+      "references": [
+        "rfc8460"
+      ]
+    }
+  ]
+}
