@@ -60,6 +60,8 @@ _TEXT: dict[str, dict[str, str]] = {
         "coverage_explained_full": (
             "Am putut verifica {coverage}% din ceea ce măsoară metodologia."
         ),
+        "legend": "Cum se citesc culorile",
+        "legend_direction": "100 este cel mai bun rezultat, 0 cel mai slab.",
         "importance": "importanță",
         "importance_high": "ridicată",
         "importance_medium": "medie",
@@ -148,6 +150,8 @@ _TEXT: dict[str, dict[str, str]] = {
             "inconclusive, so the score rests on less evidence."
         ),
         "coverage_explained_full": "We could check {coverage}% of what the methodology measures.",
+        "legend": "How to read the colours",
+        "legend_direction": "100 is the best result, 0 the worst.",
         "importance": "importance",
         "importance_high": "high",
         "importance_medium": "medium",
@@ -285,6 +289,13 @@ table.pillars td.importance { width: 7rem; font-size: 0.8rem; color: #5a6673; }
 .chip-medium { color: #8a5a12; }
 .chip-low, .chip-informational { color: #4a5560; }
 .lead { color: #3d4854; margin: 0.5rem 0 0; }
+
+.legend { margin: 0.5rem 0 0.2rem; font-size: 0.78rem; color: #5a6673; }
+.legend-title { font-weight: 700; }
+.legend .keys { margin-top: 0.3rem; }
+.legend .key { display: inline-block; margin: 0 0.9rem 0.25rem 0; white-space: nowrap; }
+.swatch { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 2px;
+          margin-right: 0.3rem; vertical-align: -0.05rem; }
 footer { margin-top: 2.5rem; padding-top: 0.8rem; border-top: 1px solid #d7dee6;
          font-size: 0.82rem; color: #5a6673; }
 code { font-family: ui-monospace, Consolas, monospace; font-size: 0.85em;
@@ -433,14 +444,63 @@ def _importance(locale: str, weight: float) -> str:
     return _text(locale, "importance_low")
 
 
+#: The narrowest a bar may render while still being a bar.
+#:
+#: A score of zero is a *result*: every check in that area failed. Drawn at its true
+#: width it is an empty track, which on the page is indistinguishable from the area that
+#: has no score at all -- so the worst possible outcome looked like a missing one. E-mail
+#: scoring 0 on a real report is what made that visible.
+#:
+#: The sliver is deliberately too small to misread as a quantity. It says "measured, and
+#: it is the bottom", and the number beside it says the rest.
+_MINIMUM_VISIBLE_WIDTH = 1.5
+
+
 def _bar(percent: float, band: str) -> Node:
-    """A filled track. `percent` is clamped, because a bar wider than its track is a
-    layout bug that reads as a better result."""
+    """A filled track.
+
+    Clamped at both ends: above, because a bar wider than its track is a layout bug that
+    reads as a better result; below, because zero drawn as nothing reads as no result at
+    all.
+    """
     width = max(0.0, min(100.0, percent))
+    if width < _MINIMUM_VISIBLE_WIDTH:
+        width = _MINIMUM_VISIBLE_WIDTH
     return element(
         "div",
         element("div", "", class_=f"fill fill-{band}", style=f"width: {width:g}%"),
         class_="track",
+    )
+
+
+def _legend(locale: str) -> Node:
+    """What the colours mean, beside the bars that use them.
+
+    Added because a reader looking at a coloured bar and a number has no way to know
+    which direction is good. The bands and their boundaries come from `_BAND_FLOORS`, so
+    a methodology that re-cuts them moves the legend with it rather than leaving a
+    caption that describes the previous scale.
+    """
+    swatches: list[Node] = []
+    for index, (band, floor) in enumerate(_BAND_FLOORS):
+        ceiling = 100.0 if index + 1 == len(_BAND_FLOORS) else _BAND_FLOORS[index + 1][1] - 1.0
+        swatches.append(
+            element(
+                "span",
+                element("span", "", class_=f"swatch fill-{band}"),
+                f"{_band_label(locale, band)} {floor:g}\u2013{ceiling:g}",
+                class_="key",
+            )
+        )
+    return element(
+        "div",
+        element(
+            "span",
+            f"{_text(locale, 'legend')} \u2014 {_text(locale, 'legend_direction')}",
+            class_="legend-title",
+        ),
+        element("div", *swatches, class_="keys"),
+        class_="legend",
     )
 
 
@@ -607,6 +667,7 @@ def _pillars(report: ReportDocument, locale: str) -> Node:
     return element(
         "section",
         element("h2", _text(locale, "pillars")),
+        _legend(locale),
         element("table", *rows, class_="pillars"),
     )
 

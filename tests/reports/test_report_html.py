@@ -420,7 +420,39 @@ def test_a_bar_cannot_render_wider_than_its_track() -> None:
     from siembiot_worker.reports.markup import render
 
     assert "width: 100%" in render(_bar(140.0, "resilient"))
-    assert "width: 0%" in render(_bar(-20.0, "critical"))
+
+
+def test_a_score_of_zero_still_draws_a_bar() -> None:
+    """Zero is a result, not an absence.
+
+    Drawn at its true width it is an empty track, and on the page that is
+    indistinguishable from the area which has no score at all -- so the worst possible
+    outcome rendered as a missing one. A real report showed it: e-mail scored 0 and the
+    row looked unmeasured beside `reputation`, which genuinely was.
+
+    The sliver is small enough that nobody reads it as a quantity, and the number beside
+    it says the rest.
+    """
+    from siembiot_worker.reports.html import _bar
+    from siembiot_worker.reports.markup import render
+
+    drawn = render(_bar(0.0, "critical"))
+
+    assert "width: 0%" not in drawn
+    assert "fill-critical" in drawn
+
+
+def test_an_area_with_no_score_draws_no_bar_at_all() -> None:
+    """The other half of the same distinction. If both zero and absent drew a bar, the
+    sliver above would have removed the difference rather than preserved it."""
+    shown = render_report(
+        report(pillars=(ReportPillar(pillar="reputation", score=None, weight=0.1),))
+    )
+
+    # The row exists and says why, and there is no track for it to be misread as a
+    # very low score.
+    assert "fara scor" in visible_text(shown).replace("ă", "a")
+    assert "track" not in shown.split("Reputa")[1].split("</tr>")[0]
 
 
 def test_report_band_labels_match_the_methodology() -> None:
@@ -472,3 +504,43 @@ def test_every_pillar_the_methodology_weights_has_a_label() -> None:
     for pillar in weights:
         for locale in ("ro", "en"):
             assert f"pillar.{pillar}" in _TEXT[locale], f"{pillar} has no {locale} label"
+
+
+def test_the_legend_explains_which_direction_is_good() -> None:
+    """The gap a coloured bar leaves open.
+
+    A reader seeing amber at 66.7 and green at 100 has no way to know whether high is
+    good, and nothing else on the page says so. Colour without a key is decoration that
+    looks like information.
+    """
+    shown = visible_text(render_report(report(pillars=WITH_AREAS)))
+
+    assert "Cum se citesc culorile" in shown
+    assert "100 este cel mai bun rezultat" in shown
+
+
+def test_the_legend_names_every_band_with_its_range() -> None:
+    """Derived from the same band floors the bars are coloured from, so a methodology
+    that re-cuts its bands moves the legend with it rather than leaving a caption that
+    describes the previous scale."""
+    from siembiot_worker.reports.html import _BAND_FLOORS
+
+    shown = visible_text(render_report(report(pillars=WITH_AREAS)))
+
+    assert _BAND_FLOORS, "no bands; this test is checking nothing"
+    for band, floor in _BAND_FLOORS:
+        assert _TEXT["ro"][f"band.{band}"] in shown, band
+        assert f"{floor:g}" in shown, f"{band} floor missing from the legend"
+
+
+def test_the_legend_ranges_are_contiguous_and_reach_100() -> None:
+    """A gap between two bands would leave scores the legend does not explain, and an
+    overlap would give one score two colours. Either makes the key wrong in a way a
+    reader cannot detect."""
+    from siembiot_worker.reports.html import _BAND_FLOORS
+
+    floors = [floor for _, floor in _BAND_FLOORS]
+
+    assert floors[0] == 0.0, "the scale does not start at zero"
+    assert floors == sorted(floors), "bands are out of order"
+    assert len(set(floors)) == len(floors), "two bands share a floor"
