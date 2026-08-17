@@ -308,12 +308,47 @@ def test_a_transient_provider_failure_is_retried() -> None:
     assert outcome.error == "dns_unreachable"
 
 
-def test_agent_analysis_never_blocks_a_run_when_the_model_is_disabled() -> None:
+def test_agent_analysis_never_blocks_a_run_when_the_model_is_unconfigured(
+    monkeypatch: object,
+) -> None:
+    """The property the whole optional-model design rests on.
+
+    No key means no narrative and a completed assessment. Not a failed step, not a
+    partially completed run, and nothing an institution has to be told about -- the
+    narrative is the part that is allowed to be missing.
+    """
+    import os
+
+    for name in ("OPENAI_API_KEY", "OPENAI_MODEL"):
+        os.environ.pop(name, None)
+
     engine, repository, context, assessment, engine_clock = build("strong.example.test")
     drive(engine, assessment, engine_clock)
     step = repository.load_steps(assessment)["agent_analysis"]
+
     assert step.state is StepState.SUCCEEDED
-    assert step.result["agent_analysis"] == "skipped_model_disabled"
+    assert step.result["agent_analysis"] == "skipped_model_unconfigured"
+
+
+def test_a_model_that_fails_does_not_fail_the_assessment() -> None:
+    """A provider that times out, returns nonsense, or refuses is an assessment without
+    a narrative -- never an assessment that failed. The evidence, the score and the
+    findings were all produced before the model was asked anything."""
+    import os
+
+    os.environ["OPENAI_API_KEY"] = "sk-not-a-real-key-for-this-test"
+    os.environ["OPENAI_MODEL"] = "a-model-that-does-not-exist"
+    os.environ["OPENAI_BASE_URL"] = "http://127.0.0.1:9"  # nothing listens here
+    try:
+        engine, repository, context, assessment, engine_clock = build("strong.example.test")
+        drive(engine, assessment, engine_clock)
+        step = repository.load_steps(assessment)["agent_analysis"]
+
+        assert step.state is StepState.SUCCEEDED
+        assert step.result["agent_analysis"] in {"provider_unavailable", "failed"}
+    finally:
+        for name in ("OPENAI_API_KEY", "OPENAI_MODEL", "OPENAI_BASE_URL"):
+            os.environ.pop(name, None)
 
 
 # -- asset candidates --------------------------------------------------------

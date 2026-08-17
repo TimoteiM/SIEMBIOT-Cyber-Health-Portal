@@ -15,6 +15,8 @@ The judgement in this module is entirely about **which failures are worth retryi
 
 from __future__ import annotations
 
+import logging
+import os
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -65,6 +67,8 @@ from siembiot_worker.workflows.engine import StepContext, StepHandler, StepOutco
 #: Collection outcomes that will not improve by trying again. Everything else is
 #: treated as transient, because assuming a failure is permanent risks discarding
 #: evidence that a second attempt would have produced.
+log = logging.getLogger("siembiot.worker")
+
 PERMANENT_COLLECTION_REASONS = frozenset(
     {
         "domain_not_in_registry",
@@ -112,6 +116,9 @@ class AssessmentContext:
     #: one shared list would let a subdomain silently move the domain's number.
     asset_observations: tuple[NormalizedObservation, ...] = ()
     asset_evaluations: tuple[CheckEvaluation, ...] = ()
+    #: The model's interpretation, when one was produced. Never required by anything
+    #: downstream: a report renders identically without it.
+    narrative: Any | None = None
     snapshot: ScoreSnapshot | None = None
     findings: tuple[Finding, ...] = ()
     asset_candidates: tuple[AssetCandidate, ...] = ()
@@ -180,6 +187,85 @@ def _mail_hosts(context: AssessmentContext) -> tuple[str, ...]:
     hosts = email.payload.get("mx", {}).get("hosts", [])
     ordered = sorted(hosts, key=lambda entry: entry.get("preference", 0))
     return tuple(entry["exchange"] for entry in ordered if entry.get("exchange"))
+
+
+#: No key configured. The ordinary case, and not an error anywhere.
+UNCONFIGURED = "skipped_model_unconfigured"
+#: A key is configured and the gateway is not importable. A deployment problem, and
+#: distinct from the above on purpose: somebody who set a key and got silence deserves
+#: to know which of the two happened, and from the outside they look identical.
+NO_GATEWAY = "skipped_gateway_unavailable"
+
+
+def _model_provider() -> tuple[Any | None, str | None]:
+    """The configured provider, or a reason there is none.
+
+    A pair rather than an optional, because the two ways of having no provider are
+    different problems: one is a deployment that has not opted in, the other is a
+    deployment that opted in and cannot. Returning `None` for both would have reported
+    "unconfigured" to somebody whose key was fine and whose image was missing a package.
+
+    Read from the environment when needed rather than at import, so setting a key does
+    not require redeploying everything that merely imports this module.
+    """
+    key = os.environ.get("OPENAI_API_KEY", "").strip()
+    model = os.environ.get("OPENAI_MODEL", "").strip()
+    if not key or not model:
+        return None, UNCONFIGURED
+    try:
+        from siembiot_agent.provider import ProviderUnavailableError
+
+        from siembiot_worker.agent_provider import OpenAIProvider
+    except ImportError:
+        return None, NO_GATEWAY
+    try:
+        return (
+            OpenAIProvider(
+                api_key=key,
+                model=model,
+                base_url=os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1").strip()
+                or "https://api.openai.com/v1",
+            ),
+            None,
+        )
+    except ProviderUnavailableError:
+        return None, UNCONFIGURED
+
+
+def _evidence_for_analysis(context: AssessmentContext) -> dict[str, Any]:
+    """What the model is shown: this domain's own results, and nothing else.
+
+    Deliberately assembled here rather than handing over the context. The context holds
+    the organisation identifier, the accepted asset list and every collector's raw
+    payload; a model does not need any of it to explain a finding, and the smallest
+    thing that answers the question is the smallest thing that can leak.
+
+    Observation identifiers are included because they are what a claim must cite. A
+    narrative sentence with no identifier beside it is dropped by the validator, so
+    withholding them would not produce a cautious model -- it would produce an empty
+    narrative and no explanation of why.
+    """
+    return {
+        "subject": context.host,
+        "observations": [
+            {
+                "id": str(observation.observation_id),
+                "type": observation.observation_type,
+                "status": str(observation.status),
+                "attributes": observation.attributes,
+            }
+            for observation in context.observations
+        ],
+        "findings": [
+            {
+                "check_id": finding.check_id,
+                "severity": finding.severity,
+                "subject": finding.subject.identifier,
+                "state": finding.state,
+            }
+            for finding in context.findings
+        ],
+    }
 
 
 def build_handlers(context: AssessmentContext) -> dict[str, StepHandler]:
@@ -483,13 +569,74 @@ def build_handlers(context: AssessmentContext) -> dict[str, StepHandler]:
         )
 
     def agent_analysis(step: StepContext) -> StepOutcome:
-        """Optional by design.
+        """Interpretation of evidence already collected. Optional, always.
 
-        The model is disabled by default and the assessment must complete without it,
-        so this reports that it was skipped rather than failing the run.
+        Three things this step may not do, and the reasons are not stylistic:
+
+        *It does not score.* The score, the band and every severity are computed
+        deterministically from the policy catalogue, and a report whose number came from
+        a model is a report nobody can reproduce or dispute. The gateway's instructions
+        forbid it and the grounding validator drops any claim that states one.
+
+        *It does not write remediation.* The steps an institution follows come from the
+        reviewed template catalogue, which cites the standard each one rests on. A model
+        improvising "add this DNS record" is how somebody's mail stops being delivered.
+
+        *It does not run when unconfigured, and never fails the assessment.* No key means
+        no narrative and a completed run. That is the property the whole design rests on,
+        and it is why this returns `ok` on every path.
+
+        What it does add is interpretation: which of eleven findings actually matters
+        first for this institution, and what the evidence means in a sentence somebody
+        without a security team can act on. Every such sentence cites the evidence
+        identifier it rests on, and the gateway drops the ones that do not.
         """
-        del step
-        return StepOutcome.ok(agent_analysis="skipped_model_disabled")
+        step.check_cancelled()
+        provider, reason = _model_provider()
+        if provider is None:
+            return StepOutcome.ok(agent_analysis=reason)
+
+        from datetime import timedelta
+
+        from siembiot_agent.budget import RunBudget
+        from siembiot_agent.gateway import run_analysis
+        from siembiot_agent.scope import AssessmentScope
+
+        now = context.clock()
+        scope = AssessmentScope(
+            run_id=uuid4(),
+            organization_id=context.organization_id,
+            assessment_id=context.assessment_id,
+            # Only what this run actually assessed. The scope is what the grounding
+            # validator checks citations against, so a subject missing here becomes a
+            # claim that cannot be supported rather than one nobody notices.
+            subjects=frozenset({context.host, *context.accepted_assets}),
+            expires_at=now + timedelta(minutes=5),
+        )
+
+        try:
+            result = run_analysis(
+                scope=scope,
+                provider=provider,
+                readers={},
+                evidence=_evidence_for_analysis(context),
+                budget=RunBudget(),
+                cancelled=lambda: False,
+            )
+            # Inside the guard, not after it. The first version read the result outside
+            # and an attribute error dead-lettered the step -- the one outcome this
+            # handler exists to make impossible, produced by the handler itself.
+            context.narrative = result.claims
+            outcome = StepOutcome.ok(
+                agent_analysis=result.audit.outcome,
+                claims_accepted=result.audit.claims_accepted,
+                claims_rejected=result.audit.claims_rejected,
+            )
+        except Exception:  # noqa: BLE001 - a narrative must never fail an assessment
+            log.warning("agent analysis failed", exc_info=True)
+            return StepOutcome.ok(agent_analysis="failed")
+
+        return outcome
 
     def report(step: StepContext) -> StepOutcome:
         step.check_cancelled()

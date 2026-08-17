@@ -10,8 +10,16 @@ import pytest
 
 API_SRC = Path(__file__).resolve().parents[1] / "services" / "api" / "src"
 WORKER_SRC = Path(__file__).resolve().parents[1] / "services" / "worker" / "src"
+#: The analysis gateway, on the path for every test rather than only its own.
+#:
+#: It used to be imported by a `sys.path.insert` inside the agent tests, which meant the
+#: worker could not reach it -- and the workflow step that is supposed to call it
+#: reported `skipped_gateway_unavailable` in every test, so the wiring between them was
+#: never once exercised. The worker image carries it for the same reason.
+GATEWAY_SRC = Path(__file__).resolve().parents[1] / "services" / "agent-gateway" / "src"
 sys.path.insert(0, str(API_SRC))
 sys.path.insert(0, str(WORKER_SRC))
+sys.path.insert(0, str(GATEWAY_SRC))
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSE_FILE = ROOT / "infra" / "compose" / "postgres.compose.yml"

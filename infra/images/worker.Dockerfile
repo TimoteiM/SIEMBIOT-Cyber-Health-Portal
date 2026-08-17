@@ -29,7 +29,7 @@ FROM python@sha256:bf503bb2243c5aad0aa951544dd60d165f992646441d35dea90893703fc26
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH" \
-    PYTHONPATH=/app/services/worker/src
+    PYTHONPATH=/app/services/worker/src:/app/services/agent-gateway/src
 
 RUN groupadd --gid 10002 siembiot \
     && useradd --uid 10002 --gid 10002 --no-create-home --shell /usr/sbin/nologin siembiot
@@ -52,6 +52,11 @@ RUN apt-get update \
 WORKDIR /app
 COPY --from=build --chown=root:root /opt/venv /opt/venv
 COPY --chown=root:root services/worker /app/services/worker
+# The analysis gateway. Carried whether or not a model is configured: an image that
+# lacked it would report `skipped_gateway_unavailable` for a deployment that had set
+# a key and reasonably expected a narrative, and the two are indistinguishable from
+# the outside.
+COPY --chown=root:root services/agent-gateway /app/services/agent-gateway
 # The policy catalog is what the worker evaluates against, and its digest is recorded
 # on every score, so it ships with the image rather than being fetched at runtime.
 COPY --chown=root:root packages/policy /app/packages/policy
