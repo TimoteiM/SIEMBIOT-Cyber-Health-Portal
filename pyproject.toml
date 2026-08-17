@@ -110,4 +110,8 @@ module = "siembiot_worker.celery_app"
 disallow_any_explicit = false
 
 [tool.setuptools.packages.find]
-where = ["services/api/src", "services/worker/src"]
+# The gateway joins the other two rather than being reachable only by a `sys.path`
+# insert in its own tests. It was importable nowhere else, so the workflow step that
+# calls it reported `skipped_gateway_unavailable` on every run -- including runs where
+# a model was configured and somebody was waiting for a narrative.
+where = ["services/api/src", "services/worker/src", "services/agent-gateway/src"]

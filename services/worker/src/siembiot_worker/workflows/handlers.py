@@ -225,6 +225,9 @@ def _model_provider() -> tuple[Any | None, str | None]:
                 model=model,
                 base_url=os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1").strip()
                 or "https://api.openai.com/v1",
+                max_output_tokens=int(
+                    os.environ.get("OPENAI_MAX_OUTPUT_TOKENS", "").strip() or 16_000
+                ),
             ),
             None,
         )

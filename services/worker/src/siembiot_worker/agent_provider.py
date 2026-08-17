@@ -45,7 +45,18 @@ DEFAULT_TIMEOUT_SECONDS = 45.0
 #: A ceiling on what one analysis may cost, independent of the run budget the gateway
 #: also applies. Two limits rather than one because they fail differently: the gateway's
 #: budget stops a run making many calls, and this stops one call being enormous.
-DEFAULT_MAX_OUTPUT_TOKENS = 2_000
+#:
+#: **Reasoning counts against this.** On a reasoning model `max_completion_tokens` covers
+#: the thinking as well as the answer, and at 2,000 a real assessment spent the entire
+#: budget reasoning and returned an empty string -- `finish_reason: length`, 2,000
+#: reasoning tokens, no content. Worse than a clean failure, it was intermittent: a small
+#: evidence set fitted and a full one did not, so the same code produced a narrative on
+#: one domain and silence on the next.
+#:
+#: Sized for the whole of one domain's evidence with room for the model to think about
+#: it. Overridable, because a different model reasons at a different length and this
+#: number is about the model rather than about the platform.
+DEFAULT_MAX_OUTPUT_TOKENS = 16_000
 
 
 @dataclass(frozen=True)
@@ -119,9 +130,23 @@ class OpenAIProvider:
 
         try:
             body = response.json()
-            content = body["choices"][0]["message"]["content"]
-            parsed = json.loads(content)
+            choice = body["choices"][0]
+            content = choice["message"]["content"]
         except (ValueError, KeyError, IndexError, TypeError):
+            raise ProviderUnavailableError("provider returned no completion") from None
+
+        # Named separately from a parse failure, because the fix is different and the
+        # symptom is identical: both arrive as unusable content. This one means the
+        # budget ran out mid-answer, which on a reasoning model happens without the
+        # answer having started.
+        if choice.get("finish_reason") == "length":
+            raise ProviderUnavailableError(
+                "provider ran out of tokens before finishing; raise max_output_tokens"
+            )
+
+        try:
+            parsed = json.loads(content)
+        except (ValueError, TypeError):
             raise ProviderUnavailableError(
                 "provider returned something that is not a document"
             ) from None
