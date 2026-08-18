@@ -84,6 +84,16 @@ _TEXT: dict[str, dict[str, str]] = {
         "requirement_unmet": "Cerință neîndeplinită",
         "affects": "Se referă la",
         "why": "De ce contează",
+        "evidence_heading": "Ce am observat",
+        "evidence_note": (
+            "Datele pe care se sprijină această constatare, exact cum au fost colectate."
+        ),
+        "obs.observed": "măsurat",
+        "obs.absent": "lipsește",
+        "obs.inconclusive": "neconcludent",
+        "obs.not_applicable": "nu se aplică",
+        "value_true": "da",
+        "value_false": "nu",
         "what_to_do": "Ce este de făcut",
         "caveat": "Înainte să schimbi ceva",
         "draft_guidance": (
@@ -174,6 +184,14 @@ _TEXT: dict[str, dict[str, str]] = {
         "requirement_unmet": "Requirement not met",
         "affects": "Concerns",
         "why": "Why it matters",
+        "evidence_heading": "What we observed",
+        "evidence_note": "The evidence this finding rests on, exactly as it was collected.",
+        "obs.observed": "measured",
+        "obs.absent": "not present",
+        "obs.inconclusive": "inconclusive",
+        "obs.not_applicable": "not applicable",
+        "value_true": "yes",
+        "value_false": "no",
         "what_to_do": "What to do",
         "caveat": "Before you change anything",
         "draft_guidance": (
@@ -289,6 +307,13 @@ table.pillars td.importance { width: 7rem; font-size: 0.8rem; color: #5a6673; }
 .chip-medium { color: #8a5a12; }
 .chip-low, .chip-informational { color: #4a5560; }
 .lead { color: #3d4854; margin: 0.5rem 0 0; }
+
+table.evidence { border-collapse: collapse; margin: 0.3rem 0 0.6rem; font-size: 0.86rem; }
+table.evidence td { padding: 0.22rem 0.7rem 0.22rem 0; vertical-align: top;
+                    border-bottom: 1px solid #eef2f6; }
+table.evidence td.ename { color: #5a6673; font-family: ui-monospace, Consolas, monospace;
+                          font-size: 0.82rem; white-space: nowrap; }
+.obs-status { font-weight: 700; }
 
 .legend { margin: 0.5rem 0 0.2rem; font-size: 0.78rem; color: #5a6673; }
 .legend-title { font-weight: 700; }
@@ -672,6 +697,55 @@ def _pillars(report: ReportDocument, locale: str) -> Node:
     )
 
 
+def _evidence(finding: ReportFinding, locale: str) -> list[Node]:
+    """What the collectors saw, beside what the report says to change.
+
+    Added because the report told an institution what to fix and never showed what was
+    found. "Publish DMARC" is an instruction; "no DMARC record was returned for this
+    domain" is the reason, and a public body being asked to change its DNS is entitled to
+    the second before it acts on the first.
+
+    The status is shown even when there are no attributes, because `absent` and
+    `inconclusive` are the whole content in that case: we looked and it was not there, or
+    we could not look. A reader acts differently on each.
+
+    Values pass through the element tree like every other string here, so a header or a
+    mail server banner containing markup is escaped on serialization rather than by
+    anything in this function remembering to.
+    """
+    if finding.evidence_status is None:
+        return []
+
+    status = _TEXT[locale].get(f"obs.{finding.evidence_status}", finding.evidence_status)
+    rows = [
+        element(
+            "tr",
+            element("td", name, class_="ename"),
+            element(
+                "td",
+                _text(locale, "value_true")
+                if value == "true"
+                else _text(locale, "value_false")
+                if value == "false"
+                else value,
+            ),
+        )
+        for name, value in finding.evidence
+    ]
+
+    blocks: list[Node] = [
+        element("p", element("strong", _text(locale, "evidence_heading"))),
+        element(
+            "p",
+            element("span", f"{_text(locale, 'evidence_heading')}: ", class_="muted"),
+            element("span", status, class_="obs-status"),
+        ),
+    ]
+    if rows:
+        blocks.append(element("table", *rows, class_="evidence"))
+    return blocks
+
+
 def _findings(report: ReportDocument, locale: str) -> Element:
     ordered = report.findings_by_severity()
     if not ordered:
@@ -709,6 +783,11 @@ def _finding(finding: ReportFinding, locale: str) -> Element:
         element("p", element("strong", _text(locale, "why")), " "),
         element("p", _pick(locale, finding.rationale_ro, finding.rationale_en)),
     ]
+
+    # Before the remediation, deliberately. The evidence is why the instruction follows,
+    # and an instruction read before its reason is one somebody applies without checking
+    # whether it matches what their own infrastructure actually does.
+    blocks.extend(_evidence(finding, locale))
 
     summary = _pick(
         locale, finding.remediation_summary_ro or "", finding.remediation_summary_en or ""

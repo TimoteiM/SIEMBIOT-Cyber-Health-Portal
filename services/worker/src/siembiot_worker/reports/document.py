@@ -42,6 +42,19 @@ class ReportFinding:
     #: nobody has reviewed should be told that is what it is.
     remediation_review_status: str | None = None
 
+    #: What the collectors actually saw, as name/value pairs in the order the evidence
+    #: recorded them.
+    #:
+    #: A finding without its evidence asks an institution to take the platform's word for
+    #: it, which is precisely what a tool assessing public bodies should not do. Every
+    #: value here came from somebody else's infrastructure and is treated as hostile text
+    #: all the way to the page.
+    evidence: tuple[tuple[str, str], ...] = ()
+    #: `observed`, `absent`, `inconclusive`, `not_applicable`. Shown because "we looked
+    #: and it was not there" and "we could not look" are different statements and a
+    #: reader acts differently on each.
+    evidence_status: str | None = None
+
 
 @dataclass(frozen=True)
 class ReportPillar:

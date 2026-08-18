@@ -159,8 +159,76 @@ def _withheld_checks(connection: Connection, assessment_id: UUID) -> tuple[str, 
     return tuple(sorted(str(check_id) for check_id in rows))
 
 
+#: Attributes that describe the platform's own bookkeeping rather than the target.
+#:
+#: Hidden because a reader looking for what was found should not have to step over how
+#: the check was routed. Nothing is hidden that describes the institution.
+_INTERNAL_ATTRIBUTES = frozenset({"mx_present", "conclusive", "status_detail"})
+
+#: How many attributes one finding may show. Enough for the evidence behind any check in
+#: the catalogue, short enough that a report stays a report.
+_MAX_EVIDENCE_ROWS = 12
+
+
+def _readable(value: Any) -> str | None:
+    """One evidence value as a short string, or None to omit it.
+
+    Nothing here escapes anything: the element tree does that on serialization, and a
+    second escaping layer would either double-encode or create a place where somebody
+    later forgets. What this does is decide what is worth showing.
+    """
+    if value is None or value == "" or value == [] or value == {}:
+        return None
+    if isinstance(value, bool):
+        return "da/nu"  # replaced per locale by the renderer
+    if isinstance(value, int | float):
+        return f"{value:g}"
+    if isinstance(value, str):
+        return value[:200]
+    if isinstance(value, list):
+        parts = [str(item)[:80] for item in value[:6] if item not in (None, "")]
+        return ", ".join(parts)[:200] or None
+    return None
+
+
+def _evidence_rows(attributes: dict[str, Any]) -> tuple[tuple[str, str], ...]:
+    rows: list[tuple[str, str]] = []
+    for name, value in attributes.items():
+        if name in _INTERNAL_ATTRIBUTES:
+            continue
+        shown = _readable(value)
+        if shown is None:
+            continue
+        rows.append((name, "true" if value is True else "false" if value is False else shown))
+        if len(rows) == _MAX_EVIDENCE_ROWS:
+            break
+    return tuple(rows)
+
+
+def _observations_for(connection: Connection, assessment_id: UUID) -> dict[tuple[str, str], Any]:
+    """Every observation of this run, indexed by what it observed and about whom.
+
+    Keyed on subject as well as type because an assessment covers the domain and any
+    accepted asset, and attaching a subdomain's evidence to the domain's finding would be
+    a quiet lie about where the weakness is.
+    """
+    rows = connection.execute(
+        text(
+            """
+            SELECT observation_type, subject_identifier, status, attributes
+            FROM normalized_observations WHERE assessment_id = :assessment_id
+            """
+        ),
+        {"assessment_id": assessment_id},
+    ).mappings()
+    return {(str(r["observation_type"]), str(r["subject_identifier"])): r for r in rows}
+
+
 def _finding_document(
-    row: Any, metadata: dict[str, CheckMetadata], remediation: dict[str, Any]
+    row: Any,
+    metadata: dict[str, CheckMetadata],
+    remediation: dict[str, Any],
+    observations: dict[tuple[str, str], Any] | None = None,
 ) -> ReportFinding:
     check_id = str(row["check_id"])
     entry = metadata.get(check_id)
@@ -170,6 +238,11 @@ def _finding_document(
     guidance = (
         remediation.get(entry.remediation_template)
         if entry and entry.remediation_template
+        else None
+    )
+    observed = (
+        (observations or {}).get((entry.observation_type, str(row["subject_identifier"])))
+        if entry
         else None
     )
     return ReportFinding(
@@ -188,6 +261,8 @@ def _finding_document(
         remediation_caveat_ro=getattr(guidance, "caveat_ro", None),
         remediation_caveat_en=getattr(guidance, "caveat_en", None),
         remediation_review_status=getattr(guidance, "review_status", None),
+        evidence=_evidence_rows(observed["attributes"]) if observed else (),
+        evidence_status=str(observed["status"]) if observed else None,
     )
 
 
@@ -211,8 +286,9 @@ def build_report_document(
     metadata = load_check_metadata(str(assessment["methodology_version"]))
     remediation = load_remediation()
 
+    observations = _observations_for(connection, assessment["assessment_id"])
     findings = tuple(
-        _finding_document(row, metadata, remediation)
+        _finding_document(row, metadata, remediation, observations)
         for row in _findings_for(connection, domain_id)
     )
     withheld = _withheld_checks(connection, assessment["assessment_id"])

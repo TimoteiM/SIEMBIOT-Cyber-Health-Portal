@@ -544,3 +544,127 @@ def test_the_legend_ranges_are_contiguous_and_reach_100() -> None:
     assert floors[0] == 0.0, "the scale does not start at zero"
     assert floors == sorted(floors), "bands are out of order"
     assert len(set(floors)) == len(floors), "two bands share a floor"
+
+
+# -- evidence beside the instruction --------------------------------------------------
+
+
+def _finding_with_evidence(**overrides: object) -> ReportFinding:
+    base: dict[str, object] = dict(
+        check_id="B.dmarc_enforced",
+        severity="high",
+        subject="primaria-exemplu.ro",
+        title_ro="DMARC este publicat cu politică de aplicare",
+        title_en="DMARC is published with an enforcing policy",
+        rationale_ro="DMARC indică destinatarilor cum să trateze mesajele nealiniate.",
+        rationale_en="DMARC tells recipients how to treat unaligned mail.",
+        evidence=(("present", "false"), ("policy", "none"), ("record", "v=DMARC1; p=none")),
+        evidence_status="absent",
+    )
+    base.update(overrides)
+    return ReportFinding(**base)  # type: ignore[arg-type]
+
+
+def test_a_finding_shows_what_was_observed_not_only_what_to_change() -> None:
+    """The gap this closes.
+
+    "Publish DMARC" is an instruction. "No DMARC record was returned" is the reason, and
+    a public body being asked to change its DNS is entitled to the second before acting
+    on the first.
+    """
+    shown = visible_text(render_report(report(findings=(_finding_with_evidence(),))))
+
+    assert "Ce am observat" in shown
+    assert "v=DMARC1; p=none" in shown
+
+
+def test_the_evidence_status_is_shown_even_with_no_attributes() -> None:
+    """`absent` and `inconclusive` are the whole content in that case: we looked and it
+    was not there, or we could not look. A reader acts differently on each, and showing
+    neither makes them the same."""
+    for status, expected in (("absent", "lipsește"), ("inconclusive", "neconcludent")):
+        shown = visible_text(
+            render_report(
+                report(findings=(_finding_with_evidence(evidence=(), evidence_status=status),))
+            )
+        )
+
+        assert expected in shown, status
+
+
+def test_evidence_appears_before_the_remediation() -> None:
+    """An instruction read before its reason is one somebody applies without checking
+    whether it matches what their own infrastructure does."""
+    shown = visible_text(
+        render_report(
+            report(
+                findings=(
+                    _finding_with_evidence(
+                        remediation_summary_ro="Publică DMARC.",
+                        remediation_steps_ro=("Publică '_dmarc' cu 'p=none'.",),
+                    ),
+                )
+            )
+        )
+    )
+
+    assert shown.index("Ce am observat") < shown.index("Ce este de făcut")
+
+
+def test_hostile_evidence_cannot_break_out_of_the_page() -> None:
+    """Every value here came from somebody else's infrastructure. A mail server greeting
+    or an HTTP header is an attacker-controlled string that this report renders."""
+    html = render_report(
+        report(
+            findings=(
+                _finding_with_evidence(
+                    evidence=(("banner", "<script>alert(1)</script>"),),
+                ),
+            )
+        )
+    )
+
+    assert "<script>alert(1)</script>" not in html
+    assert "&lt;script&gt;" in html
+
+
+def test_booleans_read_as_words_rather_than_as_json() -> None:
+    """`false` is a value from a payload. A report is read by somebody who does not know
+    what a payload is."""
+    shown = visible_text(
+        render_report(report(findings=(_finding_with_evidence(evidence=(("present", "false"),)),)))
+    )
+
+    assert " nu" in shown
+    assert "false" not in shown
+
+
+def test_no_two_text_keys_collide() -> None:
+    """A duplicate key in the text table silently replaces the first.
+
+    `observed` was the label for the observation timestamp, and an evidence heading added
+    under the same name overwrote it -- the report would have printed "Ce am observat"
+    where it meant "Observat la", and every test still passed. Caught by the linter that
+    time; asserted here so it does not depend on one.
+    """
+    import ast
+    from pathlib import Path as _Path
+
+    source = (
+        _Path(__file__).resolve().parents[2] / "services/worker/src/siembiot_worker/reports/html.py"
+    ).read_text(encoding="utf-8")
+
+    for node in ast.walk(ast.parse(source)):
+        if not isinstance(node, ast.Dict):
+            continue
+        literals = [
+            k.value for k in node.keys if isinstance(k, ast.Constant) and isinstance(k.value, str)
+        ]
+        duplicates = sorted({key for key in literals if literals.count(key) > 1})
+        assert not duplicates, f"repeated text keys: {duplicates}"
+
+
+def test_both_locales_describe_the_same_things() -> None:
+    """A key present in one language and not the other renders a KeyError for whoever
+    picked the other language, which is nobody's fault but is always the same nobody."""
+    assert set(_TEXT["ro"]) == set(_TEXT["en"])

@@ -291,6 +291,27 @@ def find_secret_candidates(files: list[Path]) -> list[Path]:
                 raw_value = annotated_value.group(1)
             if path.suffix.lower() == ".py" and "(" in raw_value:
                 continue
+            # A bare name after `=` in Python passes a variable, and an unquoted value in
+            # that position cannot be anything else -- a literal requires quotes.
+            # Skipping it does not weaken the check: a quoted value is still caught,
+            # which was verified by adding one in three spellings and watching each fail
+            # the gate.
+            #
+            # Written without an example of the quoted form, because an example of a
+            # credential assignment is indistinguishable from a credential assignment --
+            # the phase 0 scanner flagged this very file when the comment carried one.
+            #
+            # Without this the gate fired on the line that reads the key out of the
+            # environment, which is the one place it is supposed to be read.
+            if (
+                path.suffix.lower() == ".py"
+                and separator == "="
+                and not match.group(0).rstrip().endswith(("'", '"'))
+                and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", raw_value.rstrip(","))
+                and '"' not in match.group(0).split(separator, 1)[1]
+                and "'" not in match.group(0).split(separator, 1)[1]
+            ):
+                continue
             value = raw_value.strip("<>{}[]()\"',").lower()
             if value not in PLACEHOLDERS and not value.startswith(
                 ("changeme", "example", "placeholder")

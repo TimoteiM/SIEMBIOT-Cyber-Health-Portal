@@ -57,6 +57,10 @@ class CheckMetadata:
     severity: str
     weight: int
     public_safety_class: str
+    #: The evidence this check reads. Carried so a report can show what was actually
+    #: observed beside what it says to change -- a finding without its evidence asks
+    #: an institution to take the platform's word for it.
+    observation_type: str
     remediation_template: str | None
     references: tuple[str, ...]
 
@@ -74,6 +78,7 @@ def _metadata(raw: dict[str, Any], pillar: str, letter: str) -> CheckMetadata:
         severity=str(raw["severity"]),
         weight=int(raw["weight"]),
         public_safety_class=str(raw["public_safety_class"]),
+        observation_type=str(raw["observation_type"]),
         remediation_template=(
             str(raw["remediation_template"]) if raw.get("remediation_template") else None
         ),
