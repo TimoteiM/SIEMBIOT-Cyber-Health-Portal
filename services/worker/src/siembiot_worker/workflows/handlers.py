@@ -58,6 +58,7 @@ from siembiot_worker.policy.normalization import (
     normalize_mail_transport,
     normalize_ports,
     normalize_rdap,
+    normalize_reputation,
     normalize_tls,
 )
 from siembiot_worker.policy.scoring import ScoreSnapshot, compute_score
@@ -395,6 +396,13 @@ def build_handlers(context: AssessmentContext) -> dict[str, StepHandler]:
             observations.extend(normalize_attribution(asn, **shared))
         if (mail_tls := context.collection.get("mail_tls")) is not None:
             observations.extend(normalize_mail_transport(mail_tls, **shared))
+        # `normalize_reputation` existed, was tested, and was never called from here.
+        # The collector ran, reported success, and its answer was dropped on the floor --
+        # so pillar E stayed `not_applicable` no matter what a provider said, and the
+        # step being green was what made it invisible. The same shape as a collector
+        # that is declared and never run.
+        if (reputation := context.collection.get("reputation")) is not None:
+            observations.extend(normalize_reputation(reputation, **shared))
 
         if not observations:
             return StepOutcome.fail("no_evidence_collected")

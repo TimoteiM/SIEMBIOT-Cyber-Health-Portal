@@ -41,6 +41,7 @@ from siembiot_worker.policy.catalog import Result, load_catalog  # noqa: E402
 from siembiot_worker.workflows.engine import StepContext, WorkflowEngine  # noqa: E402
 from siembiot_worker.workflows.graph import DEFAULT_GRAPH, StepState  # noqa: E402
 from siembiot_worker.workflows.handlers import (  # noqa: E402
+    COLLECTOR_OPERATIONS,
     PERMANENT_COLLECTION_REASONS,
     AssessmentContext,
     build_handlers,
@@ -607,3 +608,64 @@ def test_a_passive_run_is_not_penalised_for_checks_it_may_not_perform() -> None:
 
     assert context.snapshot is not None
     assert authorized_only.isdisjoint(set(context.snapshot.coverage.undetermined_checks))
+
+
+def _normalized_collector_names() -> set[str]:
+    """Every collector name the normalize step reads out of the collection.
+
+    Read from the source rather than listed, because a list written by hand is one that
+    stops matching the moment somebody adds a collector -- which is exactly the failure
+    this guards.
+    """
+    import ast
+    from pathlib import Path as _Path
+
+    source = (
+        _Path(__file__).resolve().parents[2]
+        / "services/worker/src/siembiot_worker/workflows/handlers.py"
+    ).read_text(encoding="utf-8")
+
+    names: set[str] = set()
+    for node in ast.walk(ast.parse(source)):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if not (isinstance(func, ast.Attribute) and func.attr == "get"):
+            continue
+        target = func.value
+        # `context.collection.get("name")`
+        if not (isinstance(target, ast.Attribute) and target.attr == "collection"):
+            continue
+        if node.args and isinstance(node.args[0], ast.Constant):
+            value = node.args[0].value
+            if isinstance(value, str):
+                names.add(value)
+    return names
+
+
+def test_every_collected_result_is_normalized() -> None:
+    """A collector whose answer nothing reads is a collector that did not run.
+
+    `normalize_reputation` existed, was tested on its own, and was never called from the
+    normalize step. So the reputation collector ran, reported success, and its answer was
+    dropped -- pillar E stayed `not_applicable` whatever a provider said, and the green
+    step is what kept it invisible. Being tested in isolation is what made it look
+    finished.
+
+    This is the same shape as a collector that is declared and never run, one layer
+    further down, and it is caught the same way: by comparing what is declared against
+    what is actually reached.
+    """
+    missing = sorted(set(COLLECTOR_OPERATIONS) - _normalized_collector_names())
+    assert not missing, f"collected but never normalized: {missing}"
+
+
+def test_nothing_is_normalized_that_no_collector_produces() -> None:
+    """The other direction, which rots silently.
+
+    A normalizer reading a key nothing writes never runs and never fails; it just sits
+    there looking like coverage. It also hides the real fault when a collector is
+    renamed: the old branch stays, the new name goes unread, and only this half notices.
+    """
+    unknown = sorted(_normalized_collector_names() - set(COLLECTOR_OPERATIONS))
+    assert not unknown, f"normalized but no collector produces it: {unknown}"
