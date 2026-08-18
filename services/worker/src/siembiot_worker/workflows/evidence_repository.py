@@ -260,6 +260,20 @@ class EvidenceRepository:
     # -- findings ------------------------------------------------------------
 
     def load_findings(self, catalog: PolicyCatalog) -> tuple[Finding, ...]:
+        """What this domain already had, for reconciliation against what this run found.
+
+        Scoped to the domain, not the organization. Reconciliation resolves anything the
+        current run did not re-observe, and a run only observes the domain it was aimed
+        at -- so loading the tenant's whole set meant assessing one domain marked every
+        *other* domain's findings resolved. An institution with two domains lost the
+        findings for one of them every time the other was assessed, and the report then
+        told them they had no weaknesses. tarom.ro's eight findings were resolved
+        thirteen milliseconds after a metrorex.ro run finished.
+
+        The organization filter stays alongside it: row-level security already scopes the
+        query, and a second explicit predicate is what makes the intent readable rather
+        than dependent on a policy defined elsewhere.
+        """
         rows = self._connection.execute(
             text(
                 """
@@ -270,9 +284,10 @@ class EvidenceRepository:
                        first_seen_at, last_seen_at, resolved_at, evidence_observation_ids
                 FROM findings
                 WHERE organization_id = :organization_id
+                  AND (:domain_id IS NULL OR authorized_domain_id = :domain_id)
                 """
             ),
-            {"organization_id": self._organization_id},
+            {"organization_id": self._organization_id, "domain_id": self._domain_id},
         ).mappings()
         del catalog
         return tuple(

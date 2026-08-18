@@ -580,18 +580,57 @@ def test_a_finding_shows_what_was_observed_not_only_what_to_change() -> None:
     assert "v=DMARC1; p=none" in shown
 
 
-def test_the_evidence_status_is_shown_even_with_no_attributes() -> None:
-    """`absent` and `inconclusive` are the whole content in that case: we looked and it
-    was not there, or we could not look. A reader acts differently on each, and showing
-    neither makes them the same."""
-    for status, expected in (("absent", "lipsește"), ("inconclusive", "neconcludent")):
-        shown = visible_text(
-            render_report(
-                report(findings=(_finding_with_evidence(evidence=(), evidence_status=status),))
+def test_an_absence_with_nothing_to_show_is_not_shown() -> None:
+    """A box headed "what we observed" whose only content is the word "missing".
+
+    It sits under a title that already says the record is not published, inside a column
+    already headed "requirements not met". Restating the verdict there teaches a reader
+    to skip the box -- including on the findings where the box carries the whole answer.
+    """
+    shown = visible_text(
+        render_report(
+            report(findings=(_finding_with_evidence(evidence=(), evidence_status="absent"),))
+        )
+    )
+    assert _TEXT["ro"]["evidence_heading"] not in shown
+
+
+def test_an_absence_that_has_something_to_show_is_still_shown() -> None:
+    """Hiding is driven by there being nothing to say, not by the status.
+
+    Several collectors record an absence alongside a measurement -- MTA-STS reports
+    `present: no` while the observation itself was made -- and those must keep their
+    evidence. Only the case with no attributes at all disappears.
+    """
+    shown = visible_text(
+        render_report(
+            report(
+                findings=(
+                    _finding_with_evidence(
+                        evidence=(("present", "false"),),
+                        evidence_status="absent",
+                    ),
+                )
             )
         )
+    )
+    assert _TEXT["ro"]["evidence_heading"] in shown
+    assert _TEXT["ro"]["attr.present"] in shown
 
-        assert expected in shown, status
+
+def test_a_check_we_could_not_run_still_says_so_with_nothing_else() -> None:
+    """`inconclusive` is never hidden, however little accompanies it.
+
+    "We could not check this" is implied by nothing else on the page, and dropping it
+    would let a gap in our own measurement read as a fact about the institution -- the
+    same inversion the third column of the summary exists to prevent.
+    """
+    shown = visible_text(
+        render_report(
+            report(findings=(_finding_with_evidence(evidence=(), evidence_status="inconclusive"),))
+        )
+    )
+    assert _TEXT["ro"]["obs.inconclusive"] in shown
 
 
 def test_evidence_appears_before_the_remediation() -> None:
@@ -733,6 +772,17 @@ def _collector_attributes() -> tuple[set[str], set[str]]:
                     for key in candidate.keys
                     if isinstance(key, ast.Constant) and isinstance(key.value, str)
                 )
+    # Attribute dictionaries built by a helper rather than written at the call site.
+    # `_looked_for` returns one, and without this the label for what it emits looks dead
+    # -- which would have this test demand the removal of a label that is in use.
+    for node in ast.walk(ast.parse(source)):
+        if not isinstance(node, ast.Return) or not isinstance(node.value, ast.Dict):
+            continue
+        names.update(
+            key.value
+            for key in node.value.keys
+            if isinstance(key, ast.Constant) and isinstance(key.value, str)
+        )
     return types, names
 
 

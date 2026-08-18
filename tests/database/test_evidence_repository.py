@@ -531,3 +531,69 @@ def test_the_persisted_snapshot_matches_the_computed_one(
         assert row[1] == snapshot.band
         assert row[2] == CATALOG.digest
         assert row[3] is snapshot.coverage.sufficient
+
+
+def test_assessing_one_domain_does_not_resolve_another_domains_findings(
+    postgres_database: dict[str, str],
+) -> None:
+    """The bug that told an institution it had no weaknesses.
+
+    Reconciliation resolves whatever the current run did not re-observe, and a run only
+    observes the domain it was aimed at. Loading the tenant's whole set therefore meant
+    assessing one domain marked every *other* domain's findings resolved -- silently, and
+    with the report then reading "no weaknesses identified" for a domain that had eight.
+
+    Observed in the real database before it was found in the code: tarom.ro's eight
+    findings were resolved thirteen milliseconds after a metrorex.ro run completed, both
+    domains belonging to one organization.
+    """
+    fixture = seed(postgres_database["owner_url"], assessments=2)
+    first_run, second_run = fixture.assessments
+
+    sibling_id = str(uuid4())
+    sibling_host = f"sibling-{sibling_id[:8]}.example.test"
+    with psycopg.connect(postgres_database["owner_url"]) as owner:
+        owner.execute(
+            "INSERT INTO domains (id, organization_id, canonical_name, unicode_display, "
+            "registrable_domain, ownership_state, created_by_user_id) "
+            "VALUES (%s, %s, %s, %s, %s, 'verified', %s)",
+            (
+                sibling_id,
+                str(fixture.organization_id),
+                sibling_host,
+                sibling_host,
+                sibling_host,
+                str(fixture.user_id),
+            ),
+        )
+
+    store, connection = repository(postgres_database["owner_url"], fixture)
+    try:
+        _, failing, _ = full_run(first_run, dnssec="unsigned")
+        store.save_findings(
+            first_run,
+            derive_findings(
+                CATALOG,
+                failing,
+                organization_id=fixture.organization_id,
+                assessment_id=first_run,
+                observed_at=NOW,
+            ),
+            catalog=CATALOG,
+            observed_at=NOW,
+        )
+        connection.commit()
+        assert store.load_findings(CATALOG), "the first domain must have findings to lose"
+
+        # A run for the sibling domain, which finds nothing of its own.
+        sibling_store = EvidenceRepository(connection, fixture.organization_id, UUID(sibling_id))
+        sibling_store.save_findings(second_run, (), catalog=CATALOG, observed_at=LATER)
+        connection.commit()
+
+        surviving = store.load_findings(CATALOG)
+        assert surviving, "the first domain's findings disappeared entirely"
+        assert all(item.state is FindingState.OPEN for item in surviving), (
+            "a run for a sibling domain resolved this domain's findings"
+        )
+    finally:
+        connection.close()

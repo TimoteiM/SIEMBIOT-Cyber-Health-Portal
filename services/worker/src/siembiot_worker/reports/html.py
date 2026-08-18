@@ -1031,6 +1031,16 @@ def _evidence(finding: ReportFinding, locale: str) -> list[Node]:
     """
     if finding.evidence_status is None:
         return []
+    if finding.evidence_status == "absent" and not finding.evidence:
+        # Nothing to show but the word "missing", under a heading that promises what we
+        # observed and beside a title that already says the record is not published. A
+        # box that restates the verdict teaches a reader to skip the box, including on
+        # the findings where it carries the whole answer.
+        #
+        # `inconclusive` deliberately does not qualify: "we could not check this" is not
+        # implied by anything else on the page, and hiding it would let a gap in our own
+        # measurement read as a fact about the institution.
+        return []
 
     rows = [
         element(
