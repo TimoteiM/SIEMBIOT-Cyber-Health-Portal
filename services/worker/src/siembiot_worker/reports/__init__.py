@@ -2,6 +2,7 @@
 
 from siembiot_worker.reports.document import (
     SEVERITY_ORDER,
+    ReportCheck,
     ReportDocument,
     ReportFinding,
     ReportPillar,
@@ -12,6 +13,7 @@ __all__ = [
     "DEFAULT_LOCALE",
     "LOCALES",
     "SEVERITY_ORDER",
+    "ReportCheck",
     "ReportDocument",
     "ReportFinding",
     "ReportPillar",

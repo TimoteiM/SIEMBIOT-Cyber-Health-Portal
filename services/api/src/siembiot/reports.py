@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import hashlib
 import secrets
+from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 from uuid import UUID
@@ -26,6 +27,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Request, Response
 from siembiot_worker.reports import (
     LOCALES,
+    ReportCheck,
     ReportDocument,
     ReportFinding,
     ReportPillar,
@@ -188,10 +190,24 @@ def _readable(value: Any) -> str | None:
     if isinstance(value, list):
         parts = [str(item)[:80] for item in value[:6] if item not in (None, "")]
         return ", ".join(parts)[:200] or None
+    if isinstance(value, dict):
+        # A breakdown -- open ports by exposure class is the only one so far. Rendered as
+        # `name:count` pairs and translated by the renderer, which is where the
+        # vocabulary lives. Zero counts are dropped: "database: 0" is a row that occupies
+        # the reader's attention to tell them nothing happened.
+        pairs = [
+            f"{str(key)[:60]}:{item:g}"
+            if isinstance(item, int | float)
+            else f"{str(key)[:60]}:{item}"
+            for key, item in list(value.items())[:8]
+            if item not in (None, "", 0, False)
+        ]
+        return ", ".join(pairs)[:200] or None
     return None
 
 
 def _evidence_rows(attributes: dict[str, Any]) -> tuple[tuple[str, str], ...]:
+    """The showable attributes, capped, in the order the collector recorded them."""
     rows: list[tuple[str, str]] = []
     for name, value in attributes.items():
         if name in _INTERNAL_ATTRIBUTES:
@@ -203,6 +219,22 @@ def _evidence_rows(attributes: dict[str, Any]) -> tuple[tuple[str, str], ...]:
         if len(rows) == _MAX_EVIDENCE_ROWS:
             break
     return tuple(rows)
+
+
+def _evidence_omitted(attributes: dict[str, Any], shown: int) -> int:
+    """How many attributes the cap left out.
+
+    No collector currently emits more than eight, so this is zero everywhere today. It
+    exists because the cap is the same mistake this section was built to fix: a report
+    that quietly says less than it knows, in a place where the reader has no way to tell.
+    A truncation nobody is told about is indistinguishable from there being nothing more.
+    """
+    showable = sum(
+        1
+        for name, value in attributes.items()
+        if name not in _INTERNAL_ATTRIBUTES and _readable(value) is not None
+    )
+    return max(0, showable - shown)
 
 
 def _observations_for(connection: Connection, assessment_id: UUID) -> dict[tuple[str, str], Any]:
@@ -245,6 +277,7 @@ def _finding_document(
         if entry
         else None
     )
+    evidence = _evidence_rows(observed["attributes"]) if observed else ()
     return ReportFinding(
         check_id=check_id,
         severity=str(row["severity"]),
@@ -261,8 +294,86 @@ def _finding_document(
         remediation_caveat_ro=getattr(guidance, "caveat_ro", None),
         remediation_caveat_en=getattr(guidance, "caveat_en", None),
         remediation_review_status=getattr(guidance, "review_status", None),
-        evidence=_evidence_rows(observed["attributes"]) if observed else (),
+        evidence=evidence,
+        evidence_omitted=(
+            _evidence_omitted(observed["attributes"], len(evidence)) if observed else 0
+        ),
         evidence_status=str(observed["status"]) if observed else None,
+        evidence_type=entry.observation_type if observed and entry else None,
+    )
+
+
+#: Which outcome wins when one check was evaluated against several subjects.
+#:
+#: Worst-first, and deliberately so: a check that passes on the domain and fails on an
+#: accepted subdomain is a check the institution has to act on, and reporting the
+#: domain's result alone would describe a weakness that exists as one that does not.
+#: `unknown` outranks `pass` for the same reason -- one subject we could not test is not
+#: evidence that the check is satisfied.
+_OUTCOME_PRECEDENCE = ("fail", "warning", "unknown", "pass", "not_applicable")
+
+
+def _checks_for(
+    connection: Connection, assessment_id: UUID, metadata: dict[str, CheckMetadata]
+) -> tuple[ReportCheck, ...]:
+    """Every check this assessment evaluated, with the outcome it reached.
+
+    Read from the evaluations rather than from the findings, because findings are only
+    the negative ones -- that is what a finding is. The question this answers is the
+    other one: what was looked at, and what came back clean.
+
+    A check the catalogue no longer describes still appears, under its identifier, on the
+    same reasoning that keeps an unknown finding in the list: dropping it would shorten
+    the account of what was examined, and shortening that is the failure this section
+    exists to prevent.
+    """
+    rows = connection.execute(
+        text(
+            """
+            SELECT check_id, result
+            FROM check_evaluations
+            WHERE assessment_id = :assessment_id
+            """
+        ),
+        {"assessment_id": assessment_id},
+    ).mappings()
+
+    worst = worst_outcome_per_check((str(row["check_id"]), str(row["result"])) for row in rows)
+
+    return tuple(
+        ReportCheck(
+            check_id=check_id,
+            title_ro=metadata[check_id].title_ro if check_id in metadata else check_id,
+            title_en=metadata[check_id].title_en if check_id in metadata else check_id,
+            outcome=outcome,
+        )
+        for check_id, outcome in sorted(worst.items())
+    )
+
+
+def worst_outcome_per_check(pairs: Iterable[tuple[str, str]]) -> dict[str, str]:
+    """One outcome per check, worst first, from evaluations across every subject.
+
+    Kept apart from the query because it is the part that decides something. A check that
+    passes on the domain and fails on an accepted subdomain is a check the institution has
+    to act on, and reporting the domain's row alone would describe a weakness that exists
+    as one that does not. `unknown` outranks `pass` for the same reason: one subject we
+    could not test is not evidence that the check is satisfied everywhere.
+    """
+    worst: dict[str, str] = {}
+    for check_id, outcome in pairs:
+        current = worst.get(check_id)
+        if current is None or _rank(outcome) < _rank(current):
+            worst[check_id] = outcome
+    return worst
+
+
+def _rank(outcome: str) -> int:
+    """Position in the precedence order; anything unrecognised sorts last but is kept."""
+    return (
+        _OUTCOME_PRECEDENCE.index(outcome)
+        if outcome in _OUTCOME_PRECEDENCE
+        else len(_OUTCOME_PRECEDENCE)
     )
 
 
@@ -292,6 +403,7 @@ def build_report_document(
         for row in _findings_for(connection, domain_id)
     )
     withheld = _withheld_checks(connection, assessment["assessment_id"])
+    checks = _checks_for(connection, assessment["assessment_id"], metadata)
 
     return ReportDocument(
         organization_name=organization_name,
@@ -315,6 +427,7 @@ def build_report_document(
             for pillar in snapshot.get("pillars", [])
         ),
         findings=findings,
+        checks=checks,
         undetermined_checks=tuple(coverage.get("undetermined_checks", [])),
         withheld_checks=withheld,
     )

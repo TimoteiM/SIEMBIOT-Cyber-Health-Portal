@@ -54,6 +54,14 @@ class ReportFinding:
     #: and it was not there" and "we could not look" are different statements and a
     #: reader acts differently on each.
     evidence_status: str | None = None
+    #: Which collector observation the evidence came from. Carried because a handful of
+    #: attribute names mean different things depending on it -- days until expiry is a
+    #: certificate on one and the domain registration itself on another -- and the
+    #: renderer cannot tell them apart from the name alone.
+    evidence_type: str | None = None
+    #: Attributes the row cap left out. Rendered rather than dropped, because a reader
+    #: who is not told the list was cut has no way to know it was.
+    evidence_omitted: int = 0
 
 
 @dataclass(frozen=True)
@@ -61,6 +69,25 @@ class ReportPillar:
     pillar: str
     score: float | None
     weight: float
+
+
+@dataclass(frozen=True)
+class ReportCheck:
+    """One check and how it came out, whatever the outcome.
+
+    The report listed only what failed. An institution reading it could see eight things
+    to fix and no indication that five others were tested and are fine, or -- the one that
+    matters -- that four could not be tested at all. Absence of red is not green, and a
+    document that shows only red invites exactly that reading.
+    """
+
+    check_id: str
+    title_ro: str
+    title_en: str
+    #: `pass`, `fail`, `warning`, `unknown` or `not_applicable`, as the evaluator recorded
+    #: it. Not collapsed to good/bad here: the renderer needs the difference between "we
+    #: tested this and it is wrong" and "we could not test this", and so does the reader.
+    outcome: str
 
 
 @dataclass(frozen=True)
@@ -85,6 +112,9 @@ class ReportDocument:
     evidence_erased_at: datetime | None = None
     pillars: tuple[ReportPillar, ...] = ()
     findings: tuple[ReportFinding, ...] = ()
+    #: Every check the assessment evaluated, including the ones that passed and the ones
+    #: it could not determine. Separate from `findings`, which is only what is wrong.
+    checks: tuple[ReportCheck, ...] = ()
     #: Checks that could not be determined. Named, not counted: "we could not tell about
     #: these three things" is a different statement from "coverage 91%", and only the
     #: first one tells a reader what to go and look at.

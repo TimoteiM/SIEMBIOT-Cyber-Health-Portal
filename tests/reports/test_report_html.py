@@ -13,8 +13,10 @@ import re
 from datetime import UTC, datetime
 
 import pytest
+from siembiot.reports import _INTERNAL_ATTRIBUTES
 from siembiot_worker.reports import (
     LOCALES,
+    ReportCheck,
     ReportDocument,
     ReportFinding,
     ReportPillar,
@@ -668,3 +670,440 @@ def test_both_locales_describe_the_same_things() -> None:
     """A key present in one language and not the other renders a KeyError for whoever
     picked the other language, which is nobody's fault but is always the same nobody."""
     assert set(_TEXT["ro"]) == set(_TEXT["en"])
+
+
+def _collector_attributes() -> tuple[set[str], set[str]]:
+    """Every observation type the normalizer emits, and every attribute name it can put
+    on one.
+
+    Read out of the normalizer's own source rather than listed here, because a list
+    maintained by hand is a list that stops matching the collectors the first week
+    somebody adds one, and the failure of that list is silent: the report shows a raw
+    attribute name and nobody notices for a release.
+
+    Only the dictionary handed over as the attributes argument counts. Walking deeper
+    would collect the keys inside `hosts` and `open_ports`, which are the shape of a list
+    item and never appear as a row label -- an earlier version of this did exactly that
+    and demanded labels for `banner` and `asn`.
+    """
+    import ast
+    from pathlib import Path as _Path
+
+    source = (
+        _Path(__file__).resolve().parents[2]
+        / "services/worker/src/siembiot_worker/policy/normalization.py"
+    ).read_text(encoding="utf-8")
+
+    types: set[str] = set()
+    names: set[str] = set()
+    for node in ast.walk(ast.parse(source)):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        is_make = isinstance(func, ast.Attribute) and func.attr == "make"
+        is_ctor = isinstance(func, ast.Name) and func.id == "NormalizedObservation"
+        if not (is_make or is_ctor):
+            continue
+
+        if is_make and node.args:
+            first = node.args[0]
+            if isinstance(first, ast.Constant) and isinstance(first.value, str):
+                types.add(first.value)
+        for keyword in node.keywords:
+            if keyword.arg != "observation_type":
+                continue
+            if isinstance(keyword.value, ast.Constant) and isinstance(keyword.value.value, str):
+                types.add(keyword.value.value)
+
+        argument: ast.expr | None = None
+        if is_make and len(node.args) >= 3:
+            argument = node.args[2]
+        for keyword in node.keywords:
+            if keyword.arg == "attributes":
+                argument = keyword.value
+        # `{...} if conclusive else None` is how an inconclusive observation drops its
+        # attributes, so both branches are candidates and neither is nested data.
+        candidates: list[ast.expr | None] = (
+            [argument.body, argument.orelse] if isinstance(argument, ast.IfExp) else [argument]
+        )
+        for candidate in candidates:
+            if isinstance(candidate, ast.Dict):
+                names.update(
+                    key.value
+                    for key in candidate.keys
+                    if isinstance(key, ast.Constant) and isinstance(key.value, str)
+                )
+    return types, names
+
+
+def test_every_collector_attribute_has_a_label() -> None:
+    """An unlabelled attribute reaches the page as `distinct_parent_count`.
+
+    That is not wrong, it is unreadable, and this report is written for an institution
+    that does not employ anybody who reads it fluently. The point of the whole evidence
+    section is lost one row at a time.
+    """
+    _, names = _collector_attributes()
+    unlabelled = sorted(
+        name
+        for name in names - _INTERNAL_ATTRIBUTES
+        if f"attr.{name}" not in _TEXT["ro"]
+        and not any(key.endswith(f".{name}") for key in _TEXT["ro"] if key.startswith("attr."))
+    )
+    assert not unlabelled, f"collector attributes with no reader-facing name: {unlabelled}"
+
+
+def test_no_label_describes_an_attribute_no_collector_emits() -> None:
+    """The other direction, and the one that rots quietly.
+
+    A label for an attribute that no longer exists is invisible -- it renders nowhere and
+    breaks nothing -- so it survives every review and makes the table look more complete
+    than it is. It also hides the real failure: when a collector is renamed, the old label
+    stays and the new name goes unlabelled, and only this half of the pair notices.
+    """
+    types, names = _collector_attributes()
+    stale = []
+    for key in _TEXT["ro"]:
+        if not key.startswith("attr."):
+            continue
+        remainder = key[len("attr.") :]
+        if remainder in names:
+            continue
+        observation_type, _, name = remainder.rpartition(".")
+        if observation_type in types and name in names:
+            continue
+        stale.append(key)
+    assert not sorted(stale), f"labels for attributes nothing emits: {sorted(stale)}"
+
+
+def test_an_unlabelled_attribute_is_shown_rather_than_dropped() -> None:
+    """The fall-back, asserted rather than assumed.
+
+    A collector that starts reporting something new must not have it silently disappear
+    from the report while the label is being written. An ugly row is a fixable oversight;
+    a missing row is the report saying less than it knows, which is the failure this
+    entire section exists to prevent.
+    """
+    document = report(
+        findings=(
+            finding(evidence=(("newly_invented_attribute", "7"),), evidence_status="observed"),
+        )
+    )
+    page = render_report(document, locale="ro")
+    assert "newly_invented_attribute" in page
+    assert ">7<" in page
+
+
+def test_an_attribute_means_what_its_observation_type_says_it_means() -> None:
+    """`days_until_expiry` is weeks of warning on a certificate and the domain itself on a
+    registration. Telling a mayor the wrong one is worse than telling them neither."""
+    rows = (("days_until_expiry", "12"),)
+    certificate = render_report(
+        report(
+            findings=(
+                finding(evidence=rows, evidence_status="observed", evidence_type="tls.certificate"),
+            )
+        ),
+        locale="ro",
+    )
+    registration = render_report(
+        report(
+            findings=(
+                finding(
+                    evidence=rows, evidence_status="observed", evidence_type="rdap.registration"
+                ),
+            )
+        ),
+        locale="ro",
+    )
+    assert "expirarea certificatului" in certificate
+    assert "expirarea certificatului" not in registration
+    assert "expirarea înregistrării domeniului" in registration
+
+
+def test_a_coded_value_is_rendered_as_the_thing_it_means() -> None:
+    """`p=none` is not a policy an institution can weigh. The reader's question is whether
+    anything is currently being stopped, and the coded form does not answer it."""
+    page = render_report(
+        report(findings=(finding(evidence=(("policy", "none"),), evidence_status="observed"),)),
+        locale="ro",
+    )
+    assert "doar raportare" in page
+    assert ">none<" not in page
+
+
+def test_an_unknown_coded_value_is_shown_as_it_arrived() -> None:
+    """Values come from other people's DNS and policy files, so the vocabulary is theirs,
+    not ours. One we do not recognise is still evidence and is still shown."""
+    page = render_report(
+        report(
+            findings=(
+                finding(evidence=(("mode", "quarantine_maybe"),), evidence_status="observed"),
+            )
+        ),
+        locale="ro",
+    )
+    assert "quarantine_maybe" in page
+
+
+def test_a_coded_value_cannot_smuggle_markup_through_its_lookup() -> None:
+    """The value is a dictionary key and never a format string, but the row it lands in is
+    still hostile text from somebody else's infrastructure."""
+    page = render_report(
+        report(findings=(finding(evidence=(("policy", HOSTILE),), evidence_status="observed"),)),
+        locale="ro",
+    )
+    assert "<script>" not in page
+    assert "&lt;script&gt;" in page
+
+
+def test_a_breakdown_is_rendered_as_categories_and_counts() -> None:
+    """Open ports arrive as a mapping, and a mapping was silently dropped.
+
+    `_readable` returned None for anything it did not recognise, so the one attribute that
+    says *what kind* of services are exposed never reached the page -- and no test noticed,
+    because every other attribute rendered. The label test found it; this keeps the
+    rendering itself honest, which the label test does not check.
+    """
+    from siembiot.reports import _evidence_rows
+
+    rows = _evidence_rows(
+        {"open_by_exposure": {"remote_access": 2, "database": 1, "management": 0}}
+    )
+    assert rows == (("open_by_exposure", "remote_access:2, database:1"),)
+
+    page = render_report(
+        report(findings=(finding(evidence=rows, evidence_status="observed"),)), locale="ro"
+    )
+    assert "acces la distanță: 2" in page
+    assert "bază de date: 1" in page
+    # Nothing open in that category is not a finding about that category.
+    assert "administrare" not in page
+
+
+def test_a_truncated_evidence_list_says_so() -> None:
+    """The row cap is the same mistake this section was built to fix.
+
+    A reader who is not told the list was cut has no way to know it was: twelve rows and
+    a full stop looks exactly like twelve rows and nothing more. No collector emits
+    enough attributes to reach the cap today, which is precisely why nobody would notice
+    the day one does.
+    """
+    from siembiot.reports import _MAX_EVIDENCE_ROWS, _evidence_omitted, _evidence_rows
+
+    attributes = {f"attribute_{index}": index + 1 for index in range(_MAX_EVIDENCE_ROWS + 5)}
+    rows = _evidence_rows(attributes)
+    assert len(rows) == _MAX_EVIDENCE_ROWS
+    assert _evidence_omitted(attributes, len(rows)) == 5
+
+    page = render_report(
+        report(findings=(finding(evidence=rows, evidence_status="observed", evidence_omitted=5),)),
+        locale="ro",
+    )
+    assert "neafișate aici" in page
+    assert ">5<" in page
+
+
+def test_nothing_omitted_says_nothing() -> None:
+    """A row reading "0 further" on every finding in the report is noise that trains the
+    reader to stop reading the table."""
+    page = render_report(
+        report(findings=(finding(evidence=(("present", "false"),), evidence_status="absent"),)),
+        locale="ro",
+    )
+    assert "neafișate aici" not in page
+
+
+def check(check_id: str, outcome: str) -> ReportCheck:
+    return ReportCheck(
+        check_id=check_id,
+        title_ro=f"Titlu {check_id}",
+        title_en=f"Title {check_id}",
+        outcome=outcome,
+    )
+
+
+#: One of each recorded outcome, which is the only arrangement that can tell the columns
+#: apart. A fixture of all-passes would render identically whichever column it went to.
+MIXED = (
+    check("A.one", "pass"),
+    check("A.two", "fail"),
+    check("A.three", "warning"),
+    check("A.four", "unknown"),
+    check("A.five", "not_applicable"),
+)
+
+
+def _column_counts(page: str) -> dict[str, int]:
+    """The number each column heading claims, read back off the rendered page."""
+    counts = {}
+    for name in ("checked_ok", "checked_action", "checked_unknown"):
+        label = re.escape(_TEXT["ro"][name])
+        match = re.search(rf"{label} \((\d+)\)", page)
+        counts[name] = int(match.group(1)) if match else -1
+    return counts
+
+
+def test_a_passing_check_is_shown_not_only_the_failures() -> None:
+    """The report listed what was wrong and nothing else.
+
+    Five checks passing and four returning nothing were both rendered as silence, and
+    silence reads as "fine" -- so an institution could read a page with eight problems on
+    it and reasonably conclude everything else had been tested and was healthy.
+    """
+    page = render_report(report(checks=MIXED), locale="ro")
+    assert _TEXT["ro"]["checked_heading"] in page
+    assert "Titlu A.one" in page
+    assert _column_counts(page)["checked_ok"] == 1
+
+
+def test_each_locale_gets_its_own_check_titles() -> None:
+    """Titles come in both languages and only one may be shown. Nothing asserted which,
+    so a renderer that always reached for the Romanian one would have gone unnoticed by
+    every reader who asked for English."""
+    checks = (
+        ReportCheck(
+            check_id="A.one", title_ro="Titlu românesc", title_en="English title", outcome="pass"
+        ),
+    )
+    romanian = render_report(report(checks=checks), locale="ro")
+    english = render_report(report(checks=checks), locale="en")
+    assert "Titlu românesc" in romanian and "English title" not in romanian
+    assert "English title" in english and "Titlu românesc" not in english
+
+
+def test_a_check_we_could_not_run_is_never_shown_as_passing() -> None:
+    """The property the whole section exists for.
+
+    Folding `unknown` into the green column turns "we never reached the site over HTTPS"
+    into a reassurance about HTTPS. Folding it into the red column is the opposite lie,
+    inventing a weakness out of a measurement we do not have. It gets its own column, and
+    a sentence saying grey is not green -- because a colour alone does not say that.
+    """
+    page = render_report(report(checks=MIXED), locale="ro")
+    counts = _column_counts(page)
+    assert counts["checked_unknown"] == 1
+    assert counts["checked_ok"] == 1
+    assert counts["checked_action"] == 2
+    assert _TEXT["ro"]["checked_unknown_note"] in page
+
+
+def test_the_columns_account_for_every_check() -> None:
+    """Nothing may fall between the columns.
+
+    A check whose outcome the renderer does not recognise must land somewhere. If it
+    silently vanished, the section would still look complete -- three columns, plausible
+    numbers -- while describing less of the methodology than it claims to.
+    """
+    checks = (*MIXED, check("A.six", "an_outcome_from_a_later_methodology"))
+    page = render_report(report(checks=checks), locale="ro")
+    counts = _column_counts(page)
+
+    match = re.search(rf"(\d+) {re.escape(_TEXT['ro']['checked_not_applicable'])}", page)
+    assert match is not None, "the leftover count is not rendered"
+    assert sum(counts.values()) + int(match.group(1)) == len(checks)
+
+
+def _checked_markup(page: str) -> str:
+    """Just the three-column table.
+
+    Asserting against the whole page does not work here: the stylesheet is inlined, so
+    `dot-warning` appears in every report whether or not anything rendered with it. A
+    mutation that gave failures and warnings the same dot passed a test written that way.
+    """
+    match = re.search(r'<table class="checked">.*?</table>', page, re.S)
+    assert match is not None, "the checked table did not render"
+    return match.group(0)
+
+
+def test_a_failure_and_a_warning_are_told_apart() -> None:
+    """Both need action, so they share a column; they do not need the same action, so they
+    do not share a dot. "No SPF record" and "name servers all at one provider" are not the
+    same sentence, and one colour for both makes the urgent one look routine."""
+    markup = _checked_markup(render_report(report(checks=MIXED), locale="ro"))
+    assert "dot-fail" in markup
+    assert "dot-warning" in markup
+    assert "dot-ok" in markup
+    assert "dot-unknown" in markup
+
+
+def test_an_older_report_without_checks_still_renders() -> None:
+    """Documents built before this section existed carry no checks. They must render as
+    they did rather than growing an empty box with three zeroes in it, which would read as
+    "nothing was checked"."""
+    page = render_report(report(checks=()), locale="ro")
+    assert _TEXT["ro"]["checked_heading"] not in page
+
+
+def test_the_checked_section_escapes_what_it_is_given() -> None:
+    """Check titles come from the catalogue, but the identifier fall-back does not: an
+    unknown check renders under whatever the database recorded."""
+    page = render_report(
+        report(checks=(ReportCheck(HOSTILE, HOSTILE, HOSTILE, "pass"),)), locale="ro"
+    )
+    assert "<script>" not in page
+    assert "&lt;script&gt;" in page
+
+
+def test_the_worst_result_across_subjects_is_the_one_reported() -> None:
+    """An assessment covers the domain and any accepted asset, and one check can be
+    evaluated against several of them.
+
+    Taking the domain's own row -- or whichever the database happened to return last --
+    would let a failure on an accepted subdomain be reported as a pass. `unknown` beats
+    `pass` on the same reasoning: a subject we could not test is not evidence that the
+    check is satisfied on it.
+    """
+    from siembiot.reports import worst_outcome_per_check
+
+    worst = worst_outcome_per_check(
+        [
+            ("A.one", "pass"),
+            ("A.one", "fail"),
+            ("A.two", "pass"),
+            ("A.two", "unknown"),
+            ("A.three", "warning"),
+            ("A.three", "fail"),
+            ("A.four", "not_applicable"),
+            ("A.four", "pass"),
+            ("A.five", "pass"),
+        ]
+    )
+    assert worst == {
+        "A.one": "fail",
+        "A.two": "unknown",
+        "A.three": "fail",
+        "A.four": "pass",
+        "A.five": "pass",
+    }
+
+
+def test_an_outcome_from_a_later_methodology_never_outranks_a_known_failure() -> None:
+    """A result this version has no opinion about must not be able to hide one it does.
+
+    It sorts last, so a failure recorded beside it still wins, and on its own it is
+    carried through to be counted rather than dropped.
+    """
+    from siembiot.reports import worst_outcome_per_check
+
+    assert worst_outcome_per_check([("A.one", "fail"), ("A.one", "invented")]) == {"A.one": "fail"}
+    assert worst_outcome_per_check([("A.two", "invented")]) == {"A.two": "invented"}
+
+
+def test_the_action_column_opens_with_the_worst_of_it() -> None:
+    """The list arrives by identifier, which groups by pillar and puts whichever pillar
+    starts with A at the top regardless of how bad it is.
+
+    That made the first red line the least urgent one, in a column a reader scans from the
+    top, next to a findings list ordered the other way round.
+    """
+    checks = (
+        check("A.warning_one", "warning"),
+        check("B.failure", "fail"),
+        check("C.warning_two", "warning"),
+    )
+    markup = _checked_markup(render_report(report(checks=checks), locale="ro"))
+    positions = [
+        markup.index(f"Titlu {name}") for name in ("B.failure", "A.warning_one", "C.warning_two")
+    ]
+    assert positions == sorted(positions), "a warning is rendered above a failure"

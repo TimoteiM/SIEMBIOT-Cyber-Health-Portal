@@ -85,15 +85,124 @@ _TEXT: dict[str, dict[str, str]] = {
         "affects": "Se referă la",
         "why": "De ce contează",
         "evidence_heading": "Ce am observat",
-        "evidence_note": (
-            "Datele pe care se sprijină această constatare, exact cum au fost colectate."
+        "checked_heading": "Ce am verificat",
+        "checked_ok": "Cerințe îndeplinite",
+        "checked_action": "Cerințe neîndeplinite",
+        "checked_unknown": "Nu am putut verifica",
+        "checked_unknown_note": (
+            "Gri nu înseamnă în regulă. Sunt verificări la care nu am primit un "
+            "răspuns, aşa că nu putem spune nici că este bine, nici că este rău."
         ),
+        "checked_not_applicable": "verificări nu se aplică acestui domeniu",
+        "evidence_result": "rezultat",
+        "evidence_omitted": "alte date colectate, neafișate aici",
         "obs.observed": "măsurat",
         "obs.absent": "lipsește",
         "obs.inconclusive": "neconcludent",
         "obs.not_applicable": "nu se aplică",
         "value_true": "da",
         "value_false": "nu",
+        "attr.candidate_count": "subdomenii descoperite",
+        "attr.unreviewed_count": "dintre care încă neanalizate",
+        "attr.low_confidence_count": "dintre care cu indiciu slab",
+        "attr.present": "înregistrare publicată",
+        "attr.valid": "sintaxă validă",
+        "attr.issue_count": "autorități de certificare autorizate",
+        "attr.has_unparsed": "conține intrări neinterpretabile",
+        "attr.state": "stare",
+        "attr.nameserver_count": "servere de nume",
+        "attr.distinct_parent_count": "furnizori DNS distincți",
+        "attr.resolves": "răspunde pentru orice subdomeniu",
+        "attr.declared_selector_count": "selectoare declarate",
+        "attr.present_selector_count": "selectoare găsite în DNS",
+        "attr.any_selector_present": "cel puțin un selector publicat",
+        "attr.all_selectors_present": "toate selectoarele publicate",
+        "attr.policy": "politică",
+        "attr.subdomain_policy": "politică pentru subdomenii",
+        "attr.percentage": "procent din mesaje acoperit",
+        "attr.external_authorization_required": (
+            "rapoartele merg la alt domeniu, care trebuie să accepte"
+        ),
+        "attr.mode": "mod de aplicare",
+        "attr.max_age_seconds": "valabilitatea politicii (secunde)",
+        "attr.policy_invalid": "politica nu a putut fi interpretată",
+        "attr.policy_fetch_reason": "de ce nu a putut fi descărcată politica",
+        "attr.multiple_records": "mai multe înregistrări SPF publicate",
+        "attr.dns_lookup_count": "interogări DNS necesare",
+        "attr.exceeds_lookup_limit": "depășește limita de 10 interogări",
+        "attr.permissive_all": "acceptă orice expeditor",
+        "attr.soft_all": "eșec blând, mesajele trec oricum",
+        "attr.http_reachable": "accesibil prin HTTP",
+        "attr.https_reachable": "accesibil prin HTTPS",
+        "attr.https_status_code": "cod de răspuns HTTPS",
+        "attr.cookie_count": "cookie-uri primite",
+        "attr.insecure_cookie_count": "dintre care fără atribute de siguranță",
+        "attr.disclosing_headers": "antete care dezvăluie produsul folosit",
+        "attr.version_disclosing_count": "dintre care dezvăluie și versiunea",
+        "attr.redirects_to_https": "redirecționează către HTTPS",
+        "attr.hsts_present": "HSTS publicat",
+        "attr.hsts_max_age": "durata HSTS (secunde)",
+        "attr.hsts_include_subdomains": "HSTS acoperă și subdomeniile",
+        "attr.missing_baseline": "antete de securitate lipsă",
+        "attr.missing_baseline_count": "câte lipsesc",
+        "attr.hosts": "servere de mail",
+        "attr.hosts_checked": "servere verificate",
+        "attr.starttls_offered": "oferă conexiune criptată",
+        "attr.starttls_everywhere": "toate oferă conexiune criptată",
+        "attr.starttls_refused": "refuză conexiunea criptată",
+        "attr.starttls_broken": "criptarea eșuează la conectare",
+        "attr.certificate_valid_everywhere": "certificat valid pe toate",
+        "attr.unreachable": "inaccesibile la momentul verificării",
+        "attr.addresses": "adrese IP",
+        "attr.countries": "țări",
+        "attr.operators": "operatori de rețea",
+        "attr.operator_count": "câți operatori",
+        "attr.days_until_expiry": "zile până la expirarea certificatului",
+        "attr.rdap.registration.days_until_expiry": (
+            "zile până la expirarea înregistrării domeniului"
+        ),
+        "attr.delete_prohibited": "protejat împotriva ștergerii",
+        "attr.transfer_prohibited": "protejat împotriva transferului",
+        "attr.listed": "apare pe liste de reputație",
+        "attr.contested": "sursele nu sunt de acord între ele",
+        "attr.providers_consulted": "surse consultate",
+        "attr.providers_listing": "surse care îl listează",
+        "attr.providers_unavailable": "surse indisponibile la verificare",
+        "attr.open_count": "porturi deschise",
+        "attr.open_by_exposure": "dintre care, pe categorii",
+        "attr.open_ports": "care porturi",
+        "attr.probed_count": "porturi verificate",
+        "attr.worst_exposure": "cel mai expus serviciu",
+        "attr.expired": "expirat",
+        "attr.not_yet_valid": "încă nevalabil",
+        "attr.trusted": "emis de o autoritate de încredere",
+        "attr.self_signed": "autosemnat",
+        "attr.hostname_covered": "acoperă numele domeniului",
+        "attr.weak_key": "cheie criptografică slabă",
+        "attr.weak_signature": "semnătură criptografică slabă",
+        "attr.supported": "versiuni TLS acceptate",
+        "attr.deprecated_supported_count": "versiuni învechite încă acceptate",
+        "attr.inconclusive_count": "versiuni pe care nu le-am putut testa",
+        "attr.total_observation_count": "observații în total",
+        "attr.stale_observation_count": "dintre care mai vechi decât fereastra",
+        "val.dnssec_state.unsigned": "zona nu este semnată",
+        "val.dnssec_state.signed_and_delegated": (
+            "semnată, iar semnătura este publicată la registrar"
+        ),
+        "val.dnssec_state.signed_without_delegation": (
+            "semnată, dar semnătura nu este publicată la registrar"
+        ),
+        "val.dnssec_state.unknown": "nu am putut determina",
+        "val.mta_sts_mode.none": "publicată, dar inactivă",
+        "val.mta_sts_mode.testing": "doar în test, nu blochează nimic",
+        "val.mta_sts_mode.enforce": "se aplică",
+        "val.dmarc_policy.none": "doar raportare, nu se ia nicio măsură",
+        "val.dmarc_policy.quarantine": "mesajele nealiniate ajung în spam",
+        "val.dmarc_policy.reject": "mesajele nealiniate sunt respinse",
+        "val.exposure.remote_access": "acces la distanță",
+        "val.exposure.database": "bază de date",
+        "val.exposure.management": "administrare",
+        "val.exposure.infrastructure": "infrastructură",
         "what_to_do": "Ce este de făcut",
         "caveat": "Înainte să schimbi ceva",
         "draft_guidance": (
@@ -185,13 +294,122 @@ _TEXT: dict[str, dict[str, str]] = {
         "affects": "Concerns",
         "why": "Why it matters",
         "evidence_heading": "What we observed",
-        "evidence_note": "The evidence this finding rests on, exactly as it was collected.",
+        "checked_heading": "What we checked",
+        "checked_ok": "Requirements met",
+        "checked_action": "Requirements not met",
+        "checked_unknown": "Could not check",
+        "checked_unknown_note": (
+            "Grey does not mean fine. These are checks we got no answer for, so we "
+            "can say neither that it is good nor that it is bad."
+        ),
+        "checked_not_applicable": "checks do not apply to this domain",
+        "evidence_result": "result",
+        "evidence_omitted": "further data collected, not shown here",
         "obs.observed": "measured",
         "obs.absent": "not present",
         "obs.inconclusive": "inconclusive",
         "obs.not_applicable": "not applicable",
         "value_true": "yes",
         "value_false": "no",
+        "attr.candidate_count": "subdomains discovered",
+        "attr.unreviewed_count": "of which not yet reviewed",
+        "attr.low_confidence_count": "of which low-confidence",
+        "attr.present": "record published",
+        "attr.valid": "syntax valid",
+        "attr.issue_count": "certificate authorities authorised",
+        "attr.has_unparsed": "contains entries we could not read",
+        "attr.state": "state",
+        "attr.nameserver_count": "name servers",
+        "attr.distinct_parent_count": "distinct DNS providers",
+        "attr.resolves": "answers for any subdomain",
+        "attr.declared_selector_count": "selectors declared",
+        "attr.present_selector_count": "selectors found in DNS",
+        "attr.any_selector_present": "at least one selector published",
+        "attr.all_selectors_present": "all selectors published",
+        "attr.policy": "policy",
+        "attr.subdomain_policy": "policy for subdomains",
+        "attr.percentage": "percentage of messages covered",
+        "attr.external_authorization_required": (
+            "reports go to another domain, which must authorise it"
+        ),
+        "attr.mode": "enforcement mode",
+        "attr.max_age_seconds": "policy lifetime (seconds)",
+        "attr.policy_invalid": "policy could not be read",
+        "attr.policy_fetch_reason": "why the policy could not be fetched",
+        "attr.multiple_records": "more than one SPF record published",
+        "attr.dns_lookup_count": "DNS lookups required",
+        "attr.exceeds_lookup_limit": "exceeds the limit of 10 lookups",
+        "attr.permissive_all": "accepts any sender",
+        "attr.soft_all": "soft fail, messages pass anyway",
+        "attr.http_reachable": "reachable over HTTP",
+        "attr.https_reachable": "reachable over HTTPS",
+        "attr.https_status_code": "HTTPS response code",
+        "attr.cookie_count": "cookies received",
+        "attr.insecure_cookie_count": "of which missing safety attributes",
+        "attr.disclosing_headers": "headers disclosing the product in use",
+        "attr.version_disclosing_count": "of which also disclose a version",
+        "attr.redirects_to_https": "redirects to HTTPS",
+        "attr.hsts_present": "HSTS published",
+        "attr.hsts_max_age": "HSTS lifetime (seconds)",
+        "attr.hsts_include_subdomains": "HSTS covers subdomains too",
+        "attr.missing_baseline": "security headers missing",
+        "attr.missing_baseline_count": "how many are missing",
+        "attr.hosts": "mail servers",
+        "attr.hosts_checked": "servers checked",
+        "attr.starttls_offered": "offer an encrypted connection",
+        "attr.starttls_everywhere": "all offer an encrypted connection",
+        "attr.starttls_refused": "refuse an encrypted connection",
+        "attr.starttls_broken": "encryption fails on connect",
+        "attr.certificate_valid_everywhere": "certificate valid on all of them",
+        "attr.unreachable": "unreachable when we checked",
+        "attr.addresses": "IP addresses",
+        "attr.countries": "countries",
+        "attr.operators": "network operators",
+        "attr.operator_count": "how many operators",
+        "attr.days_until_expiry": "days until the certificate expires",
+        "attr.rdap.registration.days_until_expiry": "days until the domain registration expires",
+        "attr.delete_prohibited": "protected against deletion",
+        "attr.transfer_prohibited": "protected against transfer",
+        "attr.listed": "appears on reputation lists",
+        "attr.contested": "the sources disagree with each other",
+        "attr.providers_consulted": "sources consulted",
+        "attr.providers_listing": "sources listing it",
+        "attr.providers_unavailable": "sources unavailable when we checked",
+        "attr.open_count": "open ports",
+        "attr.open_by_exposure": "of which, by category",
+        "attr.open_ports": "which ports",
+        "attr.probed_count": "ports checked",
+        "attr.worst_exposure": "most exposed service",
+        "attr.expired": "expired",
+        "attr.not_yet_valid": "not valid yet",
+        "attr.trusted": "issued by a trusted authority",
+        "attr.self_signed": "self-signed",
+        "attr.hostname_covered": "covers the domain name",
+        "attr.weak_key": "weak cryptographic key",
+        "attr.weak_signature": "weak cryptographic signature",
+        "attr.supported": "TLS versions supported",
+        "attr.deprecated_supported_count": "outdated versions still supported",
+        "attr.inconclusive_count": "versions we could not test",
+        "attr.total_observation_count": "observations in total",
+        "attr.stale_observation_count": "of which older than the window",
+        "val.dnssec_state.unsigned": "the zone is not signed",
+        "val.dnssec_state.signed_and_delegated": (
+            "signed, and the signature is published at the registrar"
+        ),
+        "val.dnssec_state.signed_without_delegation": (
+            "signed, but the signature is not published at the registrar"
+        ),
+        "val.dnssec_state.unknown": "we could not determine it",
+        "val.mta_sts_mode.none": "published but inactive",
+        "val.mta_sts_mode.testing": "testing only, blocks nothing",
+        "val.mta_sts_mode.enforce": "enforced",
+        "val.dmarc_policy.none": "reporting only, no action taken",
+        "val.dmarc_policy.quarantine": "unaligned messages go to spam",
+        "val.dmarc_policy.reject": "unaligned messages are rejected",
+        "val.exposure.remote_access": "remote access",
+        "val.exposure.database": "database",
+        "val.exposure.management": "management",
+        "val.exposure.infrastructure": "infrastructure",
         "what_to_do": "What to do",
         "caveat": "Before you change anything",
         "draft_guidance": (
@@ -311,9 +529,31 @@ table.pillars td.importance { width: 7rem; font-size: 0.8rem; color: #5a6673; }
 table.evidence { border-collapse: collapse; margin: 0.3rem 0 0.6rem; font-size: 0.86rem; }
 table.evidence td { padding: 0.22rem 0.7rem 0.22rem 0; vertical-align: top;
                     border-bottom: 1px solid #eef2f6; }
-table.evidence td.ename { color: #5a6673; font-family: ui-monospace, Consolas, monospace;
-                          font-size: 0.82rem; white-space: nowrap; }
+/* Prose, not monospace. These were collector keys when the column was written; they are
+   now sentences, and a proportional label beside a monospace value is what tells the
+   reader which half is ours and which half is their infrastructure's. */
+table.evidence td.ename { color: #5a6673; font-size: 0.82rem; padding-right: 1.1rem;
+                          max-width: 16rem; }
 .obs-status { font-weight: 700; }
+
+table.checked { width: 100%; border-collapse: collapse; margin: 0.4rem 0 0.5rem;
+                table-layout: fixed; }
+table.checked td { vertical-align: top; padding: 0 0.9rem 0 0; }
+table.checked h3 { font-size: 0.84rem; margin: 0 0 0.4rem; letter-spacing: 0.02em; }
+table.checked ul { margin: 0; padding: 0; list-style: none; }
+table.checked li { font-size: 0.78rem; line-height: 1.35; margin-bottom: 0.25rem;
+                   color: #3d4854; }
+.col-ok h3 { color: #1d7a4c; }
+.col-action h3 { color: #a3202f; }
+.col-unknown h3 { color: #5a6673; }
+.dot { display: inline-block; width: 0.5rem; height: 0.5rem; border-radius: 50%;
+       margin-right: 0.4rem; }
+.dot-ok { background: #1d7a4c; }
+.dot-fail { background: #a3202f; }
+.dot-warning { background: #c08a1e; }
+.dot-unknown { background: #9aa5b1; }
+.checked-note { font-size: 0.76rem; color: #5a6673; margin: 0.1rem 0 0.3rem; }
+.checked-na { font-size: 0.76rem; color: #7a8592; margin: 0.2rem 0 0; }
 
 .legend { margin: 0.5rem 0 0.2rem; font-size: 0.78rem; color: #5a6673; }
 .legend-title { font-weight: 700; }
@@ -374,6 +614,7 @@ def render_report(report: ReportDocument, locale: str = DEFAULT_LOCALE) -> str:
                 # worry this week; "two critical, four high" does.
                 _impact(report, locale),
                 _pillars(report, locale),
+                _checked(report, locale),
                 _findings(report, locale),
                 _not_determined(report, locale),
                 _footer(report, locale),
@@ -697,6 +938,81 @@ def _pillars(report: ReportDocument, locale: str) -> Node:
     )
 
 
+#: Attributes whose values come from a fixed vocabulary rather than being a number, a
+#: flag or free text. The value-set name is shared where the vocabulary is: a DMARC
+#: policy and a DMARC subdomain policy are the same three words, and translating them
+#: twice is how the two drift apart.
+_VALUE_SETS = {
+    "state": "dnssec_state",
+    "mode": "mta_sts_mode",
+    "policy": "dmarc_policy",
+    "subdomain_policy": "dmarc_policy",
+    "worst_exposure": "exposure",
+    "open_by_exposure": "exposure",
+}
+
+
+def _attribute_label(locale: str, observation_type: str | None, name: str) -> str:
+    """The reader's name for a collector attribute, or the collector's own.
+
+    `distinct_parent_count` is precise and means nothing to the person who has to act on
+    it. These are the same facts under names somebody without a security team can read.
+
+    The fall-back to the raw name is the important part. A collector that starts
+    reporting something new gets its attribute shown untranslated rather than dropped:
+    an ugly row is a fixable oversight, a missing one is the report quietly saying less
+    than it knows. A test asserts that fall-back rather than trusting it.
+
+    Most names mean one thing everywhere, so most are labelled once. `days_until_expiry`
+    is not: on a certificate it is weeks of warning, on a domain registration it is the
+    domain itself, and telling a mayor the wrong one is worse than telling them neither.
+    Those get a label per observation type.
+    """
+    table = _TEXT[locale]
+    if observation_type:
+        specific = table.get(f"attr.{observation_type}.{name}")
+        if specific is not None:
+            return specific
+    return table.get(f"attr.{name}", name)
+
+
+def _attribute_value(locale: str, name: str, value: str) -> str:
+    """One evidence value as the reader sees it.
+
+    `p=none` is not a policy an institution can weigh; "reporting only, no action taken"
+    is the same fact and answers the question the reader actually has, which is whether
+    anything is currently being stopped.
+
+    Every value here originated outside this system -- a policy file, a DNS record, a
+    mail server banner -- and is used only as a dictionary key, never as a format string
+    or a lookup that could be made to match something it should not. An unknown value
+    falls through and is shown as it arrived, escaped on serialization like all the rest.
+    """
+    if value == "true":
+        return _text(locale, "value_true")
+    if value == "false":
+        return _text(locale, "value_false")
+    value_set = _VALUE_SETS.get(name)
+    if value_set is None:
+        return value
+    table = _TEXT[locale]
+    whole = table.get(f"val.{value_set}.{value}")
+    if whole is not None:
+        return whole
+    # A breakdown arrives as `name:count` pairs, so the vocabulary applies to each name
+    # rather than to the whole string. Anything that is not that shape falls through
+    # untouched -- including a value we simply do not have a word for yet.
+    if ":" not in value:
+        return value
+    translated = []
+    for pair in value.split(", "):
+        key, separator, count = pair.partition(":")
+        if not separator:
+            return value
+        translated.append(f"{table.get(f'val.{value_set}.{key}', key)}: {count}")
+    return ", ".join(translated)
+
+
 def _evidence(finding: ReportFinding, locale: str) -> list[Node]:
     """What the collectors saw, beside what the report says to change.
 
@@ -716,34 +1032,154 @@ def _evidence(finding: ReportFinding, locale: str) -> list[Node]:
     if finding.evidence_status is None:
         return []
 
-    status = _TEXT[locale].get(f"obs.{finding.evidence_status}", finding.evidence_status)
     rows = [
         element(
             "tr",
-            element("td", name, class_="ename"),
+            element("td", _text(locale, "evidence_result"), class_="ename"),
             element(
                 "td",
-                _text(locale, "value_true")
-                if value == "true"
-                else _text(locale, "value_false")
-                if value == "false"
-                else value,
+                _TEXT[locale].get(f"obs.{finding.evidence_status}", finding.evidence_status),
+                class_="obs-status",
             ),
+        )
+    ]
+    rows += [
+        element(
+            "tr",
+            element(
+                "td",
+                _attribute_label(locale, finding.evidence_type, name),
+                class_="ename",
+            ),
+            element("td", _attribute_value(locale, name, value)),
         )
         for name, value in finding.evidence
     ]
+    if finding.evidence_omitted:
+        rows.append(
+            element(
+                "tr",
+                element(
+                    "td",
+                    _text(locale, "evidence_omitted"),
+                    class_="ename",
+                ),
+                element("td", str(finding.evidence_omitted)),
+            )
+        )
+    return [
+        element("p", element("strong", _text(locale, "evidence_heading"))),
+        element("table", *rows, class_="evidence"),
+    ]
+
+
+#: Which column each recorded outcome belongs in.
+#:
+#: `unknown` gets its own column rather than being folded into either neighbour, and that
+#: is the whole point of the section. A check we could not run is not a check that passed,
+#: and putting it on the green side would turn "we never reached the site over HTTPS" into
+#: a reassurance. Putting it on the red side would be its own lie, inventing a weakness
+#: out of a measurement we do not have.
+#: Reading order within a column. Only the action column has more than one outcome in
+#: it, so only its two matter; everything else shares a rank and keeps the order it came
+#: in with.
+_ACTION_ORDER = {"fail": -1}
+
+_CHECK_COLUMNS = {
+    "pass": "ok",
+    "fail": "action",
+    "warning": "action",
+    "unknown": "unknown",
+}
+
+
+def _checked(report: ReportDocument, locale: str) -> Node:
+    """What was examined, in three columns, before what has to be done about it.
+
+    The report used to list only failures. Five checks passing and four returning nothing
+    were both rendered as silence, and silence reads as "fine" -- so an institution could
+    read a page with eight problems on it and reasonably conclude everything else had been
+    tested and was healthy. Half of it had not been tested at all.
+
+    Not-applicable checks are counted rather than listed. They are genuinely uninteresting
+    -- a port-exposure check on a passive run, a reputation check with no provider
+    configured -- and nine more lines of them would push the three columns that matter off
+    the first page. The count stays so the arithmetic still adds up to the whole
+    methodology, which is what lets a reader tell this is a summary and not a selection.
+    """
+    if not report.checks:
+        return element("section")
+
+    columns: dict[str, list[Node]] = {"ok": [], "action": [], "unknown": []}
+    not_applicable = 0
+    # Failures before warnings, so the column that asks for action opens with the thing
+    # that most needs it. Sorted here rather than upstream because it is a reading order,
+    # not a fact about the checks: the list arrives by identifier, which groups by pillar
+    # and puts whichever pillar starts with A at the top regardless of how bad it is.
+    # `sorted` is stable, so identifier order survives inside each group and the column
+    # still lines up with the recommendations below.
+    for check in sorted(report.checks, key=lambda item: _ACTION_ORDER.get(item.outcome, 0)):
+        column = _CHECK_COLUMNS.get(check.outcome)
+        if column is None:
+            # `not_applicable`, and anything a future methodology records that this
+            # renderer has not been taught. Counted either way: an outcome nobody
+            # anticipated must still show up in the total rather than vanish from it.
+            not_applicable += 1
+            continue
+        columns[column].append(
+            element(
+                "li",
+                element("span", "", class_=f"dot dot-{_dot(check.outcome)}"),
+                _pick(locale, check.title_ro, check.title_en),
+            )
+        )
+
+    cells = [
+        element(
+            "td",
+            element(
+                "h3",
+                f"{_text(locale, f'checked_{name}')} ({len(items)})",
+            ),
+            element("ul", *items),
+            class_=f"col-{name}",
+        )
+        for name, items in (
+            ("ok", columns["ok"]),
+            ("action", columns["action"]),
+            ("unknown", columns["unknown"]),
+        )
+    ]
 
     blocks: list[Node] = [
-        element("p", element("strong", _text(locale, "evidence_heading"))),
-        element(
-            "p",
-            element("span", f"{_text(locale, 'evidence_heading')}: ", class_="muted"),
-            element("span", status, class_="obs-status"),
-        ),
+        element("h2", _text(locale, "checked_heading")),
+        element("table", element("tr", *cells), class_="checked"),
     ]
-    if rows:
-        blocks.append(element("table", *rows, class_="evidence"))
-    return blocks
+    if columns["unknown"]:
+        blocks.append(element("p", _text(locale, "checked_unknown_note"), class_="checked-note"))
+    if not_applicable:
+        blocks.append(
+            element(
+                "p",
+                f"{not_applicable} {_text(locale, 'checked_not_applicable')}",
+                class_="checked-na",
+            )
+        )
+    return element("section", *blocks)
+
+
+_KNOWN_DOTS = frozenset({"pass", "fail", "warning", "unknown"})
+
+
+def _dot(outcome: str) -> str:
+    """The dot colour for one outcome.
+
+    Failures and warnings share a column because both need action, and carry different
+    dots because they do not need the same action. "No SPF record" and "name servers all
+    at one provider" are not the same sentence, and one colour for both makes the urgent
+    one look routine.
+    """
+    return {"pass": "ok"}.get(outcome, outcome) if outcome in _KNOWN_DOTS else "unknown"
 
 
 def _findings(report: ReportDocument, locale: str) -> Element:
