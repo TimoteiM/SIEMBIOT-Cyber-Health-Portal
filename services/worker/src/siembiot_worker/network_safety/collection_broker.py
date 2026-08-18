@@ -8,7 +8,7 @@ address, and re-authorizes again after any redirect.
 from __future__ import annotations
 
 import threading
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Protocol
 from uuid import UUID
@@ -96,6 +96,7 @@ class CollectionTransport(Protocol):
         method: str = "GET",
         *,
         read_body: bool = True,
+        extra_headers: Mapping[str, str] | None = None,
     ) -> TransportResponse: ...
 
 
@@ -295,7 +296,18 @@ class CollectionNetworkBroker:
         *,
         method: str = "GET",
         follow_redirects: bool = True,
+        credentials: Mapping[str, str] | None = None,
     ) -> HTTPCollectionResult:
+        """Fetch a destination under the collection policy.
+
+        `credentials` are request headers that authenticate us to a provider. They are
+        sent only while the request is still aimed at the host they were issued for: a
+        redirect that changes host drops them, so a provider that is compromised or
+        merely misconfigured cannot forward our key to somebody else. Nothing records
+        them -- the audit row carries the host, the reason and the counts, never the
+        headers.
+        """
+        issued_for = destination.host
         if destination.operation_class is not request.operation_class:
             return HTTPCollectionResult(False, "operation_class_mismatch")
         if not self._capacity.acquire(blocking=False):
@@ -314,6 +326,7 @@ class CollectionNetworkBroker:
                     lambda checkpoint: self._authorize(request, checkpoint, destination.host),
                     method,
                     read_body=body_required(destination.operation_class),
+                    extra_headers=credentials if destination.host == issued_for else None,
                 )
                 if len(response.body) > self._budget.max_body_bytes:
                     return self._finish(

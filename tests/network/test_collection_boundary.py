@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from uuid import uuid4
 
@@ -64,6 +64,7 @@ class SequenceTransport:
         #: Whether the broker asked for a body on each call, so a test can assert
         #: it did not rather than trust that it did not.
         self.body_requested: list[bool] = []
+        self.headers_sent: list[dict[str, str]] = []
 
     def get(
         self,
@@ -74,8 +75,11 @@ class SequenceTransport:
         method: str = "GET",
         *,
         read_body: bool = True,
+        extra_headers: Mapping[str, str] | None = None,
     ) -> TransportResponse:
         self.body_requested.append(read_body)
+        #: Recorded so a test can assert a credential was, or was not, sent on a hop.
+        self.headers_sent.append(dict(extra_headers or {}))
         self.calls.append((destination.host, destination.request_target, address))
         checkpoint(BrokerCheckpoint.AFTER_HEADERS)
         return self.responses.pop(0)
@@ -498,3 +502,46 @@ def test_a_class_that_parses_content_still_gets_its_body() -> None:
         ),
     )
     assert transport.body_requested == [True]
+
+
+def test_a_credential_is_not_carried_to_a_different_host() -> None:
+    """The leak this guard exists for.
+
+    Provider classes may follow a redirect off-host, which is what makes an RDAP or CT
+    index usable. A credential is issued for one service, so if that service redirects --
+    because it is misconfigured, or because somebody took it over -- our key must not go
+    with it. The first hop carries it; the second does not.
+    """
+    transport = SequenceTransport(
+        [
+            response(302, {"location": "https://elsewhere.test/next"}),
+            response(200, {}, b"{}"),
+        ]
+    )
+    broker, _ = build_broker(transport=transport)
+    result = broker.fetch(
+        collection_request(OperationClass.RDAP_QUERY),
+        provider_destination(OperationClass.RDAP_QUERY, "rdap.example.test", "/domain/x"),
+        credentials={"X-Api-Key": "secret"},
+    )
+    assert result.allowed
+    assert transport.headers_sent[0] == {"X-Api-Key": "secret"}
+    assert transport.headers_sent[1] == {}, "the key followed the redirect to another host"
+
+
+def test_a_credential_survives_a_redirect_that_stays_on_the_same_host() -> None:
+    """The counterpart, so the guard is a boundary and not a blanket refusal: a provider
+    that redirects /v1 to /v2 on its own host is still the party we authenticated to."""
+    transport = SequenceTransport(
+        [
+            response(302, {"location": "https://rdap.example.test/domain/x/v2"}),
+            response(200, {}, b"{}"),
+        ]
+    )
+    broker, _ = build_broker(transport=transport)
+    broker.fetch(
+        collection_request(OperationClass.RDAP_QUERY),
+        provider_destination(OperationClass.RDAP_QUERY, "rdap.example.test", "/domain/x"),
+        credentials={"X-Api-Key": "secret"},
+    )
+    assert transport.headers_sent == [{"X-Api-Key": "secret"}, {"X-Api-Key": "secret"}]

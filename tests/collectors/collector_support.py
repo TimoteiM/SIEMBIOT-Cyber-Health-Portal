@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -75,6 +75,7 @@ class RouteTransport:
         #: Whether the broker asked for a body on each call, so a test can assert
         #: it did not rather than trust that it did not.
         self.body_requested: list[bool] = []
+        self.headers_sent: list[dict[str, str]] = []
 
     def get(
         self,
@@ -85,8 +86,11 @@ class RouteTransport:
         method: str = "GET",
         *,
         read_body: bool = True,
+        extra_headers: Mapping[str, str] | None = None,
     ) -> TransportResponse:
         self.body_requested.append(read_body)
+        #: Recorded so a test can assert a credential was, or was not, sent on a hop.
+        self.headers_sent.append(dict(extra_headers or {}))
         url = f"{destination.scheme}://{destination.host}{destination.request_target}"
         self.calls.append(url)
         checkpoint(BrokerCheckpoint.AFTER_HEADERS)

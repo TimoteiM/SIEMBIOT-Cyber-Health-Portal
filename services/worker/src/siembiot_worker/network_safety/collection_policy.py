@@ -61,6 +61,10 @@ HTTP_OPERATION_CLASSES = frozenset(
         OperationClass.EMAIL_POLICY_FETCH,
         OperationClass.RDAP_QUERY,
         OperationClass.CT_QUERY,
+        # Reputation over HTTP. The class predates any provider and was written expecting
+        # a DNS blocklist, which is why it was missing here; OTX answers over HTTPS, and
+        # a source that speaks HTTP still has to come through the same broker as the rest.
+        OperationClass.REPUTATION_QUERY,
     }
 )
 _TARGET_OWNED_CLASSES = frozenset(
@@ -162,8 +166,12 @@ def http_destination(operation_class: OperationClass, host: str) -> CollectionDe
 def provider_destination(
     operation_class: OperationClass, host: str, path: str, query: str = ""
 ) -> CollectionDestination:
-    """Build a destination on a configured provider endpoint (RDAP, CT)."""
-    if operation_class not in {OperationClass.RDAP_QUERY, OperationClass.CT_QUERY}:
+    """Build a destination on a configured provider endpoint (RDAP, CT, reputation)."""
+    if operation_class not in {
+        OperationClass.RDAP_QUERY,
+        OperationClass.CT_QUERY,
+        OperationClass.REPUTATION_QUERY,
+    }:
         raise DestinationPolicyError("unsupported_operation_class")
     return CollectionDestination(operation_class, "https", host, 443, path, query)
 

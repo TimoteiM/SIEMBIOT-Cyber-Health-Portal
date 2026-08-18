@@ -34,6 +34,9 @@ from siembiot_worker.backups import (
     take_backup,
 )
 from siembiot_worker.collectors.ct_source import BrokeredCTSource
+from siembiot_worker.collectors.reputation import ReputationProvider
+from siembiot_worker.collectors.reputation_otx import OTXReputationProvider
+from siembiot_worker.network_safety.collection_broker import CollectionNetworkBroker
 from siembiot_worker.observation.mode import AssessmentMode
 from siembiot_worker.observation.runtime import build_observation_runtime
 from siembiot_worker.policy.catalog import load_catalog
@@ -171,6 +174,34 @@ def _evidence_transaction(engine: Any, organization_id: UUID) -> Iterator[Any]:
         yield connection
 
 
+def _reputation_providers(
+    broker: CollectionNetworkBroker,
+    organization_id: UUID,
+    domain_id: UUID,
+    assessment_id: UUID,
+) -> tuple[ReputationProvider, ...]:
+    """Whichever reputation sources this deployment has keys for, and no more.
+
+    Read from the environment at the moment a run starts rather than at import, so adding
+    a key takes effect on the next assessment instead of the next deployment.
+
+    An empty tuple is the ordinary case and not an error: the collector reports
+    `reputation_provider_unconfigured`, the check resolves to `unknown`, and the report
+    says the pillar has no score. What must never happen is the opposite -- a platform
+    with no key reporting a clean reputation for somebody.
+
+    Spamhaus is absent deliberately. The account this deployment holds authenticates but
+    carries no Intelligence API subscription (`401 no subscriptions found`), and its
+    stored token expired in May 2026, so an adapter here could not be run even once
+    against the real service. Writing one anyway would put untested code on the path that
+    tells an institution whether it is on a blocklist.
+    """
+    key = os.environ.get("OTX_API_KEY", os.environ.get("OTX_Api_Key", "")).strip()
+    if not key:
+        return ()
+    return (OTXReputationProvider(broker, key, organization_id, domain_id, assessment_id),)
+
+
 def run_assessment(
     assessment_id: UUID,
     organization_id: UUID,
@@ -204,6 +235,9 @@ def run_assessment(
         clock=lambda: datetime.now(UTC),
         declared_dkim_selectors=declared_dkim_selectors,
         accepted_assets=accepted,
+        reputation_providers=_reputation_providers(
+            runtime.broker, organization_id, domain_id, assessment_id
+        ),
     )
 
     database = _tenant_engine()

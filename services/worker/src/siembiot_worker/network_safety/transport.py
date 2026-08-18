@@ -3,7 +3,7 @@ from __future__ import annotations
 import socket
 import ssl
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Protocol
 
 from siembiot_worker.network_safety.models import (
@@ -87,6 +87,35 @@ class SocketConnector:
             raise
 
 
+#: Header names this transport sets itself. A caller may not restate them: two `Host`
+#: lines is a request-smuggling primitive, and a second `Connection` would let a caller
+#: hold a socket open past the budget.
+_RESERVED_HEADERS = frozenset({"host", "accept", "user-agent", "connection", "content-length"})
+
+
+def _encode_headers(headers: Mapping[str, str] | None) -> str:
+    """Render caller headers into the request, or refuse them.
+
+    The values here are provider credentials, so this is a place where an injected
+    newline would not merely corrupt a request -- it would let a crafted key append
+    headers of its own choosing to an authenticated call. Names and values are therefore
+    checked for control characters rather than escaped, because there is no correct way
+    to escape a newline in a header and a key containing one is a key to reject.
+    """
+    if not headers:
+        return ""
+    rendered = []
+    for name, value in headers.items():
+        if name.lower() in _RESERVED_HEADERS:
+            raise NetworkTransportError("reserved_header")
+        if not name or any(character in name for character in "\r\n:") or not name.isascii():
+            raise NetworkTransportError("malformed_header")
+        if any(character in value for character in "\r\n") or not value.isascii():
+            raise NetworkTransportError("malformed_header")
+        rendered.append(f"{name}: {value}\r\n")
+    return "".join(rendered)
+
+
 class BoundedHTTPTransport:
     def __init__(
         self,
@@ -105,6 +134,7 @@ class BoundedHTTPTransport:
         method: str = "GET",
         *,
         read_body: bool = True,
+        extra_headers: Mapping[str, str] | None = None,
     ) -> TransportResponse:
         if method not in SAFE_METHODS:
             raise NetworkTransportError("forbidden_method")
@@ -122,6 +152,7 @@ class BoundedHTTPTransport:
                 f"Host: {destination.host_header}\r\n"
                 "Accept: text/plain\r\n"
                 "User-Agent: SIEMBIOT-Ownership-Verifier/1\r\n"
+                f"{_encode_headers(extra_headers)}"
                 "Connection: close\r\n\r\n"
             ).encode("ascii")
             stream.sendall(request)

@@ -303,3 +303,53 @@ def test_a_body_nobody_asked_for_is_not_read_off_the_socket() -> None:
     # Whatever arrived alongside the headers in the first packet is unavoidable; what
     # matters is that nothing further was pulled from the socket.
     assert stream.chunks == []
+
+
+def get_with(headers: dict[str, str]) -> bytes:
+    """Issue a request carrying caller headers, and return the bytes actually sent."""
+    raw = response("HTTP/1.1 200 OK", "Content-Length: 0", "", "")
+    stream = FakeStream([raw])
+    BoundedHTTPTransport(connector=FakeConnector(stream)).get(
+        VerificationDestination.https("example.com"),
+        "8.8.8.8",
+        NetworkBudget(),
+        lambda _: None,
+        extra_headers=headers,
+    )
+    return stream.sent
+
+
+def test_a_caller_header_is_sent() -> None:
+    assert b"X-Api-Key: secret" in get_with({"X-Api-Key": "secret"})
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [
+        {"X-Api-Key": "secret\r\nX-Injected: yes"},
+        {"X-Api-Key": "secret\nX-Injected: yes"},
+        {"X-Api\r\nX-Injected": "yes"},
+        {"X-Api:Key": "secret"},
+        {"": "secret"},
+        {"X-Api-Key": "secrét"},
+        {"X-Api-Kéy": "secret"},
+    ],
+)
+def test_a_header_cannot_smuggle_a_second_header(headers: dict[str, str]) -> None:
+    """These values are provider credentials.
+
+    An injected newline here would not merely corrupt a request -- it would let a crafted
+    key append headers of its own choosing to an authenticated call. There is no correct
+    way to escape a newline in a header, so a credential containing one is rejected
+    rather than cleaned up.
+    """
+    with pytest.raises(NetworkTransportError, match="malformed_header"):
+        get_with(headers)
+
+
+@pytest.mark.parametrize("name", ["Host", "host", "Connection", "Content-Length", "User-Agent"])
+def test_a_caller_cannot_restate_a_header_the_transport_owns(name: str) -> None:
+    """Two `Host` lines is a request-smuggling primitive, and a second `Connection` would
+    let a caller hold a socket open past the budget."""
+    with pytest.raises(NetworkTransportError, match="reserved_header"):
+        get_with({name: "anything"})
