@@ -155,3 +155,54 @@ def test_cookie_without_attributes_defaults_to_insecure() -> None:
     assert parsed["secure"] is False
     assert parsed["http_only"] is False
     assert parsed["same_site"] is None
+
+
+def test_a_refusal_of_ours_is_not_reported_as_their_site_being_down() -> None:
+    """`site_unreachable` used to be the answer whichever way both attempts failed.
+
+    Both reason codes were discarded, so a response we declined to read looked exactly
+    like a host that never answered -- and an institution was told nobody could reach a
+    site that was up. That is the report accusing them of a fault that is ours.
+    """
+    from siembiot_worker.collectors.http_surface import _combined_reason
+
+    assert _combined_reason("response_too_large", "response_too_large") == "response_too_large"
+    assert (
+        _combined_reason("redirect_not_authorized", "no_addresses")
+        == "https_redirect_not_authorized"
+    )
+
+
+def test_a_site_that_really_did_not_answer_still_says_so() -> None:
+    """The phrase the policy catalogue and the report already understand is kept for the
+    case it describes, rather than being replaced with something more precise and less
+    recognised."""
+    from siembiot_worker.collectors.http_surface import _combined_reason
+
+    assert _combined_reason("no_addresses", "no_addresses") == "site_unreachable"
+    assert _combined_reason("timeout", "transport_error") == "site_unreachable"
+
+
+def test_the_collector_reports_the_reason_it_was_given() -> None:
+    """The helper being right is not the same as the collector using it.
+
+    Both fetches here fail because the site redirects somewhere this run is not permitted
+    to follow. That is a refusal of ours about a site that answered, and calling it
+    `site_unreachable` tells an institution their website is down when it is not -- which
+    is the report accusing them of a fault that belongs to us.
+    """
+    elsewhere = "https://somewhere-else.example/"
+    collector = HTTPSurfaceCollector(
+        build_broker(
+            routes={
+                HTTP_ROOT: response(301, {"location": elsewhere}),
+                HTTPS_ROOT: response(301, {"location": elsewhere}),
+            }
+        ),
+        frozen_clock,
+    )
+    result = collector.collect(request_for(HOST, OperationClass.HTTP_SURFACE))
+    assert result.status is CollectionStatus.UNAVAILABLE
+    assert result.reason_code is not None
+    assert result.reason_code != "site_unreachable"
+    assert "redirect" in result.reason_code

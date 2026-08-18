@@ -103,6 +103,8 @@ class BoundedHTTPTransport:
         budget: NetworkBudget,
         checkpoint: Callable[[BrokerCheckpoint], None],
         method: str = "GET",
+        *,
+        read_body: bool = True,
     ) -> TransportResponse:
         if method not in SAFE_METHODS:
             raise NetworkTransportError("forbidden_method")
@@ -128,7 +130,10 @@ class BoundedHTTPTransport:
             )
             status, headers, raw_headers = self._parse_headers(head)
             checkpoint(BrokerCheckpoint.AFTER_HEADERS)
-            if method == "HEAD":
+            if method == "HEAD" or not read_body:
+                # Nothing downstream reads the body for this class, so it is never
+                # fetched. The connection is closed either way -- there is no pool here
+                # -- so an unread body costs the peer nothing and costs us the transfer.
                 return TransportResponse(status, headers, b"", raw_headers)
             body = self._read_body(stream, headers, initial_body, budget, checkpoint, deadline)
             return TransportResponse(status, headers, body, raw_headers)

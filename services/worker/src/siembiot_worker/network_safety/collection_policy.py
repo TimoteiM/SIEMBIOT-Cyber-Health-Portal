@@ -243,6 +243,27 @@ def follows_provider_redirects(operation_class: OperationClass) -> bool:
 #: unreachable and score as insufficient evidence.
 SAME_SITE_REDIRECT_CLASSES = frozenset({OperationClass.HTTP_SURFACE})
 
+#: Classes whose answer is entirely in the response headers.
+#:
+#: The HTTP surface checks read the status line, the redirect chain, the security
+#: headers and the cookies. None of them reads the page. Fetching it anyway meant that
+#: any site whose home page exceeded the body budget was discarded in full -- headers
+#: included -- and reported as unreachable, which is how tarom.ro, a site that answers
+#: in under a second, came back as a site nobody could reach.
+#:
+#: Not reading it is also the safer choice, not a relaxation of one: fewer bytes cross
+#: the boundary, and the bound that was protecting us is not the one we are removing.
+_HEADER_ONLY_CLASSES = frozenset({OperationClass.HTTP_SURFACE})
+
+
+def body_required(operation_class: OperationClass) -> bool:
+    """Whether this class needs the response body to answer its question.
+
+    True for everything that parses content -- a certificate transparency page, an
+    MTA-STS policy, a challenge file. False only where the headers are the whole answer.
+    """
+    return operation_class not in _HEADER_ONLY_CLASSES
+
 
 def _is_descendant_host(host: str, ancestor: str) -> bool:
     """Whether `host` sits under `ancestor` in the DNS tree.

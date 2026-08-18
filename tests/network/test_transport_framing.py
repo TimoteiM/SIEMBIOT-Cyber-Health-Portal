@@ -238,3 +238,68 @@ def test_a_repeated_singleton_header_is_still_refused(header: str, first: str, s
     with pytest.raises(NetworkTransportError) as caught:
         fetch(raw)
     assert caught.value.reason == "duplicate_header"
+
+
+def test_a_page_larger_than_the_budget_still_yields_its_headers() -> None:
+    """The bug an institution saw as "site unreachable".
+
+    tarom.ro answers in under a second and redirects to www. Its home page is larger than
+    the body budget, so the whole response -- headers included -- was thrown away and the
+    site was reported as one nobody could reach. Four checks disappeared with it.
+
+    The HTTP surface checks read the status line, the redirect chain, the security headers
+    and the cookies. None of them reads the page, so it is no longer fetched at all.
+    """
+    oversized = "x" * (NetworkBudget().max_body_bytes + 5_000)
+    raw = response(
+        "HTTP/1.1 200 OK",
+        "Strict-Transport-Security: max-age=63072000",
+        f"Content-Length: {len(oversized)}",
+        "",
+        oversized,
+    )
+
+    with pytest.raises(NetworkTransportError, match="response_too_large"):
+        fetch(raw)
+
+    transport = BoundedHTTPTransport(connector=FakeConnector(FakeStream([raw])))
+    result = transport.get(
+        VerificationDestination.https("example.com"),
+        "8.8.8.8",
+        NetworkBudget(),
+        lambda _: None,
+        read_body=False,
+    )
+    assert result.status_code == 200
+    assert result.headers["strict-transport-security"] == "max-age=63072000"
+    assert result.body == b""
+
+
+def test_a_body_nobody_asked_for_is_not_read_off_the_socket() -> None:
+    """Not merely discarded after the fact.
+
+    Reading it and then dropping it would leave the transfer, the memory and the time
+    exactly where they were -- the point is that the bytes never cross the boundary.
+    """
+    body = "y" * 3_000
+    stream = FakeStream(
+        [
+            response(
+                "HTTP/1.1 200 OK",
+                f"Content-Length: {len(body)}",
+                "",
+                body,
+            )
+        ]
+    )
+    transport = BoundedHTTPTransport(connector=FakeConnector(stream))
+    transport.get(
+        VerificationDestination.https("example.com"),
+        "8.8.8.8",
+        NetworkBudget(),
+        lambda _: None,
+        read_body=False,
+    )
+    # Whatever arrived alongside the headers in the first packet is unavoidable; what
+    # matters is that nothing further was pulled from the socket.
+    assert stream.chunks == []

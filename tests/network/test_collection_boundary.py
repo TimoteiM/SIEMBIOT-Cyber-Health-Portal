@@ -61,6 +61,9 @@ class SequenceTransport:
     def __init__(self, responses: list[TransportResponse]) -> None:
         self.responses = responses
         self.calls: list[tuple[str, str, str]] = []
+        #: Whether the broker asked for a body on each call, so a test can assert
+        #: it did not rather than trust that it did not.
+        self.body_requested: list[bool] = []
 
     def get(
         self,
@@ -69,7 +72,10 @@ class SequenceTransport:
         budget: NetworkBudget,
         checkpoint: Callable[[BrokerCheckpoint], None],
         method: str = "GET",
+        *,
+        read_body: bool = True,
     ) -> TransportResponse:
+        self.body_requested.append(read_body)
         self.calls.append((destination.host, destination.request_target, address))
         checkpoint(BrokerCheckpoint.AFTER_HEADERS)
         return self.responses.pop(0)
@@ -452,3 +458,43 @@ def test_only_the_http_surface_may_follow_a_same_site_redirect() -> None:
             f"https://other.mta-sts.{HOST}/.well-known/mta-sts.txt",
             authorized_hosts=frozenset({f"mta-sts.{HOST}"}),
         )
+
+
+# -- what the broker asks the transport for ----------------------------------
+
+
+def test_the_http_surface_is_read_without_its_body() -> None:
+    """The checks read the status line, the redirect chain, the headers and the cookies.
+    None of them reads the page, so the page is not fetched.
+
+    This is the wiring behind the bug an institution saw: a home page larger than the body
+    budget discarded the whole response, headers included, and the site was reported as
+    unreachable when it had answered in under a second.
+    """
+    transport = SequenceTransport([response(200, {"strict-transport-security": "max-age=1"})])
+    broker, _ = build_broker(transport=transport)
+    result = broker.fetch(
+        collection_request(OperationClass.HTTP_SURFACE),
+        https_destination(OperationClass.HTTP_SURFACE, HOST),
+    )
+    assert result.allowed
+    assert transport.body_requested == [False]
+
+
+def test_a_class_that_parses_content_still_gets_its_body() -> None:
+    """The opposite direction, which is the one that would break quietly.
+
+    An RDAP record, a certificate transparency page, an MTA-STS policy: for these the
+    body *is* the answer. Skipping it there would leave every such check reading an empty
+    document and concluding it was malformed -- a failure that looks like the other
+    party's fault and would not be traced back to this change for a long time.
+    """
+    transport = SequenceTransport([response(200, {}, b'{"handle": "example"}')])
+    broker, _ = build_broker(transport=transport)
+    broker.fetch(
+        collection_request(OperationClass.RDAP_QUERY),
+        provider_destination(
+            OperationClass.RDAP_QUERY, "rdap.example.test", "/domain/example.test"
+        ),
+    )
+    assert transport.body_requested == [True]

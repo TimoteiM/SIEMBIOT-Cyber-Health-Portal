@@ -72,6 +72,9 @@ class RouteTransport:
     def __init__(self, routes: dict[str, TransportResponse]) -> None:
         self.routes = routes
         self.calls: list[str] = []
+        #: Whether the broker asked for a body on each call, so a test can assert
+        #: it did not rather than trust that it did not.
+        self.body_requested: list[bool] = []
 
     def get(
         self,
@@ -80,7 +83,10 @@ class RouteTransport:
         budget: NetworkBudget,
         checkpoint: Callable[[BrokerCheckpoint], None],
         method: str = "GET",
+        *,
+        read_body: bool = True,
     ) -> TransportResponse:
+        self.body_requested.append(read_body)
         url = f"{destination.scheme}://{destination.host}{destination.request_target}"
         self.calls.append(url)
         checkpoint(BrokerCheckpoint.AFTER_HEADERS)

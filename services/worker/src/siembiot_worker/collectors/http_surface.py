@@ -105,6 +105,27 @@ def parse_cookie(header_value: str) -> dict[str, Any]:
     }
 
 
+#: Broker reasons that really do mean nothing answered.
+_UNREACHABLE_REASONS = frozenset(
+    {"no_addresses", "transport_error", "timeout", "truncated_response"}
+)
+
+
+def _combined_reason(secure: str, plaintext: str) -> str:
+    """One reason code for a pair of failures, without inventing a diagnosis.
+
+    `site_unreachable` is kept for the case it describes -- both attempts failed to get
+    an answer at all -- because that is the phrase the report and the policy catalogue
+    already understand. Anything else is named for what actually happened, so a refusal
+    of ours is never presented to an institution as a fault of theirs.
+    """
+    if secure in _UNREACHABLE_REASONS and plaintext in _UNREACHABLE_REASONS:
+        return "site_unreachable"
+    if secure == plaintext:
+        return secure
+    return f"https_{secure}"
+
+
 class HTTPSurfaceCollector(Collector):
     descriptor = HTTP_DESCRIPTOR
 
@@ -145,7 +166,14 @@ class HTTPSurfaceCollector(Collector):
             payload["cookies"] = None
 
         if not secure.allowed and not plaintext.allowed:
-            return self.unavailable("site_unreachable", payload)
+            # Both attempts failed, which is not the same as the site being unreachable.
+            # The old code said `site_unreachable` whatever the cause and discarded both
+            # reason codes, so a response we refused to read looked identical to a host
+            # that never answered -- and an institution was told nobody could reach a
+            # site that was up. The reasons the broker gave are carried through instead.
+            return self.unavailable(
+                _combined_reason(secure.reason_code, plaintext.reason_code), payload
+            )
         reasons: list[str] = []
         if not secure.allowed:
             reasons.append(f"https_{secure.reason_code}")

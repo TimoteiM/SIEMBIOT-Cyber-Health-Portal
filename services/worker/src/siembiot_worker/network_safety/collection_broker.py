@@ -18,6 +18,7 @@ from siembiot_worker.network_safety.collection_policy import (
     CollectionDestination,
     OperationClass,
     authorize_collection_redirect,
+    body_required,
 )
 from siembiot_worker.network_safety.dns_client import BoundedDNSClient, DNSQuery, DNSRecordSet
 from siembiot_worker.network_safety.models import (
@@ -93,6 +94,8 @@ class CollectionTransport(Protocol):
         budget: NetworkBudget,
         checkpoint: Callable[[BrokerCheckpoint], None],
         method: str = "GET",
+        *,
+        read_body: bool = True,
     ) -> TransportResponse: ...
 
 
@@ -310,6 +313,7 @@ class CollectionNetworkBroker:
                     self._budget,
                     lambda checkpoint: self._authorize(request, checkpoint, destination.host),
                     method,
+                    read_body=body_required(destination.operation_class),
                 )
                 if len(response.body) > self._budget.max_body_bytes:
                     return self._finish(
