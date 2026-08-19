@@ -292,7 +292,7 @@ def _canonical(value: Any) -> bytes:
 #: The methodology a new assessment runs under. Older versions stay loadable forever --
 #: every stored score names the version and digest that produced it, and must remain
 #: reproducible from them.
-CURRENT_METHODOLOGY_VERSION = "1.2.0"
+CURRENT_METHODOLOGY_VERSION = "1.3.0"
 
 
 def load_catalog(

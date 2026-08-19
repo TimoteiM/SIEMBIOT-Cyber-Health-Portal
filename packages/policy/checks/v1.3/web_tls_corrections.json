@@ -1,0 +1,66 @@
+{
+  "_comment": "Correction to a pillar C check first published in check set v1. This set exists because a published methodology never changes: 1.2.0 names only `v1`, `v1.1` and `v1.2` and must go on loading exactly what it always loaded, so a defect cannot be repaired by editing those directories. A later set supersedes an earlier definition of the same check id, and only a methodology version that names this set sees the correction.\n\nWhat was wrong: a site that serves no plaintext HTTP at all matched no rule. The collector reaches the host successfully and records `http.redirect` as `observed` with `http_reachable: false`; the rules tested `redirects_to_https: true`, then `http_reachable: true`, then a `status: absent` that the normalizer never produces for this observation. Nothing matched, the check resolved to `unknown`, and the domain lost coverage.\n\nThe institution was penalised for the safer configuration. Refusing plaintext outright is strictly better than accepting it and redirecting, and the check exists to ask whether a visitor can be served over cleartext -- for these sites the answer is no, which is a pass. `not_applicable` was considered and rejected: it would drop the check from the score entirely and understate a deliberate, correct choice.\n\nThis is the third instance of one failure shape (see the v1.2 correction for the first two): a rule keyed on the observation status while the collector records a successful observation whose attribute carries the absent meaning. A test now replays every observation shape the collectors emit through the evaluator and fails on any check that matches no rule, so a fourth instance cannot reach a report unnoticed.",
+  "pillar": "web_tls",
+  "pillar_letter": "C",
+  "checks": [
+    {
+      "check_id": "C.http_redirects_https",
+      "version": "1.1.0",
+      "title_ro": "HTTP redirecționează către HTTPS",
+      "title_en": "HTTP redirects to HTTPS",
+      "rationale_ro": "Vizitatorii care ajung pe HTTP trebuie mutați automat pe conexiunea securizată.",
+      "rationale_en": "Visitors arriving over HTTP must be moved automatically to the secure connection.",
+      "collection_mode": "passive",
+      "observation_type": "http.redirect",
+      "applicability": {
+        "always": true
+      },
+      "rules": [
+        {
+          "when": {
+            "attribute": "redirects_to_https",
+            "equals": true
+          },
+          "result": "pass"
+        },
+        {
+          "when": {
+            "attribute": "http_reachable",
+            "equals": true
+          },
+          "result": "fail",
+          "reason_code": "no_https_redirect"
+        },
+        {
+          "when": {
+            "attribute": "http_reachable",
+            "equals": false
+          },
+          "result": "pass",
+          "reason_code": "http_not_served"
+        },
+        {
+          "when": {
+            "status": "absent"
+          },
+          "result": "not_applicable",
+          "reason_code": "http_not_served"
+        },
+        {
+          "when": {
+            "status": "inconclusive"
+          },
+          "result": "unknown",
+          "reason_code": "redirect_unknown"
+        }
+      ],
+      "weight": 8,
+      "severity": "high",
+      "public_safety_class": "public_profile",
+      "remediation_template": "http_redirect_configure",
+      "references": [
+        "rfc9110"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,137 @@
+{
+  "methodology_version": "1.3.0",
+  "status": "implementation_draft",
+  "review_date": "2026-08-18",
+  "notice": "An external hygiene assessment based on public, non-intrusive observation. Not a security guarantee, audit, certification, or NIS2 conformity determination.",
+  "pillar_weights": {
+    "dns": 0.2,
+    "email": 0.2,
+    "web_tls": 0.25,
+    "attack_surface": 0.15,
+    "reputation": 0.1,
+    "exposure_hygiene": 0.1
+  },
+  "result_factors": {
+    "pass": 1.0,
+    "warning": 0.5,
+    "fail": 0.0
+  },
+  "non_scoring_results": {
+    "unknown": "reduces_coverage",
+    "error": "reduces_coverage",
+    "not_applicable": "leaves_denominator",
+    "suppressed": "leaves_denominator_remains_visible",
+    "accepted_risk": "leaves_denominator_remains_visible"
+  },
+  "minimum_coverage_percentage": 60,
+  "bands": [
+    {
+      "band": "resilient",
+      "minimum": 90,
+      "maximum": 100,
+      "label_ro": "Rezilient",
+      "label_en": "Resilient"
+    },
+    {
+      "band": "managed",
+      "minimum": 75,
+      "maximum": 89,
+      "label_ro": "Gestionat",
+      "label_en": "Managed"
+    },
+    {
+      "band": "developing",
+      "minimum": 55,
+      "maximum": 74,
+      "label_ro": "În dezvoltare",
+      "label_en": "Developing"
+    },
+    {
+      "band": "exposed",
+      "minimum": 30,
+      "maximum": 54,
+      "label_ro": "Expus",
+      "label_en": "Exposed"
+    },
+    {
+      "band": "critical",
+      "minimum": 0,
+      "maximum": 29,
+      "label_ro": "Critic",
+      "label_en": "Critical"
+    }
+  ],
+  "caps": [
+    {
+      "cap_id": "expired_certificate",
+      "ceiling": 54,
+      "requires_confidence": "high",
+      "check_ids": [
+        "C.certificate_validity"
+      ],
+      "justification_ro": "Un certificat expirat pe gazda autorizată întrerupe direct accesul securizat al utilizatorilor și este observabil cu certitudine ridicată.",
+      "justification_en": "An expired certificate on the authorized host directly breaks secure access for users and is observable with high confidence."
+    },
+    {
+      "cap_id": "no_https",
+      "ceiling": 54,
+      "requires_confidence": "high",
+      "check_ids": [
+        "C.https_available"
+      ],
+      "justification_ro": "Absența HTTPS pe gazda autorizată expune traficul utilizatorilor și nu poate fi compensată de alte controale.",
+      "justification_en": "No HTTPS on the authorized host exposes user traffic and cannot be offset by other controls."
+    },
+    {
+      "cap_id": "certificate_hostname_mismatch",
+      "ceiling": 74,
+      "requires_confidence": "high",
+      "check_ids": [
+        "C.certificate_hostname"
+      ],
+      "justification_ro": "Un certificat care nu acoperă gazda autorizată produce avertismente de securitate pentru utilizatori.",
+      "justification_en": "A certificate that does not cover the authorized host produces security warnings for users."
+    }
+  ],
+  "confidence_rollup": {
+    "high_minimum": 0.8,
+    "medium_minimum": 0.5,
+    "description": "The roll-up takes the minimum of attribution, source and freshness. A single weak dimension is never averaged away by two strong ones."
+  },
+  "freshness_windows_seconds": {
+    "dns": 604800,
+    "email": 604800,
+    "web_tls": 604800,
+    "attack_surface": 2592000,
+    "reputation": 604800,
+    "exposure_hygiene": 2592000
+  },
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-08-05",
+      "summary": "First implementable catalog: pillars A-F, deterministic result factors, three high-confidence caps, coverage floor and confidence roll-up.",
+      "validation_status": "Weights, caps and severities are an original draft and still require the security-expert, fairness and counsel review listed in the methodology specification before a 1.0 public release."
+    },
+    {
+      "version": "1.2.0",
+      "date": "2026-08-17",
+      "summary": "B.mta_sts_enforced and B.tls_rpt_present now decide on the observed `present` attribute as well as on an absent status. Both previously matched no rule when the platform had conclusively established that the record was not published, and reported `unknown` for evidence that was not in doubt.",
+      "validation_status": "Corrects a gap between the normalizer and the catalogue rather than changing a judgement. The normalizer records a missing MTA-STS or TLS-RPT record as `observed` with `present: false`, because an observation that is not `observed` may not carry attributes and the applicability gate needs `mx_present`. The rules only matched `status: absent`, so the two disagreed about how absence is spelled and every such domain lost coverage to an `unknown` it had earned an answer to.",
+      "affects_scores": "Yes, upward where a domain publishes MX and no MTA-STS or TLS-RPT: two checks move from `unknown` to `warning`. Coverage rises because the checks are now determined; the score may fall slightly because a warning scores below an undetermined check that was excluded. That is the correct direction -- the platform knew the answer and was declining to give it."
+    },
+    {
+      "version": "1.3.0",
+      "date": "2026-08-18",
+      "summary": "C.http_redirects_https now passes a site that serves no plaintext HTTP at all. Such a site previously matched no rule and resolved to `unknown`, so a domain was penalised in coverage for refusing cleartext outright -- the safer configuration than accepting it and redirecting.",
+      "validation_status": "Corrects a gap between the normalizer and the catalogue rather than changing any published judgement: no domain that previously received a determinate result changes result. Weights, severities and caps are untouched and still require the reviews listed in the methodology specification."
+    }
+  ],
+  "_version_comment": "Adds three checks over the exposed service inventory, which only an authorized assessment can collect. 1.0.0 is unchanged and still loads exactly the documents it was published with, so every score computed under it stays reproducible: this version names an additional check directory rather than editing the existing one. Pillar weights are untouched -- the new checks sit inside attack_surface and change its internal weighting, not the balance between pillars, because moving those would silently reprice every domain already assessed.",
+  "check_sets": [
+    "v1",
+    "v1.1",
+    "v1.2",
+    "v1.3"
+  ]
+}

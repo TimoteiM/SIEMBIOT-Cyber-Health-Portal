@@ -421,7 +421,18 @@ def normalize_tls(
 
     protocols = payload.get("protocols", {})
     probed = protocols.get("probed", [])
-    if not probed:
+    if not protocols.get("probe_attempted", True):
+        # Not asked, so nothing to be inconclusive about. Probing deprecated TLS versions
+        # means several extra handshakes purely to see whether they are refused, which is
+        # more than a visitor would do, so it is off unless somebody turns it on.
+        #
+        # It used to report `inconclusive`, which made the check `unknown` and cost every
+        # domain coverage for a probe the platform had declined to run -- a measurement
+        # we chose not to take, reported as one we tried and failed. The same distinction
+        # the reputation collector makes between an unconfigured provider and a silent
+        # one.
+        observations.append(builder.make("tls.protocols", ObservationStatus.NOT_APPLICABLE))
+    elif not probed:
         observations.append(builder.make("tls.protocols", ObservationStatus.INCONCLUSIVE))
     else:
         observations.append(

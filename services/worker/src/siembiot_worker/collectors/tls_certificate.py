@@ -137,7 +137,7 @@ class TLSCertificateCollector(Collector):
         payload: dict[str, Any] = {
             "host": host,
             "handshake": self._handshake(observation),
-            "protocols": self._protocols(probes),
+            "protocols": self._protocols(probes, attempted=probe_protocols),
             "chain": [],
             "leaf": None,
             "chain_parse_errors": [],
@@ -179,7 +179,9 @@ class TLSCertificateCollector(Collector):
         }
 
     @staticmethod
-    def _protocols(probes: tuple[ProtocolProbeResult, ...]) -> dict[str, Any]:
+    def _protocols(
+        probes: tuple[ProtocolProbeResult, ...], *, attempted: bool = True
+    ) -> dict[str, Any]:
         supported = sorted(probe.version for probe in probes if probe.supported)
         inconclusive = sorted(
             probe.version
@@ -187,6 +189,11 @@ class TLSCertificateCollector(Collector):
             if not probe.supported and probe.status in {"timeout", "error"}
         )
         return {
+            # Whether we asked at all, kept apart from what we found. An empty probe list
+            # means two different things -- we chose not to look, or we looked and got
+            # nothing -- and collapsing them made a check the platform declines to run
+            # report as one it tried and could not determine.
+            "probe_attempted": attempted,
             "probed": [
                 {"version": probe.version, "supported": probe.supported, "status": probe.status}
                 for probe in probes

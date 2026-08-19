@@ -1,0 +1,110 @@
+{
+  "_comment": "Corrections to pillar A checks first published in check set v1, found by the guard added alongside the v1.3 redirect fix rather than by a domain hitting them.\n\nA.caa_present: `parse_caa` sets `present` from whether any issue, issuewild or iodef tag parsed, and the collector builds that dict whenever the CAA lookup is answered. A domain publishing only malformed or unrecognised CAA records therefore produces `observed` with `present: false` -- records exist, none of them mean anything to us -- and the rules tested only `present: true` and a `status: absent` the normalizer cannot produce in that case. Narrow, and reachable.\n\nA.nameserver_diversity: a conclusive NS lookup returning no records at all matched neither `distinct_parent_count >= 2` nor `nameserver_count >= 1`. Diversity across zero nameservers is not a question with an answer, so this reports `unknown` and says why, rather than falling through to the same word with no explanation.",
+  "pillar": "dns",
+  "pillar_letter": "A",
+  "checks": [
+    {
+      "check_id": "A.caa_present",
+      "version": "1.1.0",
+      "title_ro": "Înregistrări CAA restricționează emiterea certificatelor",
+      "title_en": "CAA records restrict certificate issuance",
+      "rationale_ro": "CAA limitează autoritățile de certificare care pot emite certificate pentru domeniu.",
+      "rationale_en": "CAA limits which certificate authorities may issue certificates for the domain.",
+      "collection_mode": "passive",
+      "observation_type": "dns.caa",
+      "applicability": {
+        "always": true
+      },
+      "rules": [
+        {
+          "when": {
+            "attribute": "present",
+            "equals": true
+          },
+          "result": "pass"
+        },
+        {
+          "when": {
+            "attribute": "present",
+            "equals": false
+          },
+          "result": "warning",
+          "reason_code": "caa_absent"
+        },
+        {
+          "when": {
+            "status": "absent"
+          },
+          "result": "warning",
+          "reason_code": "caa_absent"
+        },
+        {
+          "when": {
+            "status": "inconclusive"
+          },
+          "result": "unknown",
+          "reason_code": "caa_lookup_inconclusive"
+        }
+      ],
+      "weight": 6,
+      "severity": "low",
+      "public_safety_class": "public_profile",
+      "remediation_template": "caa_publish",
+      "references": [
+        "rfc8659"
+      ]
+    },
+    {
+      "check_id": "A.nameserver_diversity",
+      "version": "1.1.0",
+      "title_ro": "Delegarea DNS folosește mai mulți furnizori",
+      "title_en": "DNS delegation uses more than one provider",
+      "rationale_ro": "Serverele de nume aflate toate la un singur furnizor concentrează riscul de indisponibilitate. Aceasta este o observație de reziliență, nu o vulnerabilitate.",
+      "rationale_en": "Nameservers all under a single provider concentrate availability risk. This is a resilience observation, not a vulnerability.",
+      "collection_mode": "passive",
+      "observation_type": "dns.delegation",
+      "applicability": {
+        "always": true
+      },
+      "rules": [
+        {
+          "when": {
+            "attribute": "distinct_parent_count",
+            "at_least": 2
+          },
+          "result": "pass"
+        },
+        {
+          "when": {
+            "attribute": "nameserver_count",
+            "at_least": 1
+          },
+          "result": "warning",
+          "reason_code": "single_provider_delegation"
+        },
+        {
+          "when": {
+            "attribute": "nameserver_count",
+            "equals": 0
+          },
+          "result": "unknown",
+          "reason_code": "no_nameservers_observed"
+        },
+        {
+          "when": {
+            "status": "inconclusive"
+          },
+          "result": "unknown",
+          "reason_code": "delegation_unknown"
+        }
+      ],
+      "weight": 4,
+      "severity": "low",
+      "public_safety_class": "public_profile",
+      "remediation_template": "nameserver_diversify",
+      "references": [
+        "rfc1034"
+      ]
+    }
+  ]
+}

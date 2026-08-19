@@ -105,7 +105,7 @@ def test_the_new_checks_are_never_publishable() -> None:
 def test_the_current_version_is_the_one_that_was_published() -> None:
     """The default a new assessment runs under, checked against the file that exists."""
     catalog = load_catalog()
-    assert catalog.methodology.version == CURRENT_METHODOLOGY_VERSION == "1.2.0"
+    assert catalog.methodology.version == CURRENT_METHODOLOGY_VERSION == "1.3.0"
 
 
 def test_1_2_0_corrects_two_checks_and_adds_none() -> None:
@@ -164,3 +164,46 @@ def test_a_duplicate_inside_one_check_set_is_still_an_error() -> None:
 
         with pytest.raises(PolicyError, match="duplicate_check_id"):
             load_catalog(root)
+
+
+def test_1_3_0_corrects_one_check_and_adds_none() -> None:
+    """A correction, not an expansion, and the third of its exact kind.
+
+    A site serving no plaintext HTTP matched no rule at all: the collector reaches it,
+    records `http_reachable: false` on an `observed` status, and the rules tested only
+    the true case and a status the normalizer never produces here. The domain lost
+    coverage for refusing cleartext outright, which is the safer configuration.
+    """
+    previous = {check.check_id for check in load_catalog(version="1.2.0").checks}
+    current = load_catalog(version="1.3.0")
+    assert {check.check_id for check in current.checks} == previous, "1.3.0 adds no checks"
+
+    redirect = next(c for c in current.checks if c.check_id == "C.http_redirects_https")
+    assert redirect.version == "1.1.0", "the corrected definition supersedes the original"
+
+
+def test_a_site_that_serves_no_plaintext_passes_rather_than_falling_through() -> None:
+    """The behaviour the correction exists for, asserted against the loaded catalogue."""
+    redirect = next(
+        c for c in load_catalog(version="1.3.0").checks if c.check_id == "C.http_redirects_https"
+    )
+    matched = [
+        rule
+        for rule in redirect.rules
+        if rule.attribute == "http_reachable" and rule.equals is False
+    ]
+    assert matched, "no rule covers a host that serves no plaintext HTTP"
+    assert matched[0].result.value == "pass"
+
+
+def test_the_earlier_versions_still_load_what_they_always_loaded() -> None:
+    """The whole reason a correction goes in a new set. If 1.2.0 started seeing the fix,
+    a score computed last week could not be reproduced."""
+    old_redirect = next(
+        c for c in load_catalog(version="1.2.0").checks if c.check_id == "C.http_redirects_https"
+    )
+    assert not [
+        rule
+        for rule in old_redirect.rules
+        if rule.attribute == "http_reachable" and rule.equals is False
+    ], "1.2.0 must keep the defect it was published with"
