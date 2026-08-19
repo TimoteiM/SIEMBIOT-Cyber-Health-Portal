@@ -18,6 +18,7 @@ confidential document sitting in a table waiting to be read.
 from __future__ import annotations
 
 import hashlib
+import re
 import secrets
 from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
@@ -29,7 +30,9 @@ from siembiot_worker.reports import (
     LOCALES,
     ReportCheck,
     ReportDocument,
+    ReportEvidence,
     ReportFinding,
+    ReportInsight,
     ReportPillar,
     render_report,
 )
@@ -429,6 +432,121 @@ def _rank(outcome: str) -> int:
     )
 
 
+#: A citation the model wrote into its own sentence, as `[<uuid>]`.
+#:
+#: The instructions ask it to cite, and it complies by appending the identifier to the
+#: prose. The identifiers are also carried structurally, and the report renders those --
+#: so leaving both in printed a 36-character identifier twice in a row, once mid-sentence,
+#: on a page written for somebody without a security team.
+_INLINE_CITATION = re.compile(
+    r"\s*\[[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\]"
+)
+
+
+def _without_inline_citations(sentence: str) -> str:
+    """The sentence as a reader should see it.
+
+    Only well-formed identifiers are removed. Anything else in brackets is the model's
+    prose and stays: silently deleting text a model wrote is how a sentence ends up
+    meaning something its author did not.
+    """
+    return _INLINE_CITATION.sub("", sentence).strip()
+
+
+def _observations_by_id(connection: Connection, assessment_id: UUID) -> dict[str, Any]:
+    """This run's observations, indexed by their own identifier.
+
+    The model cites evidence by identifier, and an identifier printed on a page is not
+    evidence -- it proves a link exists to whoever can query the database, and tells the
+    reader nothing. This is what turns a citation back into something readable.
+    """
+    rows = connection.execute(
+        text(
+            """
+            SELECT id, observation_type, subject_identifier, status, attributes
+            FROM normalized_observations WHERE assessment_id = :assessment_id
+            """
+        ),
+        {"assessment_id": assessment_id},
+    ).mappings()
+    return {str(row["id"]): row for row in rows}
+
+
+def _resolve_evidence(cited: Any, observations: dict[str, Any]) -> tuple[ReportEvidence, ...]:
+    """The observations a claim cited, in the order it cited them.
+
+    An identifier that resolves to nothing is dropped rather than shown. It would mean
+    the model cited evidence this run does not hold, which the grounding validator is
+    meant to make impossible -- and a dangling reference on the page invites a reader to
+    treat an unverifiable claim as a checked one.
+    """
+    if not isinstance(cited, list):
+        return ()
+    resolved: list[ReportEvidence] = []
+    for identifier in cited:
+        row = observations.get(str(identifier))
+        if row is None:
+            continue
+        resolved.append(
+            ReportEvidence(
+                observation_type=str(row["observation_type"]),
+                subject=str(row["subject_identifier"]),
+                status=str(row["status"]),
+                attributes=_evidence_rows(dict(row["attributes"] or {})),
+            )
+        )
+    return tuple(resolved)
+
+
+def _insights_for(connection: Connection, assessment_id: UUID) -> tuple[ReportInsight, ...]:
+    """What the model said about this run, read back from the step that produced it.
+
+    Returns nothing at all when the analysis did not run, was not configured, or failed.
+    That is the ordinary case and not an error: the whole design rests on a report being
+    complete without a model, so this is additive or it is absent.
+
+    Everything here is model output and therefore untrusted text. It reaches the page
+    through the element tree like any other string and is escaped on serialization.
+    """
+    row = (
+        connection.execute(
+            text(
+                """
+            SELECT result
+            FROM assessment_steps
+            WHERE assessment_id = :assessment_id AND name = 'agent_analysis'
+            """
+            ),
+            {"assessment_id": assessment_id},
+        )
+        .mappings()
+        .first()
+    )
+    if row is None:
+        return ()
+
+    observations = _observations_by_id(connection, assessment_id)
+    claims = (row["result"] or {}).get("claims")
+    if not isinstance(claims, list):
+        return ()
+
+    insights: list[ReportInsight] = []
+    for claim in claims:
+        if not isinstance(claim, dict):
+            continue
+        sentence = _without_inline_citations(str(claim.get("text") or ""))
+        if not sentence:
+            continue
+        insights.append(
+            ReportInsight(
+                text=sentence,
+                kind=str(claim.get("kind") or ""),
+                evidence=_resolve_evidence(claim.get("support"), observations),
+            )
+        )
+    return tuple(insights)
+
+
 def build_report_document(
     connection: Connection,
     organization_name: str,
@@ -456,6 +574,7 @@ def build_report_document(
     )
     withheld = _withheld_checks(connection, assessment["assessment_id"])
     checks = _checks_for(connection, assessment["assessment_id"], metadata, domain_name)
+    insights = _insights_for(connection, assessment["assessment_id"])
 
     return ReportDocument(
         organization_name=organization_name,
@@ -480,6 +599,7 @@ def build_report_document(
         ),
         findings=findings,
         checks=checks,
+        insights=insights,
         undetermined_checks=tuple(coverage.get("undetermined_checks", [])),
         withheld_checks=withheld,
     )

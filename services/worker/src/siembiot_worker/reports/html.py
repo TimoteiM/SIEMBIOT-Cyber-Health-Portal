@@ -14,7 +14,12 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from siembiot_worker.reports.document import SEVERITY_ORDER, ReportDocument, ReportFinding
+from siembiot_worker.reports.document import (
+    SEVERITY_ORDER,
+    ReportDocument,
+    ReportEvidence,
+    ReportFinding,
+)
 from siembiot_worker.reports.markup import Element, Node, Raw, document, element
 
 LOCALES = ("ro", "en")
@@ -36,7 +41,6 @@ _TEXT: dict[str, dict[str, str]] = {
         "observed": "Observat la",
         "score": "Scor",
         "band": "Nivel",
-        "coverage": "Acoperire",
         "band_withheld": (
             "Nivelul nu este acordat: acoperirea este sub pragul metodologiei. Scorul "
             "rămâne, dar este calculat pe mai puține dovezi decât cere o concluzie."
@@ -53,12 +57,16 @@ _TEXT: dict[str, dict[str, str]] = {
         "scale_worst": "Critic",
         "scale_best": "Rezilient",
         "score_of_100": "din 100",
-        "coverage_explained": (
-            "Am putut verifica {coverage}% din ceea ce măsoară metodologia. Restul a "
-            "rămas neconcludent, deci scorul se sprijină pe mai puține dovezi."
+        "score_attribution": (
+            "Scor obținut prin metodologia de igienă cibernetică externă a acestei platforme "
+            "(versiunea {methodology}), aplicată dovezilor observabile public. Nu este o măsurare "
+            "directă a securității instituției."
         ),
-        "coverage_explained_full": (
-            "Am putut verifica {coverage}% din ceea ce măsoară metodologia."
+        "coverage": "Verificări efectuate",
+        "coverage_meaning": (
+            "{coverage}% dintre verificările aplicabile ale metodologiei au produs un rezultat, "
+            "ponderat după importanța fiecărei verificări. Nu se referă la cât din infrastructura "
+            "instituției a fost analizată."
         ),
         "legend": "Cum se citesc culorile",
         "legend_direction": "100 este cel mai bun rezultat, 0 cel mai slab.",
@@ -86,6 +94,11 @@ _TEXT: dict[str, dict[str, str]] = {
         "why": "De ce contează",
         "evidence_heading": "Ce am observat",
         "checked_heading": "Ce am verificat",
+        "insights_heading": "Interpretarea automată a dovezilor",
+        "insight.measured": "măsurat",
+        "insight.inferred": "dedus",
+        "insight.recommended": "recomandare",
+        "insights_evidence": "Vezi dovada",
         "checked_ok": "Cerințe îndeplinite",
         "checked_action": "Cerințe neîndeplinite",
         "checked_unknown": "Nu am putut verifica",
@@ -247,7 +260,6 @@ _TEXT: dict[str, dict[str, str]] = {
         "observed": "Observed",
         "score": "Score",
         "band": "Band",
-        "coverage": "Coverage",
         "band_withheld": (
             "No band is awarded: coverage is below the methodology's threshold. The "
             "score stands, but it rests on less evidence than a conclusion requires."
@@ -264,11 +276,17 @@ _TEXT: dict[str, dict[str, str]] = {
         "scale_worst": "Critical",
         "scale_best": "Resilient",
         "score_of_100": "out of 100",
-        "coverage_explained": (
-            "We could check {coverage}% of what the methodology measures. The rest was "
-            "inconclusive, so the score rests on less evidence."
+        "score_attribution": (
+            "A score produced by this platform's external cyber hygiene methodology (version "
+            "{methodology}), applied to publicly observable evidence. It is not a direct "
+            "measurement of the institution's security."
         ),
-        "coverage_explained_full": "We could check {coverage}% of what the methodology measures.",
+        "coverage": "Checks completed",
+        "coverage_meaning": (
+            "{coverage}% of the methodology's applicable checks produced a result, weighted by "
+            "how much each check counts. It does not describe how much of the institution's "
+            "infrastructure was examined."
+        ),
         "legend": "How to read the colours",
         "legend_direction": "100 is the best result, 0 the worst.",
         "importance": "importance",
@@ -295,6 +313,11 @@ _TEXT: dict[str, dict[str, str]] = {
         "why": "Why it matters",
         "evidence_heading": "What we observed",
         "checked_heading": "What we checked",
+        "insights_heading": "Automated reading of the evidence",
+        "insight.measured": "measured",
+        "insight.inferred": "inferred",
+        "insight.recommended": "recommendation",
+        "insights_evidence": "See the evidence",
         "checked_ok": "Requirements met",
         "checked_action": "Requirements not met",
         "checked_unknown": "Could not check",
@@ -555,6 +578,33 @@ table.checked li { font-size: 0.78rem; line-height: 1.35; margin-bottom: 0.25rem
 .checked-note { font-size: 0.76rem; color: #5a6673; margin: 0.1rem 0 0.3rem; }
 .checked-na { font-size: 0.76rem; color: #7a8592; margin: 0.2rem 0 0; }
 
+/* Visibly a different voice from the reviewed findings above it. Softer rule, indented
+   block, no severity colours -- a reader should be able to tell at a glance that this
+   part was written by a machine without having to read the caption first. */
+.insights { border-left: 3px solid #c9d3dd; padding: 0.1rem 0 0.1rem 0.9rem;
+            margin: 0.3rem 0 0.6rem; }
+.insights .note { font-size: 0.78rem; color: #5a6673; margin: 0 0 0.55rem; }
+.insight { margin: 0 0 0.5rem; font-size: 0.86rem; line-height: 1.45; color: #2b3440; }
+.insight-kind { display: inline-block; font-size: 0.7rem; font-weight: 700;
+                letter-spacing: 0.04em; text-transform: uppercase; color: #5a6673;
+                border: 1px solid #d7dee6; border-radius: 3px; padding: 0 0.3rem;
+                margin-right: 0.45rem; vertical-align: 0.05rem; }
+.insight-evidence { margin: -0.2rem 0 0.7rem 0.2rem; font-size: 0.8rem; }
+.insight-evidence > summary { cursor: pointer; color: #3d5a80; font-size: 0.76rem;
+                              list-style: none; }
+.insight-evidence > summary::-webkit-details-marker { display: none; }
+.insight-evidence > summary::before { content: "b8  "; }
+.insight-evidence[open] > summary::before { content: "be  "; }
+.insight-evidence table.evidence { margin-left: 0.9rem; }
+td.ename.indented { padding-left: 0.9rem; }
+
+/* On paper there is nothing to click, so everything is open. A folded section in a PDF
+   is evidence the reader cannot reach at all. */
+@media print {
+  .insight-evidence > summary { display: none; }
+  .insight-evidence > table { display: table !important; }
+}
+
 .legend { margin: 0.5rem 0 0.2rem; font-size: 0.78rem; color: #5a6673; }
 .legend-title { font-weight: 700; }
 .legend .keys { margin-top: 0.3rem; }
@@ -616,6 +666,7 @@ def render_report(report: ReportDocument, locale: str = DEFAULT_LOCALE) -> str:
                 _pillars(report, locale),
                 _checked(report, locale),
                 _findings(report, locale),
+                _insights(report, locale),
                 _not_determined(report, locale),
                 _footer(report, locale),
                 class_="sheet",
@@ -855,13 +906,29 @@ def _headline(report: ReportDocument, locale: str) -> Element:
             )
         )
 
-    # Coverage in a sentence. "65.5%" is a fact about the assessment that reads, to
-    # somebody who did not write the methodology, like a fact about the institution.
-    coverage_key = "coverage_explained_full" if report.coverage_sufficient else "coverage_explained"
+    # Where the number came from, beside the number. The score is an output of this
+    # platform's methodology applied to what could be observed from outside; printed
+    # alone it reads as a measurement of the institution, which it is not. The same
+    # reasoning behind the existing "not an audit, not a certification" notice, moved to
+    # where the figure actually is rather than left in the footer.
     blocks.append(
         element(
             "p",
-            _text(locale, coverage_key).replace("{coverage}", f"{report.coverage_percentage:g}"),
+            _text(locale, "score_attribution").replace("{methodology}", report.methodology_version),
+            class_="lead",
+        )
+    )
+
+    # And what the coverage figure counts, worded from the computation rather than around
+    # it. It is a weighted share of the methodology's applicable checks that reached a
+    # result -- not a proportion of the institution's infrastructure, which is what
+    # "coverage" on its own invites a reader to assume.
+    blocks.append(
+        element(
+            "p",
+            _text(locale, "coverage_meaning").replace(
+                "{coverage}", f"{report.coverage_percentage:g}"
+            ),
             class_="lead",
         )
     )
@@ -1259,6 +1326,91 @@ def _finding(finding: ReportFinding, locale: str) -> Element:
             )
         )
     return element("article", *blocks, class_="finding")
+
+
+def _evidence_disclosure(evidence: tuple[ReportEvidence, ...], locale: str) -> Node:
+    """The evidence behind a sentence, folded away until somebody wants it.
+
+    It used to be a truncated identifier in brackets, which is not evidence: it proves a
+    link exists to whoever can query the database and tells the reader nothing they can
+    check or dispute. This puts the observation itself one click away -- what was looked
+    at, how it came back, and the values recorded.
+
+    `details` rather than a script, because this document is also rendered to PDF by an
+    engine that runs no JavaScript, and a report that needs a runtime to reveal its own
+    evidence is one that hides it from whoever reads the printed copy. The print
+    stylesheet opens every disclosure for the same reason.
+    """
+    rows: list[Node] = []
+    for item in evidence:
+        rows.append(
+            element(
+                "tr",
+                element("td", item.observation_type, class_="ename"),
+                element(
+                    "td",
+                    _TEXT[locale].get(f"obs.{item.status}", item.status),
+                    class_="obs-status",
+                ),
+            )
+        )
+        rows.extend(
+            element(
+                "tr",
+                element(
+                    "td",
+                    _attribute_label(locale, item.observation_type, name),
+                    class_="ename indented",
+                ),
+                element("td", _attribute_value(locale, name, value)),
+            )
+            for name, value in item.attributes
+        )
+
+    return element(
+        "details",
+        element("summary", _text(locale, "insights_evidence")),
+        element("table", *rows, class_="evidence"),
+        class_="insight-evidence",
+    )
+
+
+def _insights(report: ReportDocument, locale: str) -> Node:
+    """The model's reading of this run, after the reviewed findings and never instead.
+
+    The model ran on every assessment for weeks and produced a dozen or more grounded
+    sentences each time, all of which were assigned to a field nothing read. An
+    institution paid for the analysis and saw only the template catalogue.
+
+    Two things this section does not do, and the reasons are not stylistic. It does not
+    replace the remediation steps: those come from a reviewed catalogue that cites the
+    standard behind each instruction, and a model improvising "add this DNS record" is
+    how somebody's mail stops being delivered. And it does not blend into the findings
+    above -- different voice, different styling, and a caption saying who wrote it,
+    because a reader deciding what to do with their DNS is entitled to know which
+    sentences a person stands behind.
+
+    Every sentence here cited evidence from this run; the grounding validator drops the
+    ones that do not, before they ever reach storage. The identifiers travel with the
+    text so a reader can still check the link months later.
+    """
+    if not report.insights:
+        return element("section")
+
+    blocks: list[Node] = [
+        element("h2", _text(locale, "insights_heading")),
+    ]
+    for insight in report.insights:
+        parts: list[Node] = []
+        label = _TEXT[locale].get(f"insight.{insight.kind}")
+        if label:
+            parts.append(element("span", label, class_="insight-kind"))
+        parts.append(element("span", insight.text))
+        blocks.append(element("p", *parts, class_="insight"))
+        if insight.evidence:
+            blocks.append(_evidence_disclosure(insight.evidence, locale))
+
+    return element("section", element("div", *blocks, class_="insights"))
 
 
 def _not_determined(report: ReportDocument, locale: str) -> Element:

@@ -122,12 +122,13 @@ const ro = {
   "assessments.steps": "Etape ({count})",
   "assessments.progress": "{settled} din {total} etape ({percent}%)",
   "assessments.failedSteps": "{count} eșuate",
-  "assessments.coverage": "Acoperire {percent}%",
+  "assessments.coverage": "Verificări efectuate {percent}%",
   "assessments.viewFindings": "Vezi constatările",
   "assessments.insufficientTitle": "Dovezi insuficiente pentru un scor",
   "assessments.insufficientBody":
     "Am putut evalua doar {percent}% din verificări. Sub pragul de {floor}% rezultatul nu este reprezentativ, așa că nu îl prezentăm ca scor.",
-  "assessments.rawScore": "Valoare brută, pentru audit: {score} / 100",
+  "assessments.rawScore":
+    "Scor obținut prin metodologia de igienă cibernetică externă a acestei platforme, aplicată dovezilor observabile public: {score} / 100. Nu este o măsurare directă a securității instituției.",
 
   "schedule.label": "Reevaluare automată",
   "schedule.off": "Oprită",
@@ -191,7 +192,7 @@ const ro = {
   "history.resolved": "Rezolvate ({count})",
   "history.opened": "Apărute ({count})",
   "history.unchanged": "{count} constatări rămân deschise de dinainte",
-  "history.pointLabel": "{score} din 100 · acoperire {coverage}% · {when}",
+  "history.pointLabel": "{score} din 100 · verificări efectuate {coverage}% · {when}",
   "history.viewHistory": "Vezi evoluția",
 
   "findings.eyebrow": "Constatări",
@@ -260,7 +261,8 @@ const ro = {
   // afișat sub o insignă de severitate se citește ca și cum starea bună ar fi problema.
   "findings.requirementUnmet": "Cerință neîndeplinită",
   "findings.group": "{severity} ({count})",
-  "findings.coverageRemainder": "Acoperire {percent}% — restul verificărilor nu au putut fi evaluate",
+  "findings.coverageRemainder":
+    "{percent}% dintre verificările aplicabile ale metodologiei au produs un rezultat, ponderat după importanța fiecăreia. Restul nu au putut fi evaluate. Nu se referă la cât din infrastructură a fost analizată.",
   "findings.insufficientBody":
     "Am putut evalua doar {percent}% din verificări, sub pragul de {floor}%. Lista de mai jos arată ce am găsit, dar nu este completă.",
   "findings.pillar": "Pilon",
@@ -387,7 +389,7 @@ const ro = {
     "Nu este publicat niciun profil. Aceasta este starea normală: publicarea necesită atât acordul unei organizații, cât și un aviz de publicare înregistrat.",
   "observatory.unavailable": "Observatorul nu este disponibil momentan.",
   "observatory.count": "{count} profiluri publicate",
-  "observatory.coverage": "Acoperire {percent}%",
+  "observatory.coverage": "Verificări efectuate {percent}%",
   "observatory.observed": "Observat la {when}.",
   "observatory.checksHeading": "Verificări publicate",
   "observatory.notice":
@@ -642,12 +644,13 @@ const en: Messages = {
   "assessments.steps": "Steps ({count})",
   "assessments.progress": "{settled} of {total} steps ({percent}%)",
   "assessments.failedSteps": "{count} failed",
-  "assessments.coverage": "Coverage {percent}%",
+  "assessments.coverage": "Checks completed {percent}%",
   "assessments.viewFindings": "View findings",
   "assessments.insufficientTitle": "Not enough evidence for a score",
   "assessments.insufficientBody":
     "We could evaluate only {percent}% of the checks. Below the {floor}% threshold the result is not representative, so we do not present it as a score.",
-  "assessments.rawScore": "Raw value, for audit: {score} / 100",
+  "assessments.rawScore":
+    "A score produced by this platform's external cyber hygiene methodology, applied to publicly observable evidence: {score} / 100. It is not a direct measurement of the institution's security.",
 
   "schedule.label": "Automatic reassessment",
   "schedule.off": "Off",
@@ -710,7 +713,7 @@ const en: Messages = {
   "history.resolved": "Resolved ({count})",
   "history.opened": "Appeared ({count})",
   "history.unchanged": "{count} findings remain open from before",
-  "history.pointLabel": "{score} of 100 · coverage {coverage}% · {when}",
+  "history.pointLabel": "{score} of 100 · checks completed {coverage}% · {when}",
   "history.viewHistory": "View trend",
 
   "findings.eyebrow": "Findings",
@@ -776,7 +779,8 @@ const en: Messages = {
   "findings.bySeverity": "Findings by severity",
   "findings.requirementUnmet": "Requirement not met",
   "findings.group": "{severity} ({count})",
-  "findings.coverageRemainder": "Coverage {percent}% — the remaining checks could not be evaluated",
+  "findings.coverageRemainder":
+    "{percent}% of the methodology's applicable checks produced a result, weighted by how much each counts. The rest could not be evaluated. It does not describe how much of the infrastructure was examined.",
   "findings.insufficientBody":
     "We could evaluate only {percent}% of the checks, below the {floor}% threshold. The list below shows what we found, but it is not complete.",
   "findings.pillar": "Pillar",
@@ -896,7 +900,7 @@ const en: Messages = {
     "No profile is published. This is the ordinary state: publishing requires both an organisation's agreement and a recorded publication review.",
   "observatory.unavailable": "The observatory is temporarily unavailable.",
   "observatory.count": "{count} published profiles",
-  "observatory.coverage": "Coverage {percent}%",
+  "observatory.coverage": "Checks completed {percent}%",
   "observatory.observed": "Observed at {when}.",
   "observatory.checksHeading": "Published checks",
   "observatory.notice":

@@ -717,3 +717,84 @@ def test_a_run_with_no_writer_configured_behaves_as_before() -> None:
         AssessmentState.COMPLETED,
         AssessmentState.PARTIALLY_COMPLETED,
     }
+
+
+class _FakeSupport:
+    def __init__(self, identifier: str) -> None:
+        self.id = identifier
+
+
+class _FakeClaim:
+    def __init__(self, text: str, kind: str, support: tuple[str, ...]) -> None:
+        self.text = text
+        self.kind = kind
+        self.support = tuple(_FakeSupport(item) for item in support)
+
+
+class _FakeAudit:
+    outcome = "completed"
+    claims_accepted = 2
+    claims_rejected = 0
+
+
+class _FakeResult:
+    def __init__(self, claims: tuple[_FakeClaim, ...]) -> None:
+        self.claims = claims
+        self.audit = _FakeAudit()
+
+
+def test_the_models_claims_are_kept_with_the_step_that_produced_them(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The bug this exists to stop, and it ran in production for weeks.
+
+    The model was called on every assessment, produced a dozen or more grounded
+    sentences, and they were assigned to `context.narrative` -- a field read by nothing
+    anywhere in the repository. An institution paid for the analysis and saw only the
+    template catalogue.
+
+    Counting them was never the point. This asserts the sentences themselves survive the
+    step, because a count is what was already being stored while the content was lost.
+    """
+    import siembiot_agent.gateway as gateway_module
+    from siembiot_worker.workflows import handlers as handlers_module
+
+    claims = (
+        _FakeClaim("DMARC lipsește pentru acest domeniu.", "measured", ("obs-1", "obs-2")),
+        _FakeClaim(
+            "Aș începe cu SPF, fiind cel mai ieftin de publicat.", "recommended", ("obs-3",)
+        ),
+    )
+    # `_model_provider` returns (provider, reason); the reason names why there is none.
+    monkeypatch.setattr(handlers_module, "_model_provider", lambda: (object(), "configured"))
+    monkeypatch.setattr(gateway_module, "run_analysis", lambda **_: _FakeResult(claims))
+
+    engine, repository, _, assessment, engine_clock = build("strong.example.test")
+    drive(engine, assessment, engine_clock)
+
+    result = repository.load_steps(assessment)["agent_analysis"].result
+    stored = result.get("claims")
+    assert stored, "the model's sentences were computed and dropped"
+    assert [item["text"] for item in stored] == [claim.text for claim in claims]
+    assert stored[1]["kind"] == "recommended"
+    assert stored[0]["support"] == ["obs-1", "obs-2"], (
+        "the evidence identifiers are what let a claim be checked later"
+    )
+
+
+def test_a_model_that_returns_nothing_stores_nothing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An empty answer is not a failure and must not become an empty section on the
+    page pretending an analysis happened."""
+    import siembiot_agent.gateway as gateway_module
+    from siembiot_worker.workflows import handlers as handlers_module
+
+    # `_model_provider` returns (provider, reason); the reason names why there is none.
+    monkeypatch.setattr(handlers_module, "_model_provider", lambda: (object(), "configured"))
+    monkeypatch.setattr(gateway_module, "run_analysis", lambda **_: _FakeResult(()))
+
+    engine, repository, _, assessment, engine_clock = build("strong.example.test")
+    drive(engine, assessment, engine_clock)
+
+    assert repository.load_steps(assessment)["agent_analysis"].result.get("claims") == []

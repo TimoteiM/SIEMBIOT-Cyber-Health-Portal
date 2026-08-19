@@ -180,6 +180,38 @@ COLLECTOR_OPERATIONS: dict[str, OperationClass] = {
 }
 
 
+#: How many model sentences are kept, and how long each may be.
+#:
+#: A bound rather than a policy: the gateway already caps what a run may generate, and
+#: this is the second wall. A model that returned a thousand claims would otherwise put
+#: a thousand rows into a step result that is read back on every report.
+_MAX_STORED_CLAIMS = 40
+_MAX_CLAIM_CHARS = 400
+
+
+def _claims_for_storage(claims: Any) -> list[dict[str, Any]]:
+    """The accepted claims, flattened to what the report needs.
+
+    The evidence identifiers travel with each sentence. They are what made the claim
+    survive the grounding validator, and keeping them is what lets a reader -- or a
+    reviewer months later -- check that a sentence was tied to something observed rather
+    than invented.
+    """
+    stored: list[dict[str, Any]] = []
+    for claim in list(claims)[:_MAX_STORED_CLAIMS]:
+        text_value = str(getattr(claim, "text", ""))[:_MAX_CLAIM_CHARS].strip()
+        if not text_value:
+            continue
+        stored.append(
+            {
+                "text": text_value,
+                "kind": str(getattr(claim, "kind", "")),
+                "support": [str(getattr(item, "id", "")) for item in getattr(claim, "support", ())],
+            }
+        )
+    return stored
+
+
 def _mail_hosts(context: AssessmentContext) -> tuple[str, ...]:
     """The MX hosts the e-mail collector observed, in preference order.
 
@@ -649,6 +681,13 @@ def build_handlers(context: AssessmentContext) -> dict[str, StepHandler]:
                 agent_analysis=result.audit.outcome,
                 claims_accepted=result.audit.claims_accepted,
                 claims_rejected=result.audit.claims_rejected,
+                # The claims themselves, not only how many there were. Until now the
+                # model ran on every assessment, produced a dozen or more grounded
+                # sentences, and they were assigned to `context.narrative` and read by
+                # nothing anywhere -- so an institution paid for the analysis and saw the
+                # template catalogue. The step's own result is where what a step produced
+                # belongs, and it is already persisted and already scoped to the tenant.
+                claims=_claims_for_storage(result.claims),
             )
         except Exception:  # noqa: BLE001 - a narrative must never fail an assessment
             log.warning("agent analysis failed", exc_info=True)

@@ -91,6 +91,46 @@ class ReportCheck:
 
 
 @dataclass(frozen=True)
+class ReportEvidence:
+    """One observation, as it sits behind a claim a reader wants to check."""
+
+    observation_type: str
+    subject: str
+    status: str
+    attributes: tuple[tuple[str, str], ...] = ()
+
+
+@dataclass(frozen=True)
+class ReportInsight:
+    """One sentence the model wrote about this run's evidence.
+
+    Kept apart from `ReportFinding` on purpose. A finding is deterministic: the same
+    evidence and the same catalogue produce it every time, and it can be defended line by
+    line. This cannot -- it is a reading, it may differ between runs, and the report has
+    to say so rather than let the two blur into one voice.
+
+    `support` is the evidence the claim cited. Every sentence here passed a validator
+    that drops anything not tied to an observation this run actually made, so a claim
+    without support does not reach this far; carrying the identifiers is what lets a
+    reader check that months later.
+    """
+
+    text: str
+    #: `measured`, `inferred` or `recommended` -- what the model says it is doing. Shown,
+    #: because "this follows from the evidence" and "this is my suggestion" are different
+    #: claims and a reader is entitled to know which one they are reading.
+    kind: str
+    #: The evidence behind the sentence, resolved rather than referenced.
+    #:
+    #: This used to be a list of identifiers. An identifier is not evidence: it proves a
+    #: link exists to somebody who can query the database, and tells a reader nothing at
+    #: all. What is carried now is the observation itself -- what was looked at, how it
+    #: came back, and the values recorded -- so the claim can be checked by reading rather
+    #: than by trusting.
+    evidence: tuple[ReportEvidence, ...] = ()
+
+
+@dataclass(frozen=True)
 class ReportDocument:
     organization_name: str
     domain: str
@@ -115,6 +155,9 @@ class ReportDocument:
     #: Every check the assessment evaluated, including the ones that passed and the ones
     #: it could not determine. Separate from `findings`, which is only what is wrong.
     checks: tuple[ReportCheck, ...] = ()
+    #: The model's reading of this run, when one was produced and configured. Empty is
+    #: the ordinary case: no key, no gateway, or a model that returned nothing usable.
+    insights: tuple[ReportInsight, ...] = ()
     #: Checks that could not be determined. Named, not counted: "we could not tell about
     #: these three things" is a different statement from "coverage 91%", and only the
     #: first one tells a reader what to go and look at.

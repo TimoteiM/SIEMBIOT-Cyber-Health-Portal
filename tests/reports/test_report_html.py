@@ -18,7 +18,9 @@ from siembiot_worker.reports import (
     LOCALES,
     ReportCheck,
     ReportDocument,
+    ReportEvidence,
     ReportFinding,
+    ReportInsight,
     ReportPillar,
     render_report,
 )
@@ -1198,3 +1200,214 @@ def test_an_item_with_nothing_recognisable_is_left_out_not_dumped() -> None:
     from siembiot.reports import _evidence_rows
 
     assert _evidence_rows({"mystery": [{"unknown_shape": "value"}]}) == ()
+
+
+def evidence_item(**overrides: object) -> ReportEvidence:
+    base: dict[str, object] = {
+        "observation_type": "email.dmarc",
+        "subject": "primaria-exemplu.ro",
+        "status": "absent",
+        "attributes": (),
+    }
+    base.update(overrides)
+    return ReportEvidence(**base)  # type: ignore[arg-type]
+
+
+def insight(**overrides: object) -> ReportInsight:
+    base: dict[str, object] = {
+        "text": "DMARC lipsește, iar SPF nu este publicat: ambele sunt necesare.",
+        "kind": "inferred",
+        "evidence": (evidence_item(),),
+    }
+    base.update(overrides)
+    return ReportInsight(**base)  # type: ignore[arg-type]
+
+
+def test_the_model_reading_is_shown_when_there_is_one() -> None:
+    """The model ran on every assessment for weeks, produced a dozen grounded sentences
+    each time, and every one was assigned to a field nothing read. An institution paid
+    for the analysis and saw only the template catalogue."""
+    shown = visible_text(render_report(report(insights=(insight(),))))
+    assert _TEXT["ro"]["insights_heading"] in shown
+    assert "DMARC lipsește" in shown
+
+
+def test_the_model_reading_carries_no_disclaimer_paragraph() -> None:
+    """Removed at the operator's request.
+
+    The heading still names the section as an automated reading, which is the signal that
+    survives; what went was the paragraph of caveats under it. Pinned so it does not
+    reappear the next time somebody edits this section.
+    """
+    shown = visible_text(render_report(report(insights=(insight(),))))
+    assert "Scris de un model" not in shown
+    assert _TEXT["ro"]["insights_heading"] in shown
+
+
+def test_the_model_never_replaces_the_reviewed_steps() -> None:
+    """The remediation catalogue cites the standard behind each instruction and was
+    reviewed by a person. A model improvising "add this DNS record" is how somebody's
+    mail stops being delivered, so its reading is added and never substituted."""
+    document = report(
+        findings=(
+            finding(
+                remediation_summary_ro="Publică DMARC.",
+                remediation_steps_ro=("Publică o înregistrare TXT la _dmarc.",),
+            ),
+        ),
+        insights=(insight(kind="recommended", text="Aș începe cu DMARC."),),
+    )
+    shown = visible_text(render_report(document))
+    assert "Publică o înregistrare TXT la _dmarc." in shown, "the reviewed step disappeared"
+    assert "Aș începe cu DMARC." in shown
+    assert shown.index("Publică o înregistrare TXT") < shown.index("Aș începe cu DMARC."), (
+        "the model's reading must follow the reviewed steps, not precede them"
+    )
+
+
+def test_a_report_without_a_model_reads_exactly_as_before() -> None:
+    """No key, no gateway, or a model that returned nothing usable. The whole design
+    rests on the report being complete without one, so the section is absent rather than
+    empty."""
+    shown = visible_text(render_report(report(insights=())))
+    assert _TEXT["ro"]["insights_heading"] not in shown
+
+
+def test_the_kind_of_claim_is_labelled() -> None:
+    """ "This follows from the evidence" and "this is my suggestion" are different claims
+    and a reader is entitled to know which one they are reading."""
+    for kind, label in (("measured", "măsurat"), ("recommended", "recomandare")):
+        shown = visible_text(render_report(report(insights=(insight(kind=kind),))))
+        assert label in shown, kind
+
+
+def test_model_text_cannot_carry_markup_into_the_page() -> None:
+    """Every sentence here was written by a model that was shown data from somebody
+    else's infrastructure. It is untrusted text and is escaped like all the rest."""
+    page = render_report(
+        report(
+            insights=(
+                insight(
+                    text=HOSTILE,
+                    evidence=(evidence_item(observation_type=HOSTILE, subject=HOSTILE),),
+                ),
+            )
+        )
+    )
+    assert "<script>" not in page
+    assert "&lt;script&gt;" in page
+
+
+def test_the_models_own_inline_citation_is_not_printed_twice() -> None:
+    """The model appends the evidence identifier to its own prose, and the report renders
+    the identifiers separately. Both left in printed a 36-character UUID twice in a row,
+    once mid-sentence, on a page written for somebody without a security team."""
+    from siembiot.reports import _without_inline_citations
+
+    assert (
+        _without_inline_citations(
+            "Domeniul nu are DNSSEC activ. [7d46d955-62bf-51e9-bc6b-2aa11a695980]"
+        )
+        == "Domeniul nu are DNSSEC activ."
+    )
+
+
+def test_only_identifiers_are_removed_from_what_the_model_wrote() -> None:
+    """Silently deleting text a model wrote is how a sentence ends up meaning something
+    its author did not. Only well-formed identifiers go."""
+    from siembiot.reports import _without_inline_citations
+
+    assert (
+        _without_inline_citations("Text cu [paranteze] obișnuite păstrate.")
+        == "Text cu [paranteze] obișnuite păstrate."
+    )
+    assert _without_inline_citations("Fără [not-a-uuid] nimic.") == "Fără [not-a-uuid] nimic."
+
+
+def test_the_evidence_is_shown_rather_than_referenced_by_identifier() -> None:
+    """An identifier on a page is not evidence.
+
+    It proves a link exists to whoever can query the database and tells the reader
+    nothing they can check or dispute. The observation itself is now one click away.
+    """
+    page = render_report(
+        report(
+            insights=(
+                insight(
+                    evidence=(
+                        evidence_item(
+                            observation_type="email.dmarc",
+                            status="absent",
+                            attributes=(("present", "false"),),
+                        ),
+                    ),
+                ),
+            )
+        )
+    )
+    shown = visible_text(page)
+    assert _TEXT["ro"]["insights_evidence"] in shown
+    assert _TEXT["ro"]["obs.absent"] in shown
+    assert _TEXT["ro"]["attr.present"] in shown
+    assert "<details" in page, "the evidence must be foldable rather than always open"
+
+
+def test_the_disclosure_needs_no_javascript() -> None:
+    """The same document is rendered to PDF by an engine that runs none, and a report
+    that needs a runtime to reveal its own evidence hides it from whoever reads the
+    printed copy."""
+    page = render_report(report(insights=(insight(),)))
+    assert "<script" not in page
+    assert "<details" in page and "<summary" in page
+
+
+def test_a_printed_copy_opens_every_disclosure() -> None:
+    """There is nothing to click on paper. A folded section in a PDF is evidence the
+    reader cannot reach at all."""
+    page = render_report(report(insights=(insight(),)))
+    assert "@media print" in page
+    printed = page[page.index("@media print") :]
+    assert "insight-evidence" in printed
+
+
+def test_a_claim_citing_evidence_this_run_does_not_hold_shows_no_disclosure() -> None:
+    """The grounding validator is meant to make that impossible. If one slips through, a
+    dangling reference invites a reader to treat an unverifiable claim as a checked one."""
+    page = render_report(report(insights=(insight(evidence=()),)))
+    assert "<details" not in page
+
+
+def test_the_score_is_attributed_to_the_methodology_that_produced_it() -> None:
+    """ "Metrorex has a security posture of 52.2/100" is a claim about their
+    infrastructure. What the platform can support is narrower: a score its own
+    methodology produced from what could be observed from outside.
+
+    The distinction is the one already made by the "not an audit, not a certification"
+    notice; this puts it beside the figure instead of leaving it in the footer, where a
+    reader who takes the number and stops has already missed it.
+    """
+    shown = visible_text(render_report(report(score=52.2, methodology_version="1.2.0")))
+    assert "metodologia de igienă cibernetică externă a acestei platforme" in shown
+    assert "1.2.0" in shown
+    assert "Nu este o măsurare directă a securității instituției." in shown
+
+
+def test_the_coverage_figure_says_what_it_counts() -> None:
+    """ "Acoperire 90.4%" reads as "90.4% of their infrastructure was assessed".
+
+    It is neither of those things: it is the share of the methodology's applicable
+    checks that reached a result, weighted by how much each check counts. The wording is
+    taken from the computation rather than written around it, and it denies the wrong
+    reading explicitly rather than leaving it available.
+    """
+    shown = visible_text(render_report(report(coverage_percentage=90.4)))
+    assert "90.4% dintre verificările aplicabile ale metodologiei au produs un rezultat" in shown
+    assert "ponderat după importanța fiecărei verificări" in shown
+    assert "Nu se referă la cât din infrastructura instituției a fost analizată." in shown
+
+
+def test_no_bare_coverage_label_survives_in_either_locale() -> None:
+    """The label alone was the ambiguity. Pinned in both languages because the Romanian
+    copy is the one an institution reads and the English one is easier to review."""
+    for locale in LOCALES:
+        assert _TEXT[locale]["coverage"] not in {"Acoperire", "Coverage"}
