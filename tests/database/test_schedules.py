@@ -358,3 +358,68 @@ def test_expiry_does_not_overwrite_a_state_somebody_chose(
     finally:
         engine.dispose()
     assert state == "revoked"
+
+
+# -- what the worker may read ------------------------------------------------
+
+
+def _selectors_seen_by_worker(
+    worker_url: str, organization_id: UUID, domain_id: UUID
+) -> tuple[str, ...]:
+    """Read the declaration the way the assessment task does: as the worker role, with
+    the connection bound to one tenant."""
+    with psycopg.connect(worker_url) as worker:
+        worker.execute(
+            "SELECT set_config('app.organization_id', %s, false)", (str(organization_id),)
+        )
+        row = worker.execute(
+            "SELECT declared_dkim_selectors FROM domains WHERE id = %s", (str(domain_id),)
+        ).fetchone()
+    return tuple(row[0]) if row else ()
+
+
+def test_the_worker_can_read_a_declaration_made_for_its_tenant(
+    postgres_database: dict[str, str],
+) -> None:
+    """The gap that made the DKIM form do nothing.
+
+    Selectors were stored on the domain and the worker could not see the row: `domains`
+    carried only the tenant policy, which requires an active membership, and the worker
+    is a service role with none. So a declaration was written, stored, and silently
+    ignored -- the run reported `not_applicable` exactly as though nothing had been
+    declared, which is indistinguishable from the ordinary case and therefore invisible.
+
+    Nothing caught it because the API was tested as a member and the collector was handed
+    selectors directly. This drives the path the worker actually takes.
+    """
+    fixture = seed(postgres_database["owner_url"])
+    with psycopg.connect(postgres_database["owner_url"]) as owner:
+        owner.execute(
+            "UPDATE domains SET declared_dkim_selectors = %s WHERE id = %s",
+            (["s1", "google"], str(fixture["domain_id"])),
+        )
+
+    seen = _selectors_seen_by_worker(
+        postgres_database["worker_url"], fixture["organization_id"], fixture["domain_id"]
+    )
+    assert seen == ("s1", "google")
+
+
+def test_the_worker_cannot_read_another_tenants_domain(
+    postgres_database: dict[str, str],
+) -> None:
+    """The policy grants the worker its own tenant and nothing else. Isolation does not
+    rest on the task passing the right identifier: a connection bound elsewhere finds no
+    rows at all."""
+    fixture = seed(postgres_database["owner_url"])
+    other = seed(postgres_database["owner_url"])
+    with psycopg.connect(postgres_database["owner_url"]) as owner:
+        owner.execute(
+            "UPDATE domains SET declared_dkim_selectors = %s WHERE id = %s",
+            (["s1"], str(fixture["domain_id"])),
+        )
+
+    seen = _selectors_seen_by_worker(
+        postgres_database["worker_url"], other["organization_id"], fixture["domain_id"]
+    )
+    assert seen == (), "the worker read a domain belonging to another organization"
