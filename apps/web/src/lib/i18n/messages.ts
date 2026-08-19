@@ -364,6 +364,15 @@ const ro = {
   // -- publicare ------------------------------------------------------------
   // Consimțământul și publicarea sunt două fapte diferite. O interfață care le
   // confundă ajunge să spună cuiva că este publicat când nu este.
+  "dkim.heading": "Selectoare DKIM",
+  "dkim.explainer": "DKIM semnează mesajele cu o cheie publicată la un nume ales de tine — de exemplu s1 sau google. Nu există nicio evidență publică a acestor nume, așa că nu le putem descoperi: ni le spui tu sau nu verificăm DKIM.",
+  "dkim.noPenalty": "Dacă nu completezi nimic, verificarea nu se aplică și nu îți scade scorul sau procentul de verificări efectuate.",
+  "dkim.label": "Selectoare (separate prin virgulă)",
+  "dkim.placeholder": "s1, google",
+  "dkim.whereToFind": "Le găsești în consola furnizorului de e-mail, la setările DKIM, sau în antetul unui mesaj trimis de tine: câmpul s= din DKIM-Signature.",
+  "dkim.save": "Salvează selectoarele",
+  "dkim.saved": "Selectoarele au fost salvate.",
+  "dkim.saveFailed": "Selectoarele nu au putut fi salvate. Fiecare poate conține doar litere, cifre, cratime sau puncte.",
   "publication.heading": "Publicare în observatorul public",
   "publication.explainer":
     "Poți alege ca profilul acestui domeniu să fie vizibil public: banda de rezultat, acoperirea și verificările pe care metodologia le clasifică drept publicabile. Scorul numeric, dovezile și orice identificator nu se publică niciodată.",
@@ -875,6 +884,15 @@ const en: Messages = {
     "“I do not know” does not score as “no”. It reduces completeness, because not knowing is different from not having.",
 
   // -- publication ----------------------------------------------------------
+  "dkim.heading": "DKIM selectors",
+  "dkim.explainer": "DKIM signs messages with a key published at a name you choose — s1 or google, for example. Nothing publishes a list of those names, so we cannot discover them: you tell us, or we do not check DKIM.",
+  "dkim.noPenalty": "If you leave this empty the check does not apply, and it lowers neither your score nor your percentage of checks completed.",
+  "dkim.label": "Selectors (comma separated)",
+  "dkim.placeholder": "s1, google",
+  "dkim.whereToFind": "Find them in your mail provider's DKIM settings, or in the header of a message you sent: the s= field of DKIM-Signature.",
+  "dkim.save": "Save selectors",
+  "dkim.saved": "Selectors saved.",
+  "dkim.saveFailed": "The selectors could not be saved. Each may contain only letters, digits, hyphens or dots.",
   "publication.heading": "Publication in the public observatory",
   "publication.explainer":
     "You can choose to make this domain's profile publicly visible: the result band, the coverage, and the checks the methodology classifies as publishable. The numeric score, the evidence and any identifier are never published.",

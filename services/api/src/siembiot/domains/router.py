@@ -15,6 +15,8 @@ from siembiot.auth import current_principal, require_trusted_origin
 from siembiot.authorization import Action
 from siembiot.config import Settings
 from siembiot.contracts import (
+    DkimSelectorsResponse,
+    DkimSelectorsUpdate,
     DomainChallengeCreate,
     DomainChallengeCreatedResponse,
     DomainCreate,
@@ -48,7 +50,8 @@ def _domain_row(connection: Connection, domain_id: UUID) -> RowMapping | None:
         connection.execute(
             text(
                 "SELECT id, organization_id, canonical_name, unicode_display, "
-                "registrable_domain, warnings, ownership_state, created_at "
+                "registrable_domain, warnings, ownership_state, "
+                "declared_dkim_selectors, created_at "
                 "FROM domains WHERE id = :domain_id"
             ),
             {"domain_id": domain_id},
@@ -124,7 +127,8 @@ def build_domain_router() -> APIRouter:
                                 :registrable_domain, CAST(:warnings AS jsonb), :user_id
                             )
                             RETURNING id, organization_id, canonical_name, unicode_display,
-                                registrable_domain, warnings, ownership_state, created_at
+                                registrable_domain, warnings, ownership_state,
+                                declared_dkim_selectors, created_at
                             """
                         ),
                         {
@@ -169,7 +173,8 @@ def build_domain_router() -> APIRouter:
                 connection.execute(
                     text(
                         "SELECT id, organization_id, canonical_name, unicode_display, "
-                        "registrable_domain, warnings, ownership_state, created_at "
+                        "registrable_domain, warnings, ownership_state, "
+                        "declared_dkim_selectors, created_at "
                         "FROM domains ORDER BY canonical_name"
                     )
                 )
@@ -191,6 +196,50 @@ def build_domain_router() -> APIRouter:
         if row is None:
             raise AppError(404, "not_found", "The requested resource was not found.")
         return domain_response(row)
+
+    @router.put("/{domain_id}/dkim-selectors", response_model=DkimSelectorsResponse)
+    def set_dkim_selectors(
+        organization_id: UUID,
+        domain_id: UUID,
+        body: DkimSelectorsUpdate,
+        request: Request,
+        principal: Principal = Depends(current_principal),
+    ) -> DkimSelectorsResponse:
+        """Record which DKIM selectors this domain signs with.
+
+        DKIM is the one e-mail check that cannot be answered by looking. A selector is an
+        arbitrary label -- `s1`, `google`, `k1-2024` -- living at
+        `<selector>._domainkey.<domain>`, and nothing publishes the list. The passive
+        options are to guess names or to be told, and guessing is what this platform
+        refuses to do everywhere else.
+
+        Declaring nothing is allowed and costs nothing: the check reports
+        `not_applicable`, which is excluded from scoring and leaves coverage untouched.
+        An institution that never fills this in is not marked down for it -- it has one
+        fewer check answered, which is a different statement and the honest one.
+
+        Requires the same right as adding a domain. A selector decides where this
+        platform sends DNS queries on the institution's behalf, so it is a change to what
+        is assessed rather than a preference.
+        """
+        selectors = list(dict.fromkeys(body.selectors))
+        with _database(request).tenant_connection(principal.user_id, organization_id) as connection:
+            authorize(connection, request, principal, organization_id, Action.DOMAIN_MANAGE)
+            if _domain_row(connection, domain_id) is None:
+                raise AppError(404, "not_found", "The requested resource was not found.")
+            connection.execute(
+                text(
+                    "UPDATE domains SET declared_dkim_selectors = :selectors "
+                    "WHERE id = :domain_id AND organization_id = :organization_id"
+                ),
+                {
+                    "selectors": selectors,
+                    "domain_id": domain_id,
+                    "organization_id": organization_id,
+                },
+            )
+            connection.commit()
+        return DkimSelectorsResponse(selectors=selectors)
 
     @router.post(
         "/{domain_id}/challenges", response_model=DomainChallengeCreatedResponse, status_code=201

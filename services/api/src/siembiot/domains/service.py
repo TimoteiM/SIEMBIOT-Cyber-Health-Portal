@@ -18,6 +18,7 @@ def domain_response(row: RowMapping | Mapping[str, Any]) -> DomainResponse:
         registrable_domain=row["registrable_domain"],
         warnings=row["warnings"],
         ownership_state=row["ownership_state"],
+        declared_dkim_selectors=list(row["declared_dkim_selectors"] or ()),
         created_at=row["created_at"],
     )
 

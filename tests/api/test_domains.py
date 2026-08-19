@@ -303,3 +303,91 @@ def test_a_lapsed_challenge_does_not_block_a_new_one(
             "a lapsed challenge is still blocking new ones, so the domain cannot be "
             "verified by this method at all"
         )
+
+
+def test_dkim_selectors_are_declared_because_they_cannot_be_discovered(
+    postgres_database: dict[str, str],
+) -> None:
+    """A selector is an arbitrary label -- `s1`, `google`, `k1-2024` -- living at
+    `<selector>._domainkey.<domain>`, and nothing publishes the list. The passive options
+    are to guess names or to be told, and this platform does not guess."""
+    organization_id, principal = seed_owner(postgres_database["owner_url"])
+    with client_for(postgres_database, principal, MutableTXTResolver()) as client:
+        created = client.post(
+            f"/api/v1/organizations/{organization_id}/domains",
+            json={"domain": "primaria-exemplu.ro"},
+        )
+        domain_id = created.json()["id"]
+        assert created.json()["declared_dkim_selectors"] == [], "nothing is declared to start"
+
+        stored = client.put(
+            f"/api/v1/organizations/{organization_id}/domains/{domain_id}/dkim-selectors",
+            json={"selectors": ["s1", "google", "s1"]},
+        )
+        assert stored.status_code == 200
+        assert stored.json()["selectors"] == ["s1", "google"], "a repeat is not two selectors"
+
+        fetched = client.get(f"/api/v1/organizations/{organization_id}/domains/{domain_id}")
+        assert fetched.json()["declared_dkim_selectors"] == ["s1", "google"]
+
+
+def test_a_selector_that_is_not_a_valid_label_is_refused(
+    postgres_database: dict[str, str],
+) -> None:
+    """A selector becomes a DNS label in a query this platform makes on the institution's
+    behalf, so what arrives from a form does not reach a resolver unchecked."""
+    organization_id, principal = seed_owner(postgres_database["owner_url"])
+    with client_for(postgres_database, principal, MutableTXTResolver()) as client:
+        created = client.post(
+            f"/api/v1/organizations/{organization_id}/domains",
+            json={"domain": "primaria-exemplu.ro"},
+        )
+        domain_id = created.json()["id"]
+        for rejected in (["bad..name"], ["-leading-dash"], ["with space"], ["under_score"]):
+            response = client.put(
+                f"/api/v1/organizations/{organization_id}/domains/{domain_id}/dkim-selectors",
+                json={"selectors": rejected},
+            )
+            assert response.status_code == 422, rejected
+
+
+def test_a_dotted_selector_is_accepted_because_the_rfc_allows_one(
+    postgres_database: dict[str, str],
+) -> None:
+    """RFC 6376 defines a selector as `sub-domain *("." sub-domain)`. Refusing a legal one
+    would be the worse failure: the check is unanswerable without a declaration, so a
+    rejected selector means DKIM can never be assessed for that institution at all."""
+    organization_id, principal = seed_owner(postgres_database["owner_url"])
+    with client_for(postgres_database, principal, MutableTXTResolver()) as client:
+        created = client.post(
+            f"/api/v1/organizations/{organization_id}/domains",
+            json={"domain": "primaria-exemplu.ro"},
+        )
+        domain_id = created.json()["id"]
+        response = client.put(
+            f"/api/v1/organizations/{organization_id}/domains/{domain_id}/dkim-selectors",
+            json={"selectors": ["mail.k1"]},
+        )
+        assert response.status_code == 200
+        assert response.json()["selectors"] == ["mail.k1"]
+
+
+def test_declaring_selectors_needs_the_right_to_manage_the_domain(
+    postgres_database: dict[str, str],
+) -> None:
+    """A selector decides where this platform sends DNS queries on the institution's
+    behalf, so it is a change to what is assessed rather than a preference."""
+    organization_id, owner = seed_owner(postgres_database["owner_url"])
+    with client_for(postgres_database, owner, MutableTXTResolver()) as client:
+        domain_id = client.post(
+            f"/api/v1/organizations/{organization_id}/domains",
+            json={"domain": "primaria-exemplu.ro"},
+        ).json()["id"]
+
+    _, analyst = seed_owner(postgres_database["owner_url"], role="analyst")
+    with client_for(postgres_database, analyst, MutableTXTResolver()) as client:
+        response = client.put(
+            f"/api/v1/organizations/{organization_id}/domains/{domain_id}/dkim-selectors",
+            json={"selectors": ["s1"]},
+        )
+        assert response.status_code in {403, 404}

@@ -1566,3 +1566,49 @@ def test_a_discovered_name_cannot_carry_markup_into_the_page() -> None:
     page = render_report(report(asset_groups=(asset_group(names=(HOSTILE,)),)))
     assert "<script>" not in page
     assert "&lt;script&gt;" in page
+
+
+def test_a_check_that_was_not_performed_is_named_not_just_identified() -> None:
+    """ "D.database_exposed" names the check to whoever maintains the catalogue and to
+    nobody else. The reader is being told part of the assessment did not happen, and the
+    identifier does not tell them which part."""
+    document = report(
+        checks=(
+            ReportCheck(
+                check_id="D.database_exposed",
+                title_ro="Bazele de date nu sunt expuse public",
+                title_en="Databases are not publicly exposed",
+                outcome="not_applicable",
+            ),
+        ),
+        withheld_checks=("D.database_exposed",),
+    )
+    shown = visible_text(render_report(document))
+    assert "Bazele de date nu sunt expuse public" in shown
+    assert "D.database_exposed" in shown, "the identifier stays for anybody disputing it"
+
+
+def test_the_summary_says_how_many_needed_an_authorization() -> None:
+    """A reader seeing "9 do not apply" has no way to know three of them are port checks
+    a passive run is not permitted to make. That is the boundary working, and the page
+    should say so rather than leave it looking like something was skipped."""
+    document = report(
+        checks=(
+            ReportCheck("D.database_exposed", "Baze de date", "Databases", "not_applicable"),
+            ReportCheck("D.remote_access_exposed", "Acces la distanță", "Remote", "not_applicable"),
+            ReportCheck("A.registration_expiry", "Expirare", "Expiry", "not_applicable"),
+        ),
+        withheld_checks=("D.database_exposed", "D.remote_access_exposed"),
+    )
+    shown = visible_text(render_report(document))
+    assert _TEXT["ro"]["checked_withheld"] in shown
+    assert "2 " + _TEXT["ro"]["checked_withheld"] in shown
+
+
+def test_a_run_that_withheld_nothing_says_nothing_about_authorization() -> None:
+    """An explanation of a boundary nothing hit is noise on the reports where it did."""
+    document = report(
+        checks=(ReportCheck("A.registration_expiry", "Expirare", "Expiry", "not_applicable"),),
+        withheld_checks=(),
+    )
+    assert _TEXT["ro"]["checked_withheld"] not in visible_text(render_report(document))

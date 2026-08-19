@@ -1044,6 +1044,57 @@
         "title": "ConsentWithdrawal",
         "type": "object"
       },
+      "DkimSelectorsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "selectors": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Selectors",
+            "type": "array"
+          }
+        },
+        "required": [
+          "selectors"
+        ],
+        "title": "DkimSelectorsResponse",
+        "type": "object"
+      },
+      "DkimSelectorsUpdate": {
+        "additionalProperties": false,
+        "description": "The selectors an organization says it signs with.\n\nBounded here as well as in the database. A selector becomes a DNS label in a query\nthis platform makes on the institution's behalf, so what arrives from a form does not\nreach a resolver unchecked.\n\nThe pattern follows RFC 6376: a selector is `sub-domain *(\".\" sub-domain)`, so dots\nbetween labels are legal and underscores are not. Refusing a legal selector would be\nthe worse failure -- the check is unanswerable without one, so a rejected declaration\nmeans an institution can never have DKIM assessed at all.",
+        "properties": {
+          "contract_version": {
+            "const": "v1",
+            "default": "v1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "selectors": {
+            "items": {
+              "maxLength": 253,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$",
+              "type": "string"
+            },
+            "maxItems": 10,
+            "title": "Selectors",
+            "type": "array"
+          }
+        },
+        "required": [
+          "selectors"
+        ],
+        "title": "DkimSelectorsUpdate",
+        "type": "object"
+      },
       "DomainChallengeCreate": {
         "additionalProperties": false,
         "properties": {
@@ -1294,6 +1345,14 @@
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "declared_dkim_selectors": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Declared Dkim Selectors",
+            "type": "array"
           },
           "id": {
             "format": "uuid",
@@ -4657,6 +4716,70 @@
           }
         },
         "summary": "Verify Challenge",
+        "tags": [
+          "domains"
+        ]
+      }
+    },
+    "/api/v1/organizations/{organization_id}/domains/{domain_id}/dkim-selectors": {
+      "put": {
+        "description": "Record which DKIM selectors this domain signs with.\n\nDKIM is the one e-mail check that cannot be answered by looking. A selector is an\narbitrary label -- `s1`, `google`, `k1-2024` -- living at\n`<selector>._domainkey.<domain>`, and nothing publishes the list. The passive\noptions are to guess names or to be told, and guessing is what this platform\nrefuses to do everywhere else.\n\nDeclaring nothing is allowed and costs nothing: the check reports\n`not_applicable`, which is excluded from scoring and leaves coverage untouched.\nAn institution that never fills this in is not marked down for it -- it has one\nfewer check answered, which is a different statement and the honest one.\n\nRequires the same right as adding a domain. A selector decides where this\nplatform sends DNS queries on the institution's behalf, so it is a change to what\nis assessed rather than a preference.",
+        "operationId": "set_dkim_selectors_api_v1_organizations__organization_id__domains__domain_id__dkim_selectors_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "domain_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Domain Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DkimSelectorsUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DkimSelectorsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Dkim Selectors",
         "tags": [
           "domains"
         ]

@@ -359,6 +359,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/organizations/{organization_id}/domains/{domain_id}/dkim-selectors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Dkim Selectors
+         * @description Record which DKIM selectors this domain signs with.
+         *
+         *     DKIM is the one e-mail check that cannot be answered by looking. A selector is an
+         *     arbitrary label -- `s1`, `google`, `k1-2024` -- living at
+         *     `<selector>._domainkey.<domain>`, and nothing publishes the list. The passive
+         *     options are to guess names or to be told, and guessing is what this platform
+         *     refuses to do everywhere else.
+         *
+         *     Declaring nothing is allowed and costs nothing: the check reports
+         *     `not_applicable`, which is excluded from scoring and leaves coverage untouched.
+         *     An institution that never fills this in is not marked down for it -- it has one
+         *     fewer check answered, which is a different statement and the honest one.
+         *
+         *     Requires the same right as adding a domain. A selector decides where this
+         *     platform sends DNS queries on the institution's behalf, so it is a change to what
+         *     is assessed rather than a preference.
+         */
+        put: operations["set_dkim_selectors_api_v1_organizations__organization_id__domains__domain_id__dkim_selectors_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/organizations/{organization_id}/domains/{domain_id}/findings": {
         parameters: {
             query?: never;
@@ -1231,6 +1266,40 @@ export interface components {
             /** Reason */
             reason?: string | null;
         };
+        /** DkimSelectorsResponse */
+        DkimSelectorsResponse: {
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /** Selectors */
+            selectors: string[];
+        };
+        /**
+         * DkimSelectorsUpdate
+         * @description The selectors an organization says it signs with.
+         *
+         *     Bounded here as well as in the database. A selector becomes a DNS label in a query
+         *     this platform makes on the institution's behalf, so what arrives from a form does not
+         *     reach a resolver unchecked.
+         *
+         *     The pattern follows RFC 6376: a selector is `sub-domain *("." sub-domain)`, so dots
+         *     between labels are legal and underscores are not. Refusing a legal selector would be
+         *     the worse failure -- the check is unanswerable without one, so a rejected declaration
+         *     means an institution can never have DKIM assessed at all.
+         */
+        DkimSelectorsUpdate: {
+            /**
+             * Contract Version
+             * @default v1
+             * @constant
+             */
+            contract_version: "v1";
+            /** Selectors */
+            selectors: string[];
+        };
         /** DomainChallengeCreate */
         DomainChallengeCreate: {
             /**
@@ -1343,6 +1412,11 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Declared Dkim Selectors
+             * @default []
+             */
+            declared_dkim_selectors: string[];
             /**
              * Id
              * Format: uuid
@@ -3092,6 +3166,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DomainResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_dkim_selectors_api_v1_organizations__organization_id__domains__domain_id__dkim_selectors_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                domain_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DkimSelectorsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DkimSelectorsResponse"];
                 };
             };
             /** @description Validation Error */

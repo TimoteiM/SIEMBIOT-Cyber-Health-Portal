@@ -110,6 +110,72 @@ function PublicationSection({
   );
 }
 
+function DkimSelectors({
+  organizationId,
+  domainId,
+  declared,
+  onMessage,
+}: {
+  organizationId: string;
+  domainId: string;
+  declared: string[];
+  onMessage: (key: MessageKey) => void;
+}) {
+  const { t } = useLocalization();
+  const [value, setValue] = useState(declared.join(", "));
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setValue(declared.join(", "));
+  }, [declared]);
+
+  async function save() {
+    setBusy(true);
+    try {
+      // Split on commas and whitespace, drop the empties. Somebody pasting from their
+      // mail provider's console gets a list in whatever shape that console used, and
+      // refusing it over a stray space would be this form protecting itself rather than
+      // helping them.
+      const selectors = value
+        .split(/[\s,]+/)
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+      await apiRequest(
+        `/api/v1/organizations/${organizationId}/domains/${domainId}/dkim-selectors`,
+        { method: "PUT", body: JSON.stringify({ selectors }) },
+      );
+      onMessage("dkim.saved");
+    } catch (error) {
+      onMessage(apiErrorKey(error, "dkim.saveFailed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section aria-labelledby="dkim-title">
+      <h2 id="dkim-title">{t("dkim.heading")}</h2>
+      <p>{t("dkim.explainer")}</p>
+      <p className="hint">{t("dkim.noPenalty")}</p>
+
+      <label htmlFor="dkim-selectors">{t("dkim.label")}</label>
+      <input
+        id="dkim-selectors"
+        type="text"
+        value={value}
+        placeholder={t("dkim.placeholder")}
+        onChange={(event) => setValue(event.target.value)}
+      />
+      <p className="muted">{t("dkim.whereToFind")}</p>
+
+      <button className="button secondary" type="button" disabled={busy} onClick={save}>
+        {t("dkim.save")}
+      </button>
+    </section>
+  );
+}
+
+
 export default function DomainDetail({
   organizationId,
   domainId,

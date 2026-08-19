@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 
 class ContractModel(BaseModel):
@@ -151,6 +151,41 @@ class DomainCreate(BaseModel):
     domain: str = Field(min_length=1, max_length=253)
 
 
+class DkimSelectorsUpdate(ContractModel):
+    """The selectors an organization says it signs with.
+
+    Bounded here as well as in the database. A selector becomes a DNS label in a query
+    this platform makes on the institution's behalf, so what arrives from a form does not
+    reach a resolver unchecked.
+
+    The pattern follows RFC 6376: a selector is `sub-domain *("." sub-domain)`, so dots
+    between labels are legal and underscores are not. Refusing a legal selector would be
+    the worse failure -- the check is unanswerable without one, so a rejected declaration
+    means an institution can never have DKIM assessed at all.
+    """
+
+    selectors: Annotated[
+        list[
+            Annotated[
+                str,
+                StringConstraints(
+                    min_length=1,
+                    max_length=253,
+                    pattern=(
+                        r"^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
+                        r"(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$"
+                    ),
+                ),
+            ]
+        ],
+        Field(max_length=10),
+    ]
+
+
+class DkimSelectorsResponse(ContractModel):
+    selectors: list[str]
+
+
 class DomainResponse(ContractModel):
     id: UUID
     organization_id: UUID
@@ -161,6 +196,10 @@ class DomainResponse(ContractModel):
     ownership_state: Literal[
         "pending", "verified", "expired", "failed", "revoked", "reverification_required"
     ]
+    #: Declared rather than discovered. A DKIM selector is an arbitrary label with no
+    #: record that lists it, so the only passive alternatives are guessing names or
+    #: being told, and this platform does not guess.
+    declared_dkim_selectors: list[str] = []
     created_at: datetime
 
 

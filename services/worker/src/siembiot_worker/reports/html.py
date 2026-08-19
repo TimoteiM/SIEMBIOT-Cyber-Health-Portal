@@ -133,6 +133,7 @@ _TEXT: dict[str, dict[str, str]] = {
             "răspuns, aşa că nu putem spune nici că este bine, nici că este rău."
         ),
         "checked_not_applicable": "verificări nu se aplică acestui domeniu",
+        "checked_withheld": "dintre acestea cer o autorizare pe care evaluarea pasivă nu o are",
         "evidence_result": "rezultat",
         "evidence_omitted": "alte date colectate, neafișate aici",
         "obs.observed": "măsurat",
@@ -377,6 +378,7 @@ _TEXT: dict[str, dict[str, str]] = {
             "can say neither that it is good nor that it is bad."
         ),
         "checked_not_applicable": "checks do not apply to this domain",
+        "checked_withheld": "of those need an authorization a passive assessment does not have",
         "evidence_result": "result",
         "evidence_omitted": "further data collected, not shown here",
         "obs.observed": "measured",
@@ -628,6 +630,7 @@ table.checked li { font-size: 0.78rem; line-height: 1.35; margin-bottom: 0.25rem
 .dot-unknown { background: #9aa5b1; }
 .checked-note { font-size: 0.76rem; color: #5a6673; margin: 0.1rem 0 0.3rem; }
 .checked-na { font-size: 0.76rem; color: #7a8592; margin: 0.2rem 0 0; }
+code.check-id { font-size: 0.72rem; color: #8a939c; }
 
 h3.asset-basis { font-size: 0.82rem; margin: 0.7rem 0 0.25rem; color: #3d4854; }
 ul.assets { margin: 0; padding-left: 1.1rem; font-size: 0.8rem; line-height: 1.5;
@@ -1299,13 +1302,15 @@ def _checked(report: ReportDocument, locale: str) -> Node:
     if columns["unknown"]:
         blocks.append(element("p", _text(locale, "checked_unknown_note"), class_="checked-note"))
     if not_applicable:
-        blocks.append(
-            element(
-                "p",
-                f"{not_applicable} {_text(locale, 'checked_not_applicable')}",
-                class_="checked-na",
-            )
+        line = f"{not_applicable} {_text(locale, 'checked_not_applicable')}"
+        withheld = sum(
+            1
+            for check in report.checks
+            if check.outcome == "not_applicable" and check.check_id in set(report.withheld_checks)
         )
+        if withheld:
+            line += f" · {withheld} {_text(locale, 'checked_withheld')}"
+        blocks.append(element("p", line, class_="checked-na"))
     return element("section", *blocks)
 
 
@@ -1556,6 +1561,28 @@ def _assets(report: ReportDocument, locale: str) -> Node:
 
 
 def _not_determined(report: ReportDocument, locale: str) -> Element:
+    """What was not established, and what was never attempted.
+
+    These listed bare identifiers -- `D.database_exposed` -- which name the check to
+    somebody who maintains the catalogue and nobody else. The reader they are written for
+    is being told that part of the assessment did not happen, and "D.database_exposed"
+    does not tell them which part.
+
+    The titles are already in the document, carried for the summary above. Using them
+    here costs nothing and turns a list of symbols into a list of sentences. The
+    identifier stays beside each one, small: an operator disputing a result needs the
+    name the catalogue uses.
+    """
+    titles = {
+        check.check_id: _pick(locale, check.title_ro, check.title_en) for check in report.checks
+    }
+
+    def entry(check_id: str) -> Node:
+        title = titles.get(check_id)
+        if title is None:
+            return element("li", element("code", check_id))
+        return element("li", title, " ", element("code", check_id, class_="check-id"))
+
     sections: list[Node] = []
     for key, note, items in (
         ("undetermined", "undetermined_note", report.undetermined_checks),
@@ -1567,7 +1594,7 @@ def _not_determined(report: ReportDocument, locale: str) -> Element:
             [
                 element("h2", _text(locale, key)),
                 element("p", _text(locale, note), class_="note"),
-                element("ul", *[element("li", element("code", item)) for item in items]),
+                element("ul", *[entry(item) for item in items]),
             ]
         )
     return element("section", *sections)

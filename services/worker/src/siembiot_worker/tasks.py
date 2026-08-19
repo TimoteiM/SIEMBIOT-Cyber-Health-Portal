@@ -218,6 +218,9 @@ def run_assessment(
     """
     catalog = load_catalog()
     accepted = _accepted_assets(organization_id, domain_id)
+    declared_dkim_selectors = declared_dkim_selectors or _declared_selectors(
+        organization_id, domain_id
+    )
     runtime = build_observation_runtime(mode=mode)
     context = AssessmentContext(
         organization_id=organization_id,
@@ -284,6 +287,39 @@ def run_assessment(
         # failing repeatedly.
         database.dispose()
     return str(state)
+
+
+def _declared_selectors(organization_id: UUID, domain_id: UUID) -> tuple[str, ...]:
+    """DKIM selectors the organization declared for this domain.
+
+    Read at the start of the run for the reason accepted assets are: a declaration can
+    change between a run being enqueued and it starting, and what the organization says
+    at the moment of assessment is what the run should look for.
+
+    Empty is the ordinary case. DKIM selectors are arbitrary labels with no record that
+    lists them, so the only passive alternatives are to guess names or to be told; this
+    platform does not guess. With nothing declared the collector reports the check
+    `not_applicable`, which is excluded from scoring and leaves coverage untouched -- an
+    institution that has not filled this in is not marked down for it.
+    """
+    from sqlalchemy import text  # noqa: PLC0415 - imported where used, as elsewhere here
+
+    engine = _tenant_engine()
+    try:
+        with _evidence_transaction(engine, organization_id) as connection:
+            row = connection.execute(
+                text(
+                    """
+                    SELECT declared_dkim_selectors
+                    FROM domains
+                    WHERE id = :domain_id AND organization_id = :organization_id
+                    """
+                ),
+                {"domain_id": domain_id, "organization_id": organization_id},
+            ).first()
+            return tuple(row[0] or ()) if row is not None else ()
+    finally:
+        engine.dispose()
 
 
 def _accepted_assets(organization_id: UUID, domain_id: UUID) -> tuple[str, ...]:

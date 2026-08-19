@@ -207,3 +207,32 @@ def test_the_earlier_versions_still_load_what_they_always_loaded() -> None:
         for rule in old_redirect.rules
         if rule.attribute == "http_reachable" and rule.equals is False
     ], "1.2.0 must keep the defect it was published with"
+
+
+def test_an_undeclared_dkim_costs_no_coverage() -> None:
+    """The decision this platform already made, pinned before a UI makes it easy to break.
+
+    A DKIM selector cannot be discovered passively, so most institutions will never
+    declare one. If the unanswered check reduced coverage, every one of them would be
+    marked down for not doing paperwork -- the platform charging them for a limit of its
+    own method. The same reasoning as an unconfigured reputation provider: a question we
+    chose not to ask is not a question that failed.
+
+    Enforced by `not_applicable` being absent from the coverage-reducing results, which
+    is what the normalizer produces when nothing is declared.
+    """
+    from siembiot_worker.policy.catalog import COVERAGE_REDUCING_RESULTS, Result
+
+    assert Result.NOT_APPLICABLE not in COVERAGE_REDUCING_RESULTS
+    assert {result.value for result in COVERAGE_REDUCING_RESULTS} == {"unknown", "error"}
+
+
+def test_a_declared_selector_that_is_missing_does_count() -> None:
+    """The other half. Declaring a selector and not publishing it is a real finding: the
+    institution says it signs mail and the record is not there. That must not be softened
+    into the same silence as never having declared one."""
+    catalog = load_catalog()
+    check = next(item for item in catalog.checks if item.check_id == "B.dkim_declared_present")
+    absent = [rule for rule in check.rules if rule.status == "absent"]
+    assert absent, "no rule covers a declared selector that is not published"
+    assert absent[0].result.value == "fail"
