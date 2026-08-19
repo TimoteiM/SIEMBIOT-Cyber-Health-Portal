@@ -81,9 +81,10 @@ class ReportAssetGroup:
 
     basis: str
     confidence: float
+    #: Every discovered name of this basis, not a page's worth. The renderer folds the
+    #: long tail behind a disclosure; nothing is dropped, because a count an institution
+    #: cannot expand tells it no more than the number it already had.
     names: tuple[str, ...]
-    #: How many more the list left out, so a truncated group never reads as the whole.
-    omitted: int = 0
     #: Names on infrastructure shared with other tenants, where resolving to the same
     #: address says nothing about who owns what.
     shared_hosting: int = 0

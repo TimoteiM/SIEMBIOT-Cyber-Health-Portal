@@ -114,7 +114,7 @@ _TEXT: dict[str, dict[str, str]] = {
             "domeniul evaluat."
         ),
         "asset_confidence": "indice",
-        "asset_omitted": "și încă",
+        "asset_rest": "Vezi restul numelor",
         "asset_shared": "pe găzduire partajată",
         "basis.authorized_domain": "domeniul autorizat însuși",
         "basis.subdomain_of_authorized_domain": "subdomeniu al domeniului autorizat",
@@ -130,7 +130,7 @@ _TEXT: dict[str, dict[str, str]] = {
         "checked_unknown": "Nu am putut verifica",
         "checked_unknown_note": (
             "Gri nu înseamnă în regulă. Sunt verificări la care nu am primit un "
-            "răspuns, aşa că nu putem spune nici că este bine, nici că este rău."
+            "răspuns, așa că nu putem spune nici că este bine, nici că este rău."
         ),
         "checked_not_applicable": "verificări nu se aplică acestui domeniu",
         "checked_withheld": "dintre acestea cer o autorizare pe care evaluarea pasivă nu o are",
@@ -359,7 +359,7 @@ _TEXT: dict[str, dict[str, str]] = {
             "assessed domain is."
         ),
         "asset_confidence": "index",
-        "asset_omitted": "and a further",
+        "asset_rest": "Show the remaining names",
         "asset_shared": "on shared hosting",
         "basis.authorized_domain": "the authorized domain itself",
         "basis.subdomain_of_authorized_domain": "subdomain of the authorized domain",
@@ -636,6 +636,11 @@ h3.asset-basis { font-size: 0.82rem; margin: 0.7rem 0 0.25rem; color: #3d4854; }
 ul.assets { margin: 0; padding-left: 1.1rem; font-size: 0.8rem; line-height: 1.5;
             column-count: 2; column-gap: 1.6rem; }
 ul.assets li { break-inside: avoid; }
+details.asset-rest > summary { cursor: pointer; color: #3d5a80; font-size: 0.76rem;
+                               list-style: none; margin: 0.15rem 0 0.2rem; }
+details.asset-rest > summary::-webkit-details-marker { display: none; }
+details.asset-rest > summary::before { content: "▸  "; }
+details.asset-rest[open] > summary::before { content: "▾  "; }
 
 /* Visibly a different voice from the reviewed findings above it. Softer rule, indented
    block, no severity colours -- a reader should be able to tell at a glance that this
@@ -652,16 +657,17 @@ ul.assets li { break-inside: avoid; }
 .insight-evidence > summary { cursor: pointer; color: #3d5a80; font-size: 0.76rem;
                               list-style: none; }
 .insight-evidence > summary::-webkit-details-marker { display: none; }
-.insight-evidence > summary::before { content: "b8  "; }
-.insight-evidence[open] > summary::before { content: "be  "; }
+.insight-evidence > summary::before { content: "▸  "; }
+.insight-evidence[open] > summary::before { content: "▾  "; }
 .insight-evidence table.evidence { margin-left: 0.9rem; }
 td.ename.indented { padding-left: 0.9rem; }
 
 /* On paper there is nothing to click, so everything is open. A folded section in a PDF
    is evidence the reader cannot reach at all. */
 @media print {
-  .insight-evidence > summary { display: none; }
+  .insight-evidence > summary, .asset-rest > summary { display: none; }
   .insight-evidence > table { display: table !important; }
+  .asset-rest > ul { display: block !important; }
 }
 
 .legend { margin: 0.5rem 0 0.2rem; font-size: 0.78rem; color: #5a6673; }
@@ -1519,6 +1525,14 @@ def _insights(report: ReportDocument, locale: str) -> Node:
     return element("section", element("div", *blocks, class_="insights"))
 
 
+#: How many names of one kind stand open before the rest are folded into a disclosure.
+#:
+#: A preview, not a cap: every name is in the document either way. This only decides how
+#: much of a group meets the eye first, so a section that opens with sixty-two weak names
+#: does not teach the reader to skip it.
+_ASSET_PREVIEW = 12
+
+
 def _assets(report: ReportDocument, locale: str) -> Node:
     """Which names were discovered, and how strong the claim is that they belong here.
 
@@ -1545,17 +1559,30 @@ def _assets(report: ReportDocument, locale: str) -> Node:
         heading = f"{label} — {_text(locale, 'asset_confidence')} {group.confidence:g}"
         if group.shared_hosting:
             heading += f" · {group.shared_hosting} {_text(locale, 'asset_shared')}"
-        items = [element("li", name) for name in group.names]
-        if group.omitted:
-            items.append(
+        blocks.append(element("h3", heading, class_="asset-basis"))
+        preview = group.names[:_ASSET_PREVIEW]
+        rest = group.names[_ASSET_PREVIEW:]
+        blocks.append(element("ul", *(element("li", name) for name in preview), class_="assets"))
+        if rest:
+            # Folded, not dropped. Sixty-two weak names ahead of the twenty strong ones
+            # buries the ones worth acting on, but an institution cannot check a list it
+            # cannot see -- so the remainder is one click away, and open on paper, which
+            # is the same bargain the evidence disclosures make.
+            blocks.append(
                 element(
-                    "li",
-                    f"{_text(locale, 'asset_omitted')} {group.omitted}",
-                    class_="muted",
+                    "details",
+                    element(
+                        "summary",
+                        f"{_text(locale, 'asset_rest')} ({len(rest)})",
+                    ),
+                    element(
+                        "ul",
+                        *(element("li", name) for name in rest),
+                        class_="assets",
+                    ),
+                    class_="asset-rest",
                 )
             )
-        blocks.append(element("h3", heading, class_="asset-basis"))
-        blocks.append(element("ul", *items, class_="assets"))
 
     return element("section", *blocks)
 

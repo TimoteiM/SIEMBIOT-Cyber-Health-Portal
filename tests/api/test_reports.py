@@ -662,6 +662,9 @@ def test_discovered_names_reach_the_document_grouped_by_confidence(
     assert strongest.confidence == 0.9, "the strongest claim comes first"
     assert strongest.names == ("mail.active.test",)
     assert weakest.basis == "unrelated_name"
-    assert weakest.omitted > 0, "twenty weak names must not all be printed"
-    assert len(weakest.names) + weakest.omitted == 20, "none may be silently lost"
+    # Every one of them, not a printable dozen. The document is what an institution
+    # checks a name against; deciding here that eight of them are not worth carrying
+    # would put them beyond reach of any renderer, and a tally is not something anybody
+    # can recognise or disown. How many meet the eye first is the renderer's call.
+    assert len(weakest.names) == 20, "none may be dropped on the way to the document"
     assert weakest.shared_hosting == 3

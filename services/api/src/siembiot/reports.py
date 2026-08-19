@@ -587,14 +587,6 @@ def _caps_for(document: Any, methodology_version: str) -> tuple[ReportCap, ...]:
     return tuple(caps)
 
 
-#: How many names of one kind the report lists before counting the rest.
-#:
-#: Sixty-two low-confidence names is not a list anybody reads, and a page of them buries
-#: the twenty that matter. The remainder is counted rather than dropped, because a list
-#: cut without saying so reads as the whole list.
-_MAX_ASSET_NAMES = 12
-
-
 def _asset_groups(connection: Connection, domain_id: UUID) -> tuple[ReportAssetGroup, ...]:
     """Discovered names for this domain, grouped by why we think they belong to it.
 
@@ -621,13 +613,14 @@ def _asset_groups(connection: Connection, domain_id: UUID) -> tuple[ReportAssetG
 
     groups: list[ReportAssetGroup] = []
     for (basis, confidence), items in sorted(collected.items(), key=lambda kv: -kv[0][1]):
-        names = tuple(str(item["name"]) for item in items[:_MAX_ASSET_NAMES])
+        # Every name, not a page's worth. A count an institution cannot expand is not
+        # disclosure, and the renderer -- not this -- decides how many meet the eye
+        # first. Bounded upstream: `ct_log.MAX_CANDIDATES` admits at most 500 per run.
         groups.append(
             ReportAssetGroup(
                 basis=basis,
                 confidence=confidence,
-                names=names,
-                omitted=max(0, len(items) - len(names)),
+                names=tuple(str(item["name"]) for item in items),
                 shared_hosting=sum(1 for item in items if item["shared_hosting"]),
             )
         )

@@ -1497,7 +1497,6 @@ def asset_group(**overrides: object) -> ReportAssetGroup:
         "basis": "subdomain_of_authorized_domain",
         "confidence": 0.9,
         "names": ("mail.exemplu.ro", "vpn.exemplu.ro"),
-        "omitted": 0,
         "shared_hosting": 0,
     }
     base.update(overrides)
@@ -1532,12 +1531,54 @@ def test_the_basis_of_each_claim_is_named() -> None:
     assert _TEXT["ro"]["basis.unrelated_name"] in shown
 
 
-def test_a_truncated_group_says_how_many_it_left_out() -> None:
-    """Sixty-two names is not a list anybody reads, but a list cut without saying so
-    reads as the whole list."""
-    shown = visible_text(render_report(report(asset_groups=(asset_group(omitted=50),))))
-    assert _TEXT["ro"]["asset_omitted"] in shown
-    assert "50" in shown
+def test_every_discovered_name_reaches_the_reader() -> None:
+    """The report used to list twelve names and count the rest, which leaves an
+    institution unable to check the very thing the section exists to disclose: a name
+    they can see is one they can recognise or disown, and a name behind a tally is
+    neither. The long tail is folded so it does not bury the strong names, never cut."""
+    names = tuple(f"n{index:02d}.exemplu.ro" for index in range(60))
+    html = render_report(report(asset_groups=(asset_group(names=names),)))
+    shown = visible_text(html)
+
+    missing = [name for name in names if name not in shown]
+    assert not missing, f"{len(missing)} names never reach the page: {missing[:5]}"
+
+    # Folded, not flat: the tail sits behind a disclosure the reader opens.
+    assert 'class="asset-rest"' in html
+    assert _TEXT["ro"]["asset_rest"] in shown
+
+
+def test_the_folded_tail_is_open_on_paper() -> None:
+    """A PDF has nothing to click. A disclosure that stays shut in print hides those
+    names from whoever reads the printed copy, and the printed copy is what an
+    institution forwards to the people who have to act on it."""
+    html = render_report(report(asset_groups=(asset_group(),)))
+    printed = html[html.index("@media print") :]
+    assert ".asset-rest > summary" in printed
+    assert ".asset-rest > ul { display: block !important; }" in printed
+
+
+def test_the_rendered_report_carries_no_control_characters() -> None:
+    """The disclosure marker was written as a CSS escape inside a Python string literal,
+    where its leading digits are read as an octal escape instead. So the report shipped
+    U+0015 followed by the literal remainder of the escape, and every browser drew a
+    missing-glyph box beside "Vezi dovada".
+
+    Asserted over the whole document rather than over that one rule, because the mistake
+    belongs to writing CSS escapes in Python at all and would land identically anywhere
+    else in the renderer.
+    """
+    import unicodedata
+
+    html = render_report(report(asset_groups=(asset_group(),)))
+    stray = sorted(
+        {
+            f"U+{ord(char):04X}"
+            for char in html
+            if unicodedata.category(char) in ("Cc", "Cf") and char not in "\t\n\r"
+        }
+    )
+    assert not stray, f"control characters in the rendered report: {stray}"
 
 
 def test_shared_hosting_is_flagged_where_it_applies() -> None:
