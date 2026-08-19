@@ -16,6 +16,8 @@ import pytest
 from siembiot.reports import _INTERNAL_ATTRIBUTES
 from siembiot_worker.reports import (
     LOCALES,
+    ReportAssetGroup,
+    ReportCap,
     ReportCheck,
     ReportDocument,
     ReportEvidence,
@@ -1411,3 +1413,156 @@ def test_no_bare_coverage_label_survives_in_either_locale() -> None:
     copy is the one an institution reads and the English one is easier to review."""
     for locale in LOCALES:
         assert _TEXT[locale]["coverage"] not in {"Acoperire", "Coverage"}
+
+
+def test_the_report_shows_what_each_area_is_worth() -> None:
+    """ "High importance" says e-mail matters more than reputation. It does not say it is
+    a fifth of the total, and a reader deciding what to fix first is owed the arithmetic
+    rather than an adjective."""
+    shown = visible_text(
+        render_report(report(pillars=(ReportPillar(pillar="email", score=34.2, weight=0.2),)))
+    )
+    assert "20%" in shown
+    assert _TEXT["ro"]["of_the_score"] in shown
+
+
+def test_the_report_explains_how_the_score_is_reached() -> None:
+    """A deterministic methodology that does not show its working is indistinguishable
+    from an opinion, and an institution disputing the figure had nothing to dispute."""
+    shown = visible_text(render_report(report()))
+    assert _TEXT["ro"]["how_scored_heading"] in shown
+    assert "îndeplinită 1" in shown
+    assert "nu scad scorul" in shown
+
+
+def test_a_capped_score_says_so_and_says_why() -> None:
+    """The one number that cannot be derived from the pillars above it: the arithmetic
+    says one thing and the printed figure says another. Without the ceiling and its
+    reason, the scoring looks arbitrary exactly where it is most deliberate."""
+    shown = visible_text(
+        render_report(
+            report(
+                score=54.0,
+                uncapped_score=71.5,
+                caps_applied=(
+                    ReportCap(
+                        cap_id="expired_certificate",
+                        ceiling=54.0,
+                        justification_ro="Un certificat expirat întrerupe accesul securizat.",
+                        justification_en="An expired certificate breaks secure access.",
+                        triggering_check_ids=("C.certificate_validity",),
+                    ),
+                ),
+            )
+        )
+    )
+    assert _TEXT["ro"]["cap_heading"] in shown
+    assert "54" in shown and "71.5" in shown, "both the ceiling and the uncapped score"
+    assert "Un certificat expirat întrerupe accesul securizat." in shown
+
+
+def test_an_uncapped_score_says_nothing_about_caps() -> None:
+    """Most reports hit no ceiling. A heading explaining one that did not apply is noise
+    that teaches a reader to skip the section on the report where it matters."""
+    shown = visible_text(render_report(report(caps_applied=())))
+    assert _TEXT["ro"]["cap_heading"] not in shown
+
+
+def test_the_cap_reason_is_the_reviewed_one_not_an_invented_one() -> None:
+    """The justification is written in the methodology, in both languages, at the time
+    the cap was. Rendering it means the report explains a capped score in words somebody
+    reviewed rather than a phrase composed at render time."""
+    for locale, expected in (("ro", "Motiv românesc."), ("en", "English reason.")):
+        shown = visible_text(
+            render_report(
+                report(
+                    uncapped_score=80.0,
+                    caps_applied=(
+                        ReportCap(
+                            cap_id="no_https",
+                            ceiling=54.0,
+                            justification_ro="Motiv românesc.",
+                            justification_en="English reason.",
+                        ),
+                    ),
+                ),
+                locale=locale,
+            )
+        )
+        assert expected in shown, locale
+
+
+def asset_group(**overrides: object) -> ReportAssetGroup:
+    base: dict[str, object] = {
+        "basis": "subdomain_of_authorized_domain",
+        "confidence": 0.9,
+        "names": ("mail.exemplu.ro", "vpn.exemplu.ro"),
+        "omitted": 0,
+        "shared_hosting": 0,
+    }
+    base.update(overrides)
+    return ReportAssetGroup(**base)  # type: ignore[arg-type]
+
+
+def test_discovered_names_are_listed_not_just_counted() -> None:
+    """ "83 discovered, 62 low-confidence" is a number an institution can neither check
+    nor act on: not which 62, not why they are weaker, not whether the 20 stronger ones
+    are theirs."""
+    shown = visible_text(render_report(report(asset_groups=(asset_group(),))))
+    assert _TEXT["ro"]["assets_heading"] in shown
+    assert "mail.exemplu.ro" in shown
+    assert "0.9" in shown
+
+
+def test_the_basis_of_each_claim_is_named() -> None:
+    """A subdomain of the authorized domain is a different claim from a name that merely
+    resolves to the same address. Listing both as "discovered assets" would assert an
+    ownership the platform has not established."""
+    shown = visible_text(
+        render_report(
+            report(
+                asset_groups=(
+                    asset_group(basis="subdomain_of_authorized_domain", confidence=0.9),
+                    asset_group(basis="unrelated_name", confidence=0.2, names=("altceva.ro",)),
+                )
+            )
+        )
+    )
+    assert _TEXT["ro"]["basis.subdomain_of_authorized_domain"] in shown
+    assert _TEXT["ro"]["basis.unrelated_name"] in shown
+
+
+def test_a_truncated_group_says_how_many_it_left_out() -> None:
+    """Sixty-two names is not a list anybody reads, but a list cut without saying so
+    reads as the whole list."""
+    shown = visible_text(render_report(report(asset_groups=(asset_group(omitted=50),))))
+    assert _TEXT["ro"]["asset_omitted"] in shown
+    assert "50" in shown
+
+
+def test_shared_hosting_is_flagged_where_it_applies() -> None:
+    """Resolving to the same address as somebody else says nothing about who owns what,
+    and a reader deciding whether a name is theirs needs to know that."""
+    shown = visible_text(render_report(report(asset_groups=(asset_group(shared_hosting=3),))))
+    assert _TEXT["ro"]["asset_shared"] in shown
+
+
+def test_the_names_are_not_claimed_as_confirmed_assets() -> None:
+    """Discovery is not ownership. The platform found names in public logs; the
+    organization decides what belongs to it, and the report has to say so beside the
+    list rather than leave the heading to imply otherwise."""
+    shown = visible_text(render_report(report(asset_groups=(asset_group(),))))
+    assert "Nu sunt active confirmate" in shown
+
+
+def test_a_domain_with_no_discovered_names_shows_no_section() -> None:
+    shown = visible_text(render_report(report(asset_groups=())))
+    assert _TEXT["ro"]["assets_heading"] not in shown
+
+
+def test_a_discovered_name_cannot_carry_markup_into_the_page() -> None:
+    """Names come from other people's certificates, which is to say from strings somebody
+    else chose and put in a public log on purpose."""
+    page = render_report(report(asset_groups=(asset_group(names=(HOSTILE,)),)))
+    assert "<script>" not in page
+    assert "&lt;script&gt;" in page

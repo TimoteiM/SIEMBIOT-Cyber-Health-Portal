@@ -26,8 +26,11 @@ from typing import Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, Response
+from siembiot_worker.policy.catalog import load_catalog
 from siembiot_worker.reports import (
     LOCALES,
+    ReportAssetGroup,
+    ReportCap,
     ReportCheck,
     ReportDocument,
     ReportEvidence,
@@ -547,6 +550,90 @@ def _insights_for(connection: Connection, assessment_id: UUID) -> tuple[ReportIn
     return tuple(insights)
 
 
+def _caps_for(document: Any, methodology_version: str) -> tuple[ReportCap, ...]:
+    """The ceilings this score hit, each with the justification the methodology carries.
+
+    The snapshot records which cap applied and to what; the reason lives in the
+    methodology, written when the cap was, in both languages. Joining them here means the
+    report explains a capped score in the words somebody reviewed rather than in a phrase
+    invented at render time.
+    """
+    applied = (document.get("overall") or {}).get("caps_applied") or []
+    if not applied:
+        return ()
+
+    try:
+        catalog = load_catalog(version=methodology_version)
+    except Exception:  # noqa: BLE001 - a report must render without the catalogue
+        return ()
+    definitions = {cap.cap_id: cap for cap in catalog.methodology.caps}
+
+    caps: list[ReportCap] = []
+    for item in applied:
+        if not isinstance(item, dict):
+            continue
+        definition = definitions.get(str(item.get("cap_id") or ""))
+        caps.append(
+            ReportCap(
+                cap_id=str(item.get("cap_id") or ""),
+                ceiling=float(item.get("ceiling") or 0.0),
+                justification_ro=getattr(definition, "justification_ro", ""),
+                justification_en=getattr(definition, "justification_en", ""),
+                triggering_check_ids=tuple(
+                    str(check) for check in item.get("triggering_check_ids") or []
+                ),
+            )
+        )
+    return tuple(caps)
+
+
+#: How many names of one kind the report lists before counting the rest.
+#:
+#: Sixty-two low-confidence names is not a list anybody reads, and a page of them buries
+#: the twenty that matter. The remainder is counted rather than dropped, because a list
+#: cut without saying so reads as the whole list.
+_MAX_ASSET_NAMES = 12
+
+
+def _asset_groups(connection: Connection, domain_id: UUID) -> tuple[ReportAssetGroup, ...]:
+    """Discovered names for this domain, grouped by why we think they belong to it.
+
+    Ordered by confidence, strongest first: the names an institution should look at are
+    the ones the platform is most sure about, and a list that opens with sixty-two
+    guesses teaches them to close it.
+    """
+    rows = connection.execute(
+        text(
+            """
+            SELECT name, attribution_basis, attribution_confidence, shared_hosting
+            FROM asset_candidates
+            WHERE domain_id = :domain_id AND state <> 'rejected'
+            ORDER BY attribution_confidence DESC, name
+            """
+        ),
+        {"domain_id": domain_id},
+    ).mappings()
+
+    collected: dict[tuple[str, float], list[Any]] = {}
+    for row in rows:
+        key = (str(row["attribution_basis"]), float(row["attribution_confidence"]))
+        collected.setdefault(key, []).append(row)
+
+    groups: list[ReportAssetGroup] = []
+    for (basis, confidence), items in sorted(collected.items(), key=lambda kv: -kv[0][1]):
+        names = tuple(str(item["name"]) for item in items[:_MAX_ASSET_NAMES])
+        groups.append(
+            ReportAssetGroup(
+                basis=basis,
+                confidence=confidence,
+                names=names,
+                omitted=max(0, len(items) - len(names)),
+                shared_hosting=sum(1 for item in items if item["shared_hosting"]),
+            )
+        )
+    return tuple(groups)
+
+
 def build_report_document(
     connection: Connection,
     organization_name: str,
@@ -600,6 +687,9 @@ def build_report_document(
         findings=findings,
         checks=checks,
         insights=insights,
+        uncapped_score=overall.get("uncapped_score"),
+        caps_applied=_caps_for(snapshot, str(assessment["methodology_version"])),
+        asset_groups=_asset_groups(connection, domain_id),
         undetermined_checks=tuple(coverage.get("undetermined_checks", [])),
         withheld_checks=withheld,
     )

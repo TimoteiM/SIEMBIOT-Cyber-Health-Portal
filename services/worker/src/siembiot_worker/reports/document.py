@@ -65,9 +65,60 @@ class ReportFinding:
 
 
 @dataclass(frozen=True)
+class ReportAssetGroup:
+    """Names discovered for this domain, grouped by why we think they belong to it.
+
+    The report said "83 subdomenii descoperite, 62 cu indiciu slab" and stopped. That is
+    a number an institution can neither check nor act on: they cannot tell which 62, nor
+    why those are weaker, nor whether the 20 stronger ones are theirs.
+
+    Grouped by basis rather than listed flat, because the basis is the part that carries
+    the meaning. A name found because it is a subdomain of the authorized domain is a
+    different claim from one that merely resolves to the same address, and presenting
+    both as "discovered assets" would be the platform asserting ownership it has not
+    established.
+    """
+
+    basis: str
+    confidence: float
+    names: tuple[str, ...]
+    #: How many more the list left out, so a truncated group never reads as the whole.
+    omitted: int = 0
+    #: Names on infrastructure shared with other tenants, where resolving to the same
+    #: address says nothing about who owns what.
+    shared_hosting: int = 0
+
+
+@dataclass(frozen=True)
+class ReportCap:
+    """A ceiling the methodology put on the score, and the reason it exists.
+
+    A capped score is the one number in the report that cannot be derived from the
+    pillars above it: the arithmetic says one thing and the published figure says
+    another. Printing the result without the ceiling leaves a reader to conclude the
+    scoring is arbitrary, which is the opposite of what a deterministic methodology is
+    for.
+    """
+
+    cap_id: str
+    ceiling: float
+    #: Both languages, like every other reviewed string in this document. The renderer
+    #: picks; the builder does not need to know who is reading.
+    justification_ro: str
+    justification_en: str
+    triggering_check_ids: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class ReportPillar:
     pillar: str
     score: float | None
+    #: The share of the overall score this pillar carries, as the methodology sets it.
+    #:
+    #: Rendered as the number it is. It was shown only as "high", "medium" or "low"
+    #: importance, which tells a reader that e-mail matters more than reputation but not
+    #: that it is a fifth of the total -- and a reader deciding what to fix first is
+    #: entitled to the actual arithmetic.
     weight: float
 
 
@@ -158,6 +209,12 @@ class ReportDocument:
     #: The model's reading of this run, when one was produced and configured. Empty is
     #: the ordinary case: no key, no gateway, or a model that returned nothing usable.
     insights: tuple[ReportInsight, ...] = ()
+    #: The score before any ceiling was applied, when one was.
+    uncapped_score: float | None = None
+    #: Ceilings the methodology applied, with the reason each exists.
+    caps_applied: tuple[ReportCap, ...] = ()
+    #: Discovered names, grouped by the strength of the claim that they belong here.
+    asset_groups: tuple[ReportAssetGroup, ...] = ()
     #: Checks that could not be determined. Named, not counted: "we could not tell about
     #: these three things" is a different statement from "coverage 91%", and only the
     #: first one tells a reader what to go and look at.

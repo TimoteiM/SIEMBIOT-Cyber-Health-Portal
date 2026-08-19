@@ -10,6 +10,7 @@ it, and every property tested below exists because of one of them.
 from __future__ import annotations
 
 import hashlib
+import json
 import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -508,3 +509,159 @@ def test_the_check_summary_describes_the_domain_and_not_its_subdomains(
     assert outcomes == {"A.dnssec_enabled": "pass"}, (
         "a subdomain's failure was folded into the domain's summary"
     )
+
+
+def test_a_capped_snapshot_reaches_the_document_with_its_reviewed_reason(
+    postgres_database: dict[str, str],
+) -> None:
+    """The whole path, not the helper.
+
+    `_caps_for` returning the right thing is not the same as the document builder calling
+    it -- a mistake already made twice in this codebase, where a component worked
+    perfectly and nothing was wired to it. This seeds a snapshot that hit a ceiling and
+    asserts the built document explains it, with the justification the methodology
+    carries rather than one composed at render time.
+    """
+    from siembiot.reports import _latest_scored_assessment, build_report_document
+
+    tenant = seed(postgres_database["owner_url"], domain="capped.test")
+    capped = json.dumps(
+        {
+            "overall": {
+                "score": 54.0,
+                "band": "exposed",
+                "uncapped_score": 71.5,
+                "caps_applied": [
+                    {
+                        "cap_id": "expired_certificate",
+                        "ceiling": 54.0,
+                        "triggering_check_ids": ["C.certificate_validity"],
+                    }
+                ],
+            },
+            "coverage": {"percentage": 91.5, "sufficient": True, "undetermined_checks": []},
+            "pillars": [{"pillar": "web_tls", "score": 20.0, "weight": 0.25}],
+        }
+    )
+    # A later assessment rather than an edit: snapshot rows are append-only, enforced by
+    # a trigger, so history cannot be rewritten even by a test.
+    later_assessment = uuid4()
+    with psycopg.connect(postgres_database["owner_url"], autocommit=True) as owner:
+        owner.execute(
+            "INSERT INTO assessments (id, organization_id, domain_id, methodology_version, "
+            "state, completed_at, mode) VALUES (%s, %s, %s, %s, 'completed', %s, "
+            "'passive_observation')",
+            (
+                str(later_assessment),
+                str(tenant.organization_id),
+                str(tenant.domain_id),
+                METHODOLOGY,
+                datetime.now(UTC),
+            ),
+        )
+        owner.execute(
+            "INSERT INTO score_snapshots (id, organization_id, assessment_id, "
+            "methodology_version, policy_digest, evidence_digest, score, band, "
+            "coverage_percentage, coverage_sufficient, is_projection, document, "
+            "computed_at) VALUES (%s, %s, %s, %s, %s, %s, 54.0, 'exposed', 91.5, true, "
+            "false, %s, %s)",
+            (
+                str(uuid4()),
+                str(tenant.organization_id),
+                str(later_assessment),
+                METHODOLOGY,
+                DIGEST,
+                DIGEST,
+                capped,
+                datetime.now(UTC) + timedelta(minutes=5),
+            ),
+        )
+
+    engine = create_engine(
+        postgres_database["owner_url"].replace("postgresql://", "postgresql+psycopg://")
+    )
+    try:
+        with engine.connect() as connection:
+            assessment = _latest_scored_assessment(connection, tenant.domain_id)
+            document = build_report_document(
+                connection,
+                "Instituție",
+                "capped.test",
+                tenant.domain_id,
+                assessment,
+                datetime.now(UTC),
+            )
+    finally:
+        engine.dispose()
+
+    assert document.uncapped_score == 71.5
+    assert len(document.caps_applied) == 1
+    cap = document.caps_applied[0]
+    assert cap.cap_id == "expired_certificate"
+    assert cap.ceiling == 54.0
+    assert cap.justification_ro and cap.justification_en, (
+        "the reason is written in the methodology and must reach the document"
+    )
+
+
+def test_discovered_names_reach_the_document_grouped_by_confidence(
+    postgres_database: dict[str, str],
+) -> None:
+    """The whole path again, not the helper.
+
+    Twice in this codebase a component has worked perfectly while nothing called it, so
+    this seeds candidates of differing strength and asserts the built document carries
+    them grouped, strongest first, with the weak ones counted rather than lost.
+    """
+    from siembiot.reports import _latest_scored_assessment, build_report_document
+
+    tenant = seed(postgres_database["owner_url"], domain="active.test")
+    with psycopg.connect(postgres_database["owner_url"], autocommit=True) as owner:
+        for index in range(20):
+            owner.execute(
+                "INSERT INTO asset_candidates (id, organization_id, domain_id, name, source, "
+                "attribution_confidence, attribution_basis, shared_hosting, state) "
+                "VALUES (%s, %s, %s, %s, 'certificate_transparency', %s, %s, %s, 'unreviewed')",
+                (
+                    str(uuid4()),
+                    str(tenant.organization_id),
+                    str(tenant.domain_id),
+                    f"weak-{index}.altceva.test",
+                    0.20,
+                    "unrelated_name",
+                    index < 3,
+                ),
+            )
+        owner.execute(
+            "INSERT INTO asset_candidates (id, organization_id, domain_id, name, source, "
+            "attribution_confidence, attribution_basis, shared_hosting, state) "
+            "VALUES (%s, %s, %s, 'mail.active.test', 'certificate_transparency', 0.90, "
+            "'subdomain_of_authorized_domain', false, 'unreviewed')",
+            (str(uuid4()), str(tenant.organization_id), str(tenant.domain_id)),
+        )
+
+    engine = create_engine(
+        postgres_database["owner_url"].replace("postgresql://", "postgresql+psycopg://")
+    )
+    try:
+        with engine.connect() as connection:
+            assessment = _latest_scored_assessment(connection, tenant.domain_id)
+            document = build_report_document(
+                connection,
+                "Instituție",
+                "active.test",
+                tenant.domain_id,
+                assessment,
+                datetime.now(UTC),
+            )
+    finally:
+        engine.dispose()
+
+    assert len(document.asset_groups) == 2
+    strongest, weakest = document.asset_groups
+    assert strongest.confidence == 0.9, "the strongest claim comes first"
+    assert strongest.names == ("mail.active.test",)
+    assert weakest.basis == "unrelated_name"
+    assert weakest.omitted > 0, "twenty weak names must not all be printed"
+    assert len(weakest.names) + weakest.omitted == 20, "none may be silently lost"
+    assert weakest.shared_hosting == 3

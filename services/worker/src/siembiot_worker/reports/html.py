@@ -71,6 +71,19 @@ _TEXT: dict[str, dict[str, str]] = {
         "legend": "Cum se citesc culorile",
         "legend_direction": "100 este cel mai bun rezultat, 0 cel mai slab.",
         "importance": "importanță",
+        "of_the_score": "din scor",
+        "how_scored_heading": "Cum a fost calculat scorul",
+        "how_scored": (
+            "Fiecare verificare primește un factor — îndeplinită 1, parțial 0,5, neîndeplinită 0 "
+            "— iar domeniile de mai sus se combină după ponderile arătate. Verificările "
+            "neconcludente nu scad scorul; ele reduc doar procentul de verificări efectuate."
+        ),
+        "cap_heading": "De ce scorul a fost limitat",
+        "cap_explained": (
+            "Metodologia limitează scorul la {ceiling} din 100 când această situație este "
+            "observată cu certitudine ridicată. Fără această limită, scorul ar fi fost "
+            "{uncapped}."
+        ),
         "importance_high": "ridicată",
         "importance_medium": "medie",
         "importance_low": "scăzută",
@@ -94,6 +107,19 @@ _TEXT: dict[str, dict[str, str]] = {
         "why": "De ce contează",
         "evidence_heading": "Ce am observat",
         "checked_heading": "Ce am verificat",
+        "assets_heading": "Nume descoperite public",
+        "assets_note": (
+            "Găsite în surse publice (jurnale de certificate, DNS). Nu sunt active confirmate: "
+            "organizația decide ce îi aparține. Indicele arată cât de puternică este legătura cu "
+            "domeniul evaluat."
+        ),
+        "asset_confidence": "indice",
+        "asset_omitted": "și încă",
+        "asset_shared": "pe găzduire partajată",
+        "basis.authorized_domain": "domeniul autorizat însuși",
+        "basis.subdomain_of_authorized_domain": "subdomeniu al domeniului autorizat",
+        "basis.unrelated_name": "nume fără legătură demonstrată",
+        "basis.shared_address": "aceeași adresă IP",
         "insights_heading": "Interpretarea automată a dovezilor",
         "insight.measured": "măsurat",
         "insight.inferred": "dedus",
@@ -290,6 +316,18 @@ _TEXT: dict[str, dict[str, str]] = {
         "legend": "How to read the colours",
         "legend_direction": "100 is the best result, 0 the worst.",
         "importance": "importance",
+        "of_the_score": "of the score",
+        "how_scored_heading": "How the score was calculated",
+        "how_scored": (
+            "Each check takes a factor — met 1, partly 0.5, unmet 0 — and the areas above combine "
+            "according to the weights shown. Inconclusive checks do not lower the score; they "
+            "only reduce the percentage of checks completed."
+        ),
+        "cap_heading": "Why the score was capped",
+        "cap_explained": (
+            "The methodology caps the score at {ceiling} out of 100 when this is observed with "
+            "high confidence. Without the cap the score would have been {uncapped}."
+        ),
         "importance_high": "high",
         "importance_medium": "medium",
         "importance_low": "low",
@@ -313,6 +351,19 @@ _TEXT: dict[str, dict[str, str]] = {
         "why": "Why it matters",
         "evidence_heading": "What we observed",
         "checked_heading": "What we checked",
+        "assets_heading": "Names discovered publicly",
+        "assets_note": (
+            "Found in public sources (certificate logs, DNS). Not confirmed assets: the "
+            "organization decides what belongs to it. The index shows how strong the link to the "
+            "assessed domain is."
+        ),
+        "asset_confidence": "index",
+        "asset_omitted": "and a further",
+        "asset_shared": "on shared hosting",
+        "basis.authorized_domain": "the authorized domain itself",
+        "basis.subdomain_of_authorized_domain": "subdomain of the authorized domain",
+        "basis.unrelated_name": "name with no demonstrated link",
+        "basis.shared_address": "same IP address",
         "insights_heading": "Automated reading of the evidence",
         "insight.measured": "measured",
         "insight.inferred": "inferred",
@@ -578,6 +629,11 @@ table.checked li { font-size: 0.78rem; line-height: 1.35; margin-bottom: 0.25rem
 .checked-note { font-size: 0.76rem; color: #5a6673; margin: 0.1rem 0 0.3rem; }
 .checked-na { font-size: 0.76rem; color: #7a8592; margin: 0.2rem 0 0; }
 
+h3.asset-basis { font-size: 0.82rem; margin: 0.7rem 0 0.25rem; color: #3d4854; }
+ul.assets { margin: 0; padding-left: 1.1rem; font-size: 0.8rem; line-height: 1.5;
+            column-count: 2; column-gap: 1.6rem; }
+ul.assets li { break-inside: avoid; }
+
 /* Visibly a different voice from the reviewed findings above it. Softer rule, indented
    block, no severity colours -- a reader should be able to tell at a glance that this
    part was written by a machine without having to read the caption first. */
@@ -664,9 +720,11 @@ def render_report(report: ReportDocument, locale: str = DEFAULT_LOCALE) -> str:
                 # worry this week; "two critical, four high" does.
                 _impact(report, locale),
                 _pillars(report, locale),
+                _how_scored(report, locale),
                 _checked(report, locale),
                 _findings(report, locale),
                 _insights(report, locale),
+                _assets(report, locale),
                 _not_determined(report, locale),
                 _footer(report, locale),
                 class_="sheet",
@@ -991,7 +1049,13 @@ def _pillars(report: ReportDocument, locale: str) -> Node:
                 element("td", number, class_="number"),
                 element(
                     "td",
-                    f"{_text(locale, 'importance')} {_importance(locale, pillar.weight)}",
+                    # The word and the number. An earlier version printed `0.15`, which
+                    # is a methodology parameter and means nothing to the reader; it was
+                    # replaced by "high importance", which means something but cannot be
+                    # checked. As a share of the score it is both -- the actual weight,
+                    # in the only unit a reader can act on when deciding what to fix.
+                    f"{_text(locale, 'importance')} {_importance(locale, pillar.weight)}"
+                    f" · {pillar.weight * 100:g}% {_text(locale, 'of_the_score')}",
                     class_="importance",
                 ),
             )
@@ -1259,6 +1323,43 @@ def _dot(outcome: str) -> str:
     return {"pass": "ok"}.get(outcome, outcome) if outcome in _KNOWN_DOTS else "unknown"
 
 
+def _how_scored(report: ReportDocument, locale: str) -> Node:
+    """The arithmetic behind the number, and any ceiling that overrode it.
+
+    The report showed a score, a band and six bars, and nothing that let a reader work
+    out how one produced the other. A deterministic methodology that does not show its
+    working is indistinguishable from an opinion, and an institution disputing a figure
+    had nothing to dispute with.
+
+    The cap matters most. A capped score is the one number that cannot be derived from
+    the pillars above it -- the arithmetic says one thing and the printed figure says
+    another -- so without the ceiling and its reason, the scoring looks arbitrary exactly
+    where it is at its most deliberate.
+    """
+    blocks: list[Node] = [
+        element("h2", _text(locale, "how_scored_heading")),
+        element("p", _text(locale, "how_scored"), class_="note"),
+    ]
+
+    for cap in report.caps_applied:
+        justification = _pick(locale, cap.justification_ro, cap.justification_en)
+        uncapped = "—" if report.uncapped_score is None else f"{report.uncapped_score:g}"
+        blocks.append(element("p", element("strong", _text(locale, "cap_heading"))))
+        blocks.append(
+            element(
+                "p",
+                _text(locale, "cap_explained")
+                .replace("{ceiling}", f"{cap.ceiling:g}")
+                .replace("{uncapped}", uncapped),
+                class_="note",
+            )
+        )
+        if justification:
+            blocks.append(element("p", justification))
+
+    return element("section", *blocks)
+
+
 def _findings(report: ReportDocument, locale: str) -> Element:
     ordered = report.findings_by_severity()
     if not ordered:
@@ -1411,6 +1512,47 @@ def _insights(report: ReportDocument, locale: str) -> Node:
             blocks.append(_evidence_disclosure(insight.evidence, locale))
 
     return element("section", element("div", *blocks, class_="insights"))
+
+
+def _assets(report: ReportDocument, locale: str) -> Node:
+    """Which names were discovered, and how strong the claim is that they belong here.
+
+    The report gave counts -- "83 discovered, 62 low-confidence" -- and nothing else. An
+    institution could not tell which 62, why those were weaker, or whether the 20 stronger
+    ones were theirs. A number nobody can act on is not disclosure.
+
+    Grouped by basis and ordered strongest first, because the basis is what carries the
+    meaning: a subdomain of the authorized domain is a different claim from a name that
+    merely resolves to the same address, and listing both as "discovered assets" would
+    assert an ownership the platform has not established. The names themselves come from
+    public certificate logs -- showing an institution what anybody can already look up
+    about it is the point of the section.
+    """
+    if not report.asset_groups:
+        return element("section")
+
+    blocks: list[Node] = [
+        element("h2", _text(locale, "assets_heading")),
+        element("p", _text(locale, "assets_note"), class_="note"),
+    ]
+    for group in report.asset_groups:
+        label = _TEXT[locale].get(f"basis.{group.basis}", group.basis)
+        heading = f"{label} — {_text(locale, 'asset_confidence')} {group.confidence:g}"
+        if group.shared_hosting:
+            heading += f" · {group.shared_hosting} {_text(locale, 'asset_shared')}"
+        items = [element("li", name) for name in group.names]
+        if group.omitted:
+            items.append(
+                element(
+                    "li",
+                    f"{_text(locale, 'asset_omitted')} {group.omitted}",
+                    class_="muted",
+                )
+            )
+        blocks.append(element("h3", heading, class_="asset-basis"))
+        blocks.append(element("ul", *items, class_="assets"))
+
+    return element("section", *blocks)
 
 
 def _not_determined(report: ReportDocument, locale: str) -> Element:
