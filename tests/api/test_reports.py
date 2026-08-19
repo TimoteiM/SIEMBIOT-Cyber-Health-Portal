@@ -14,11 +14,13 @@ import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 from uuid import UUID, uuid4
 
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "services" / "api" / "src"))
 
@@ -429,3 +431,80 @@ def test_pdf_availability_is_decided_at_mint_not_at_download(
     else:
         assert response.status_code == 503
         assert response.json()["error"]["code"] == RENDERER_UNAVAILABLE
+
+
+def _evaluation(
+    owner: Any,
+    tenant: Tenant,
+    *,
+    check_id: str,
+    subject: str,
+    result: str,
+    subject_kind: str = "domain",
+) -> None:
+    owner.execute(
+        "INSERT INTO check_evaluations (id, organization_id, assessment_id, check_id, "
+        "check_version, methodology_version, pillar, subject_kind, subject_identifier, "
+        "result, score_bearing, weight, severity, attribution_confidence, "
+        "source_confidence, freshness_confidence, evaluated_at) "
+        "VALUES (%s, %s, %s, %s, '1.0.0', %s, 'dns', %s, %s, %s, true, 1.0, "
+        "'medium', 1.0, 1.0, 1.0, now())",
+        (
+            str(uuid4()),
+            str(tenant.organization_id),
+            str(tenant.assessment_id),
+            check_id,
+            METHODOLOGY,
+            subject_kind,
+            subject,
+            result,
+        ),
+    )
+
+
+def test_the_check_summary_describes_the_domain_and_not_its_subdomains(
+    postgres_database: dict[str, str],
+) -> None:
+    """Three parts of one page must describe one subject.
+
+    An assessment evaluates the domain and every accepted subdomain. The score, the
+    pillars and the findings are all domain-only, so folding subdomain results into the
+    summary put a check under "requirements not met" while the pillar beside it said the
+    domain passed and no recommendation below explained either. A reader has no way to
+    resolve that, and nothing on the page admits the three are counting different things.
+    """
+    from siembiot.check_metadata import load_check_metadata
+    from siembiot.reports import _checks_for
+
+    tenant = seed(postgres_database["owner_url"], domain="raport.test")
+    with psycopg.connect(postgres_database["owner_url"], autocommit=True) as owner:
+        _evaluation(
+            owner, tenant, check_id="A.dnssec_enabled", subject="raport.test", result="pass"
+        )
+        _evaluation(
+            owner,
+            tenant,
+            check_id="A.dnssec_enabled",
+            subject="sub.raport.test",
+            result="fail",
+            subject_kind="hostname",
+        )
+
+    engine = create_engine(
+        postgres_database["owner_url"].replace("postgresql://", "postgresql+psycopg://")
+    )
+    try:
+        with engine.connect() as connection:
+            checks = _checks_for(
+                connection,
+                tenant.assessment_id,
+                load_check_metadata(METHODOLOGY),
+                "raport.test",
+            )
+    finally:
+        engine.dispose()
+
+    outcomes = {check.check_id: check.outcome for check in checks}
+    assert outcomes == {"A.dnssec_enabled": "pass"}, (
+        "a subdomain's failure was folded into the domain's summary"
+    )

@@ -172,6 +172,49 @@ _INTERNAL_ATTRIBUTES = frozenset({"mx_present", "conclusive", "status_detail"})
 _MAX_EVIDENCE_ROWS = 12
 
 
+#: Which field names a list item by, in preference order.
+#:
+#: Several collectors record a list of structures rather than of scalars -- open ports
+#: carry a service, an exposure class and a banner; mail servers carry a state and a
+#: banner. `str()` on one of those produces a Python dict repr, and the old code cut it
+#: at eighty characters, so a report to a public institution read
+#: `{'port': 22, 'service': 'ssh', 'exposure': 'remote_access', 'severity': 'high', ,` --
+#: mid-key, and one field short of printing the software version off their own server.
+#:
+#: So an item is named by the field a reader would recognise it by, and an item with no
+#: such field is left out rather than dumped.
+_ITEM_NAMES = ("port", "host", "name", "hostname", "address")
+
+#: How many items of a list are shown. The rest are counted, never silently dropped.
+_MAX_LIST_ITEMS = 6
+
+
+def _readable_list(value: list[Any]) -> str | None:
+    """One list attribute as a short string, or None when nothing in it can be shown."""
+    parts: list[str] = []
+    for item in value:
+        if isinstance(item, dict):
+            named = next(
+                (item[key] for key in _ITEM_NAMES if key in item and item[key] not in (None, "")),
+                None,
+            )
+            if named is None:
+                continue
+            parts.append(str(named)[:60])
+        elif item not in (None, ""):
+            parts.append(str(item)[:60])
+
+    if not parts:
+        return None
+    shown = parts[:_MAX_LIST_ITEMS]
+    rendered = ", ".join(shown)
+    if len(parts) > _MAX_LIST_ITEMS:
+        # Counted rather than trimmed away: a list cut without saying so reads as the
+        # whole list, which is the same failure the omitted-attribute count exists for.
+        rendered = f"{rendered} (+{len(parts) - len(shown)})"
+    return rendered[:200]
+
+
 def _readable(value: Any) -> str | None:
     """One evidence value as a short string, or None to omit it.
 
@@ -188,8 +231,7 @@ def _readable(value: Any) -> str | None:
     if isinstance(value, str):
         return value[:200]
     if isinstance(value, list):
-        parts = [str(item)[:80] for item in value[:6] if item not in (None, "")]
-        return ", ".join(parts)[:200] or None
+        return _readable_list(value)
     if isinstance(value, dict):
         # A breakdown -- open ports by exposure class is the only one so far. Rendered as
         # `name:count` pairs and translated by the renderer, which is where the
@@ -314,7 +356,10 @@ _OUTCOME_PRECEDENCE = ("fail", "warning", "unknown", "pass", "not_applicable")
 
 
 def _checks_for(
-    connection: Connection, assessment_id: UUID, metadata: dict[str, CheckMetadata]
+    connection: Connection,
+    assessment_id: UUID,
+    metadata: dict[str, CheckMetadata],
+    subject: str,
 ) -> tuple[ReportCheck, ...]:
     """Every check this assessment evaluated, with the outcome it reached.
 
@@ -326,6 +371,12 @@ def _checks_for(
     same reasoning that keeps an unknown finding in the list: dropping it would shorten
     the account of what was examined, and shortening that is the failure this section
     exists to prevent.
+
+    Scoped to the domain, because the score, the pillars and the findings all are. An
+    assessment also evaluates every accepted subdomain, and folding those in put a check
+    under "requirements not met" that had failed on a subdomain while the pillar beside
+    it said the domain passed and no finding explained either. Three parts of one page
+    describing three different subjects is worse than any of them being wrong.
     """
     rows = connection.execute(
         text(
@@ -333,9 +384,10 @@ def _checks_for(
             SELECT check_id, result
             FROM check_evaluations
             WHERE assessment_id = :assessment_id
+              AND subject_identifier = :subject
             """
         ),
-        {"assessment_id": assessment_id},
+        {"assessment_id": assessment_id, "subject": subject},
     ).mappings()
 
     worst = worst_outcome_per_check((str(row["check_id"]), str(row["result"])) for row in rows)
@@ -403,7 +455,7 @@ def build_report_document(
         for row in _findings_for(connection, domain_id)
     )
     withheld = _withheld_checks(connection, assessment["assessment_id"])
-    checks = _checks_for(connection, assessment["assessment_id"], metadata)
+    checks = _checks_for(connection, assessment["assessment_id"], metadata, domain_name)
 
     return ReportDocument(
         organization_name=organization_name,

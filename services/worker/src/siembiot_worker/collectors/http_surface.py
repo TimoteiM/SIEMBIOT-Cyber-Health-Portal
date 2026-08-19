@@ -123,7 +123,10 @@ def _combined_reason(secure: str, plaintext: str) -> str:
         return "site_unreachable"
     if secure == plaintext:
         return secure
-    return f"https_{secure}"
+    # Both, when they differ. Reporting only the HTTPS side hid an HTTP-side timeout
+    # behind whatever HTTPS happened to say, which is the same discarding of a reason
+    # this function was written to stop -- just one layer in.
+    return f"https_{secure},http_{plaintext}"
 
 
 class HTTPSurfaceCollector(Collector):

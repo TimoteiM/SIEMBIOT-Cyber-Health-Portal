@@ -167,9 +167,11 @@ def test_a_refusal_of_ours_is_not_reported_as_their_site_being_down() -> None:
     from siembiot_worker.collectors.http_surface import _combined_reason
 
     assert _combined_reason("response_too_large", "response_too_large") == "response_too_large"
+    # Both sides are named. Reporting only the HTTPS reason hid whatever went wrong on
+    # the plaintext side, which is the same discarding this function exists to stop.
     assert (
         _combined_reason("redirect_not_authorized", "no_addresses")
-        == "https_redirect_not_authorized"
+        == "https_redirect_not_authorized,http_no_addresses"
     )
 
 

@@ -669,3 +669,51 @@ def test_nothing_is_normalized_that_no_collector_produces() -> None:
     """
     unknown = sorted(_normalized_collector_names() - set(COLLECTOR_OPERATIONS))
     assert not unknown, f"normalized but no collector produces it: {unknown}"
+
+
+def test_a_run_whose_evidence_fails_to_persist_does_not_complete() -> None:
+    """The property, asserted by running it rather than by reading the source.
+
+    The previous attempt checked that a rollback helper was called. It was -- and it
+    could not work: terminal states are immutable, so `completed -> failed` was refused
+    and the refusal swallowed, leaving the run green with nothing stored. Two structural
+    tests passed the whole time.
+
+    Persistence now happens in the last step, so the question is simply whether a run
+    whose write raises can still reach a terminal success. It must not.
+    """
+    engine, repository, context, assessment, engine_clock = build("strong.example.test")
+
+    def explode() -> None:
+        raise RuntimeError("a check constraint rejected the write")
+
+    context.persist = explode
+    outcome = drive(engine, assessment, engine_clock)
+
+    assert outcome is not AssessmentState.COMPLETED
+    report_step = repository.load_steps(assessment)["report"]
+    assert report_step.state is not StepState.SUCCEEDED
+    assert report_step.last_error == "evidence_not_persisted"
+
+
+def test_a_run_whose_evidence_persists_completes_and_writes_once() -> None:
+    """The counterpart, so the guard is a condition rather than a blanket refusal -- and
+    so a retry loop that wrote the evidence repeatedly would be caught."""
+    engine, _, context, assessment, engine_clock = build("strong.example.test")
+    written: list[str] = []
+    context.persist = lambda: written.append("once")
+
+    outcome = drive(engine, assessment, engine_clock)
+
+    assert outcome in {AssessmentState.COMPLETED, AssessmentState.PARTIALLY_COMPLETED}
+    assert written == ["once"]
+
+
+def test_a_run_with_no_writer_configured_behaves_as_before() -> None:
+    """Every existing test builds a context without one, and they must keep passing."""
+    engine, _, context, assessment, engine_clock = build("strong.example.test")
+    context.persist = None
+    assert drive(engine, assessment, engine_clock) in {
+        AssessmentState.COMPLETED,
+        AssessmentState.PARTIALLY_COMPLETED,
+    }

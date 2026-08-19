@@ -1157,3 +1157,44 @@ def test_the_action_column_opens_with_the_worst_of_it() -> None:
         markup.index(f"Titlu {name}") for name in ("B.failure", "A.warning_one", "C.warning_two")
     ]
     assert positions == sorted(positions), "a warning is rendered above a failure"
+
+
+def test_a_list_of_structures_never_renders_as_a_python_repr() -> None:
+    """What a public institution nearly read under "which ports".
+
+    `str()` on a port record produced a dict repr, cut at eighty characters, so the
+    report said `{'port': 22, 'service': 'ssh', 'exposure': 'remote_access', 'severity':`
+    -- mid-key, and one field short of printing the software version off their own
+    server. Items are named by a field a reader recognises, and a banner is not one.
+    """
+    from siembiot.reports import _evidence_rows
+
+    rows = dict(
+        _evidence_rows(
+            {
+                "open_ports": [
+                    {"port": 22, "service": "ssh", "banner": "OpenSSH_8.9p1 Ubuntu"},
+                    {"port": 3306, "service": "mysql", "banner": "8.0.35-0ubuntu0.22.04.1"},
+                ]
+            }
+        )
+    )
+    assert rows["open_ports"] == "22, 3306"
+    assert "{" not in rows["open_ports"]
+    assert "OpenSSH" not in rows["open_ports"], "a service banner reached the report"
+
+
+def test_a_list_longer_than_the_cap_says_how_many_it_left_out() -> None:
+    """A list cut without saying so reads as the whole list."""
+    from siembiot.reports import _evidence_rows
+
+    rows = dict(_evidence_rows({"open_ports": [{"port": port} for port in range(20, 30)]}))
+    assert rows["open_ports"].endswith("(+4)")
+
+
+def test_an_item_with_nothing_recognisable_is_left_out_not_dumped() -> None:
+    """The fall-back for a shape this code has not been taught. Showing an unreadable
+    row would be worse than showing none: it looks like evidence and carries none."""
+    from siembiot.reports import _evidence_rows
+
+    assert _evidence_rows({"mystery": [{"unknown_shape": "value"}]}) == ()

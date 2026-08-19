@@ -26,8 +26,6 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import Engine
-
 from siembiot_worker.backups import (
     NO_CREDENTIALS,
     BackupOutcome,
@@ -243,45 +241,42 @@ def run_assessment(
     )
 
     database = _tenant_engine()
+
+    def persist() -> None:
+        """Write this run's evidence in one transaction.
+
+        Handed to the workflow rather than run after it: the last step calls this, so a
+        failure fails that step instead of leaving a run marked `completed` with nothing
+        stored. Terminal states are immutable, so there is no taking that word back once
+        the engine has said it.
+        """
+        if not context.observations:
+            return
+        with _evidence_transaction(database, organization_id) as connection:
+            evidence = EvidenceRepository(connection, organization_id, domain_id)
+            persist_assessment(
+                evidence,
+                assessment_id=assessment_id,
+                domain_id=domain_id,
+                catalog=catalog,
+                # The domain's own evidence and every accepted host's, written together.
+                # They are separate in the context so the score cannot pick up a
+                # subdomain's result; once scored, they are the same evidence.
+                observations=(*context.observations, *context.asset_observations),
+                evaluations=(*context.evaluations, *context.asset_evaluations),
+                snapshot=context.snapshot,
+                findings=context.findings,
+                asset_candidates=context.asset_candidates,
+                observed_at=datetime.now(UTC),
+            )
+
+    context.persist = persist
     try:
         with _workflow_connection(database, organization_id) as connection:
             workflow = PostgresWorkflowRepository(connection, organization_id)
             engine = WorkflowEngine(workflow, build_handlers(context))
             state = engine.run(assessment_id, organization_id)
 
-        # Evidence is written whenever there is any, not only on a clean finish, so a
-        # partially completed run keeps what it managed to collect.
-        # The engine has already marked the run terminal by this point, so a failure
-        # here used to leave an assessment reading `completed` with nothing stored
-        # behind it -- and a report could then be minted whose findings cited no
-        # evidence at all. Not hypothetical: a check constraint rejected one write and
-        # the run still reported success, with zero observations saved.
-        #
-        # The state is taken back before the error propagates. `failed` is the honest
-        # word -- the run produced no usable result -- and the sweep picks it up again
-        # rather than leaving a hollow record to be read as a measurement.
-        if context.observations:
-            try:
-                with _evidence_transaction(database, organization_id) as connection:
-                    evidence = EvidenceRepository(connection, organization_id, domain_id)
-                    persist_assessment(
-                        evidence,
-                        assessment_id=assessment_id,
-                        domain_id=domain_id,
-                        catalog=catalog,
-                        # The domain's own evidence and every accepted host's, written
-                        # together. They are separate in the context so the score cannot pick
-                        # up a subdomain's result; once scored, they are the same evidence.
-                        observations=(*context.observations, *context.asset_observations),
-                        evaluations=(*context.evaluations, *context.asset_evaluations),
-                        snapshot=context.snapshot,
-                        findings=context.findings,
-                        asset_candidates=context.asset_candidates,
-                        observed_at=datetime.now(UTC),
-                    )
-            except Exception:
-                _mark_evidence_not_persisted(database, assessment_id, organization_id)
-                raise
     finally:
         # In a finally block because the run above can raise: an engine left behind on
         # the error path holds its pooled connections open, and a worker that fails
@@ -289,25 +284,6 @@ def run_assessment(
         # failing repeatedly.
         database.dispose()
     return str(state)
-
-
-def _mark_evidence_not_persisted(
-    database: Engine, assessment_id: UUID, organization_id: UUID
-) -> None:
-    """Take back the terminal state a run no longer deserves.
-
-    Best effort by necessity. If the database is what failed then this fails too, and
-    raising from here would replace the real error with a less useful one. A run left
-    `completed` because even this could not run is still wrong, but it is wrong in a way
-    the original traceback explains.
-    """
-    try:
-        with _workflow_connection(database, organization_id) as connection:
-            PostgresWorkflowRepository(connection, organization_id).set_state(
-                assessment_id, AssessmentState.FAILED
-            )
-    except Exception:  # noqa: BLE001 - never mask the failure that brought us here
-        log.exception("could not mark assessment %s as failed", assessment_id)
 
 
 def _accepted_assets(organization_id: UUID, domain_id: UUID) -> tuple[str, ...]:

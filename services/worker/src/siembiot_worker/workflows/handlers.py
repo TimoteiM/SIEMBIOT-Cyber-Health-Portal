@@ -120,6 +120,13 @@ class AssessmentContext:
     #: The model's interpretation, when one was produced. Never required by anything
     #: downstream: a report renders identically without it.
     narrative: Any | None = None
+    #: Writes this run's evidence, called by the last step rather than after the run.
+    #:
+    #: A callable rather than a repository because the workflow holds one connection and
+    #: the evidence write needs its own transaction; the task supplies the closure that
+    #: knows how to open it. `None` in tests, which assert step behaviour and have no
+    #: database to write to.
+    persist: Any | None = None
     snapshot: ScoreSnapshot | None = None
     findings: tuple[Finding, ...] = ()
     asset_candidates: tuple[AssetCandidate, ...] = ()
@@ -650,9 +657,29 @@ def build_handlers(context: AssessmentContext) -> dict[str, StepHandler]:
         return outcome
 
     def report(step: StepContext) -> StepOutcome:
+        """The last step, and the one that makes the run's evidence durable.
+
+        Persistence used to happen after `engine.run()` returned, which is after the run
+        had already been marked terminal. A failure there left an assessment reading
+        `completed` with nothing stored behind it, and the attempt to take that state
+        back could not work: terminal states are immutable, so `completed -> failed` was
+        refused and the refusal was swallowed. The run stayed green and empty.
+
+        Doing it here instead needs no new transition and no exception to the
+        immutability rule. If the write fails the step fails, the run never reaches
+        `completed`, and the sweep picks it up again -- which is what the step machinery
+        is for. The write is one transaction, so a retry starts from nothing rather than
+        from half a run.
+        """
         step.check_cancelled()
         if context.snapshot is None:
             return StepOutcome.fail("no_snapshot_to_report")
+        if context.persist is not None:
+            try:
+                context.persist()
+            except Exception:  # noqa: BLE001 - reported as a failed step, not a crash
+                log.exception("evidence was not persisted for %s", context.assessment_id)
+                return StepOutcome.fail("evidence_not_persisted")
         return StepOutcome.ok(report_ready=True)
 
     return {
