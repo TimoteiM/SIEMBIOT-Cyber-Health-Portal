@@ -60,7 +60,9 @@ Migrations are a one-shot job because an API that migrates on boot races itself 
 moment there is more than one replica, and because it would need the owner credential
 in the environment of the process that serves requests.
 
-Before anything can be assessed, the policy catalog must be registered:
+### Publishing the policy catalog
+
+**Once per methodology version, not once per deployment.**
 
 ```
 python scripts/publish_methodology.py
@@ -68,7 +70,55 @@ python scripts/publish_methodology.py
 
 Every assessment, finding and score carries a foreign key to the methodology version
 that produced it, so a report can always be traced to the exact policy it was scored
-against.
+against. That foreign key is also why this is not optional: a version the catalog names
+and the database has never heard of does not degrade anything, it fails every assessment.
+
+The sentence that matters is the first one. It is easy to read this as first-deploy setup
+and then ship a release that changes `CURRENT_METHODOLOGY_VERSION` without running it
+again — which is exactly what happened when 1.3.0 was published in the repository and not
+in the database. Bumping the constant is not publishing.
+
+**What it looks like when it is missed.** Assessments fail. Not "score oddly" — fail,
+several steps from the cause, with:
+
+```
+psycopg.errors.ForeignKeyViolation: insert or update on table "check_evaluations"
+violates foreign key constraint "check_evaluations_methodology_version_fkey"
+DETAIL:  Key is not present in table "methodology_versions".
+```
+
+Nothing in that message says "run the publish script". The run reaches `failed` with
+`evidence_not_persisted` on the report step, which is correct — evidence that could not be
+written must not leave a run looking complete — but it points at persistence rather than
+at the missing row.
+
+**What catches it.** `scripts/smoke_test.py` refuses a deployment whose active methodology
+is unregistered, so the omission is found while somebody is still watching the deploy
+rather than by the first institution to be assessed.
+
+It is deliberately not a readiness check. Serving a report scored last week needs nothing
+from the new version, so taking the API out of rotation over an unpublished catalog would
+turn a two-second omission into an outage.
+
+Publishing is also deliberately not a migration. A migration would freeze one digest into
+the schema history, and the catalog in `packages/policy/` changes on its own schedule.
+Re-publishing a version whose digest has changed is refused, because rows already scored
+against the old policy would otherwise be silently redefined.
+
+**So a release that changes the methodology needs three things, in order:** migrate,
+publish, then deploy the code that names the new version.
+
+### Code changes need the worker restarted
+
+A Celery worker holds the code it started with. Restarting the API and the interface while
+leaving the worker running produces a deployment where reports render new fields from
+observations an old collector never gathered — every symptom of a broken feature, with the
+feature working perfectly in the tests.
+
+There is no signal for this. The worker logs nothing on a code change because nothing
+happens on a code change; it goes on running the version it loaded. `docker compose up -d`
+replaces the container and is enough. A worker started by hand for local work is not
+restarted by anything, and that is where the hours go.
 
 ## Probes
 

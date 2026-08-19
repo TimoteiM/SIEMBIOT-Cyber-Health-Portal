@@ -135,6 +135,55 @@ def check_worker_uses_its_own_role() -> Result:
     return Result("worker database role", role == "siembiot_worker", f"role {role or 'unknown'}")
 
 
+def check_the_active_methodology_is_registered() -> Result:
+    """The step between a migration and a working deployment, and the one that is
+    easiest to miss because nothing about the code says it is outstanding.
+
+    Bumping `CURRENT_METHODOLOGY_VERSION` is not publishing. Every assessment,
+    evaluation, finding and score snapshot carries a foreign key to the methodology
+    version that produced it, so a version the catalogue names and the database has never
+    heard of does not degrade anything -- it fails every assessment on a foreign key,
+    several steps away from the cause, with a message that names a constraint rather than
+    a missing deploy step.
+
+    Checked here rather than in readiness on purpose. Serving a report that was scored
+    last week needs nothing from the new version, so taking the API out of rotation over
+    an unpublished catalogue would turn a two-second omission into an outage. A deploy
+    check fails at the moment somebody can still act on it, which is what this file is
+    for.
+    """
+    output = compose(
+        "exec",
+        "-T",
+        "worker",
+        "python",
+        "-c",
+        (
+            "import os, sys, psycopg;"
+            "sys.path.insert(0, '/app/services/worker/src');"
+            "from siembiot_worker.policy.catalog import CURRENT_METHODOLOGY_VERSION as v;"
+            "url = os.environ['SIEMBIOT_WORKER_DATABASE_URL'].replace('+psycopg', '');"
+            "c = psycopg.connect(url);"
+            "row = c.execute("
+            "'SELECT 1 FROM methodology_versions WHERE version = %s', (v,)"
+            ").fetchone();"
+            'print(f\'{v}:{"registered" if row else "MISSING"}\')'
+        ),
+    )
+    reported = output.strip().splitlines()[-1] if output.strip() else ""
+    version, _, state = reported.partition(":")
+    return Result(
+        "methodology registered",
+        state == "registered",
+        (
+            f"{version} is registered"
+            if state == "registered"
+            else f"{version or 'unknown'} is not in methodology_versions -- "
+            "run scripts/publish_methodology.py"
+        ),
+    )
+
+
 def check_web_reaches_the_api() -> Result:
     """The web tier proxies /api to the API service.
 
@@ -222,6 +271,7 @@ def main() -> int:
         check_api_filesystem_is_read_only,
         check_api_uses_the_least_privileged_role,
         check_worker_uses_its_own_role,
+        check_the_active_methodology_is_registered,
         check_database_is_not_published,
         check_web_serves,
         check_web_reaches_the_api,

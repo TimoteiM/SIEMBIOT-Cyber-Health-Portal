@@ -182,6 +182,29 @@ make worker-serve     # consumes the assessments queue
 make beat-serve       # THE SCHEDULER. Without it nothing runs.
 ```
 
+### The worker holds the code it started with
+
+Nothing reloads it. Change a collector, a normalizer or the task itself, and the running
+worker goes on using the version it loaded — silently, because a process that has not been
+told to do anything different does not report that it did nothing.
+
+The symptom is a feature that works in the tests and does nothing in the product. It has
+cost real time here more than once: a reputation provider that ran and produced results
+nobody could see, a report field that stayed empty because the old collector never gathered
+what the new one does, and a DKIM declaration the worker read from a table it had loaded
+code to ignore.
+
+Restart it whenever worker-side code changes. In production `docker compose up -d` replaces
+the container. Locally nothing does it for you, so a change that looks inert is worth
+suspecting here before it is worth debugging anywhere else.
+
+### And the scheduler holds nothing at all
+
+Beat reads its schedule from configuration on every start, so restarting it is free and
+losing `/tmp/celerybeat-schedule` costs nothing. The asymmetry is worth remembering: if
+work is not starting, suspect beat is absent; if work is starting and behaving as it did
+last week, suspect the worker was never restarted.
+
 ## Telling whether they are working
 
 Beat says what it sent:
